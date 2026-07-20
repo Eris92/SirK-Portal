@@ -1,0 +1,13 @@
+{
+  "name": "meshcentral-mycompany",
+  "version": "0.1.0",
+  "private": true,
+  "main": "mycompany.js",
+  "scripts": {
+    "test": "node test/structure.test.js",
+    "sync:legacy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-legacy.ps1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
