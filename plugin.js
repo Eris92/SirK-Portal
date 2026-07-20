@@ -34,24 +34,57 @@ module.exports.mycompany = function (parent) {
             button.textContent = label;
             button.className = "btn btn-secondary btn-sm";
             button.style.marginRight = "8px";
+            button.style.marginBottom = "6px";
             button.onclick = function () { app.showModule(moduleName); };
             button.setAttribute("data-mycompany-module", moduleName);
             return button;
         }
 
+        app.layoutWorkspace = function () {
+            var host = document.getElementById("MyCompanyWorkspace");
+            if (!host) return;
+
+            var left = 0;
+            var top = 0;
+            var leftMenu = document.getElementById("LeftMenuMyDevices") || document.getElementById("LeftMenu");
+            var topBar = document.getElementById("topbar") || document.getElementById("masthead") || document.querySelector("header");
+
+            try {
+                if (leftMenu) {
+                    var menuContainer = leftMenu.parentElement || leftMenu;
+                    var menuRect = menuContainer.getBoundingClientRect();
+                    left = Math.max(0, Math.round(menuRect.right));
+                }
+                if (topBar) {
+                    var topRect = topBar.getBoundingClientRect();
+                    top = Math.max(0, Math.round(topRect.bottom));
+                }
+            } catch (error) { }
+
+            if (left < 40) left = 84;
+            if (top < 30) top = 48;
+
+            host.style.left = left + "px";
+            host.style.top = top + "px";
+            host.style.width = "calc(100vw - " + left + "px)";
+            host.style.height = "calc(100vh - " + top + "px)";
+        };
+
         app.ensureWorkspace = function () {
             var host = document.getElementById("MyCompanyWorkspace");
-            if (host) return host;
+            if (host) {
+                app.layoutWorkspace();
+                return host;
+            }
 
             host = document.createElement("div");
             host.id = "MyCompanyWorkspace";
             host.style.display = "none";
             host.style.position = "fixed";
-            host.style.left = "0";
-            host.style.right = "0";
-            host.style.top = "48px";
-            host.style.bottom = "0";
+            host.style.right = "auto";
+            host.style.bottom = "auto";
             host.style.zIndex = "900";
+            host.style.boxSizing = "border-box";
             host.style.background = "var(--bs-body-bg, #fff)";
             host.style.color = "var(--bs-body-color, #222)";
             host.style.overflow = "auto";
@@ -61,11 +94,13 @@ module.exports.mycompany = function (parent) {
             header.style.display = "flex";
             header.style.alignItems = "center";
             header.style.justifyContent = "space-between";
+            header.style.gap = "16px";
             header.style.marginBottom = "16px";
 
             var title = document.createElement("h2");
             title.textContent = "My Company";
             title.style.margin = "0";
+            title.style.minWidth = "0";
             header.appendChild(title);
 
             var close = document.createElement("button");
@@ -78,7 +113,10 @@ module.exports.mycompany = function (parent) {
 
             var nav = document.createElement("div");
             nav.id = "MyCompanyNavigation";
-            nav.style.marginBottom = "18px";
+            nav.style.display = "flex";
+            nav.style.flexWrap = "wrap";
+            nav.style.alignItems = "center";
+            nav.style.marginBottom = "12px";
             nav.appendChild(createButton("Scripts", "scripts"));
             nav.appendChild(createButton("Commands", "commands"));
             nav.appendChild(createButton("Approvals", "approvals"));
@@ -92,9 +130,11 @@ module.exports.mycompany = function (parent) {
             content.style.borderRadius = "6px";
             content.style.padding = "18px";
             content.style.minHeight = "260px";
+            content.style.boxSizing = "border-box";
             host.appendChild(content);
 
             document.body.appendChild(host);
+            app.layoutWorkspace();
             return host;
         };
 
@@ -129,7 +169,9 @@ module.exports.mycompany = function (parent) {
                 var selected = button.getAttribute("data-mycompany-module") === app.activeModule;
                 button.className = selected ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm";
                 button.style.marginRight = "8px";
+                button.style.marginBottom = "6px";
             });
+            app.layoutWorkspace();
             workspace.style.display = "block";
             try { window.history.replaceState(null, "", "?viewmode=106&mycompany=" + encodeURIComponent(app.activeModule)); } catch (error) { }
             return false;
@@ -174,10 +216,12 @@ module.exports.mycompany = function (parent) {
                 if (text) text.textContent = "My Company";
                 leftAnchor.parentNode.insertBefore(left, leftAnchor.nextSibling);
             }
+            app.layoutWorkspace();
         };
 
         app.ensureWorkspace();
         app.ensureMenus();
+        window.addEventListener("resize", app.layoutWorkspace);
         window.setTimeout(app.ensureMenus, 1000);
         window.setTimeout(app.ensureMenus, 3000);
 
