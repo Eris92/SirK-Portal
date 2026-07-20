@@ -30,6 +30,23 @@ module.exports.mycompany = function (parent) {
         app.opening = false;
         app.activeModule = "scripts";
         app.nativeState = null;
+        app.modules = {
+            scripts: { label: "Scripts", viewmode: 101, globals: ["MyScripts"], menuIds: ["MainMenuMyScripts", "LeftMenuMyScripts"] },
+            commands: { label: "Commands", viewmode: 102, globals: ["MyCommands"], menuIds: ["MainMenuMyCommands", "LeftMenuMyCommands"] },
+            approvals: { label: "Approvals", viewmode: 105, globals: ["ApprovalCenter"], menuIds: ["MainMenuApprovalCenter", "LeftMenuApprovalCenter"] },
+            move: { label: "Move Requests", viewmode: 104, globals: ["MoveRequest", "MoveRequests"], menuIds: ["MainMenuMoveRequest", "LeftMenuMoveRequest"] }
+        };
+
+        function moduleAvailable(definition) {
+            var index;
+            for (index = 0; index < definition.globals.length; index++) {
+                if (window[definition.globals[index]]) return true;
+            }
+            for (index = 0; index < definition.menuIds.length; index++) {
+                if (document.getElementById(definition.menuIds[index])) return true;
+            }
+            return false;
+        }
 
         function createButton(label, moduleName) {
             var button = document.createElement("button");
@@ -38,7 +55,7 @@ module.exports.mycompany = function (parent) {
             button.className = "btn btn-secondary btn-sm";
             button.style.marginRight = "8px";
             button.style.marginBottom = "8px";
-            button.onclick = function () { app.showModule(moduleName); };
+            button.onclick = function () { return app.showModule(moduleName); };
             button.setAttribute("data-mycompany-module", moduleName);
             return button;
         }
@@ -58,42 +75,41 @@ module.exports.mycompany = function (parent) {
             var page = document.getElementById("p1");
             var titleHost = document.getElementById("p1title");
             if (!page || !titleHost) return null;
-
             var host = document.getElementById("MyCompanyWorkspace");
-            if (!host) {
-                host = document.createElement("div");
-                host.id = "MyCompanyWorkspace";
-                host.style.display = "none";
-                host.style.boxSizing = "border-box";
-                host.style.width = "100%";
-                host.style.height = "calc(100vh - 104px)";
-                host.style.minHeight = "0";
-                host.style.overflow = "auto";
-                host.style.padding = "8px 12px 18px";
+            if (host) return host;
 
-                var nav = document.createElement("div");
-                nav.id = "MyCompanyNavigation";
-                nav.style.display = "flex";
-                nav.style.flexWrap = "wrap";
-                nav.style.alignItems = "center";
-                nav.style.marginBottom = "10px";
-                nav.appendChild(createButton("Scripts", "scripts"));
-                nav.appendChild(createButton("Commands", "commands"));
-                nav.appendChild(createButton("Approvals", "approvals"));
-                nav.appendChild(createButton("Move Requests", "move"));
-                nav.appendChild(createButton("Settings", "settings"));
-                host.appendChild(nav);
+            host = document.createElement("div");
+            host.id = "MyCompanyWorkspace";
+            host.style.display = "none";
+            host.style.boxSizing = "border-box";
+            host.style.width = "100%";
+            host.style.height = "calc(100vh - 104px)";
+            host.style.minHeight = "0";
+            host.style.overflow = "auto";
+            host.style.padding = "8px 12px 18px";
 
-                var content = document.createElement("div");
-                content.id = "MyCompanyContent";
-                content.style.border = "1px solid rgba(127,127,127,.65)";
-                content.style.borderRadius = "5px";
-                content.style.padding = "18px";
-                content.style.minHeight = "260px";
-                content.style.boxSizing = "border-box";
-                host.appendChild(content);
-                page.appendChild(host);
-            }
+            var nav = document.createElement("div");
+            nav.id = "MyCompanyNavigation";
+            nav.style.display = "flex";
+            nav.style.flexWrap = "wrap";
+            nav.style.alignItems = "center";
+            nav.style.marginBottom = "10px";
+            nav.appendChild(createButton("Scripts", "scripts"));
+            nav.appendChild(createButton("Commands", "commands"));
+            nav.appendChild(createButton("Approvals", "approvals"));
+            nav.appendChild(createButton("Move Requests", "move"));
+            nav.appendChild(createButton("Settings", "settings"));
+            host.appendChild(nav);
+
+            var content = document.createElement("div");
+            content.id = "MyCompanyContent";
+            content.style.border = "1px solid rgba(127,127,127,.65)";
+            content.style.borderRadius = "5px";
+            content.style.padding = "18px";
+            content.style.minHeight = "260px";
+            content.style.boxSizing = "border-box";
+            host.appendChild(content);
+            page.appendChild(host);
             return host;
         };
 
@@ -102,19 +118,13 @@ module.exports.mycompany = function (parent) {
             var titleHost = document.getElementById("p1title");
             var workspace = app.ensureWorkspace();
             if (!page || !titleHost || !workspace) return null;
-
             var heading = titleHost.querySelector("h1") || titleHost.querySelector(".fs-4") || titleHost.querySelector("h2");
             if (!app.nativeState) {
                 var hidden = [];
                 for (var child = page.firstElementChild; child; child = child.nextElementSibling) {
                     if (child !== titleHost && child !== workspace) hidden.push(hideElement(child));
                 }
-                app.nativeState = {
-                    heading: heading,
-                    headingText: heading ? heading.textContent : "",
-                    hidden: hidden,
-                    toolbar: hideElement(titleHost.querySelector('[id="devListToolbarViewIcons"]'))
-                };
+                app.nativeState = { heading: heading, headingText: heading ? heading.textContent : "", hidden: hidden, toolbar: hideElement(titleHost.querySelector('[id="devListToolbarViewIcons"]')) };
             }
             if (heading) heading.textContent = "My Company";
             workspace.style.display = "block";
@@ -133,42 +143,75 @@ module.exports.mycompany = function (parent) {
             app.nativeState = null;
         };
 
-        app.showModule = function (moduleName) {
-            app.activeModule = moduleName || "scripts";
-            var labels = {
-                scripts: ["Scripts", "Module prepared for migration of My Scripts files."],
-                commands: ["Commands", "Module prepared for migration of My Commands files."],
-                approvals: ["Approvals", "Shared approval queue and provider configuration."],
-                move: ["Move Requests", "Requests for moving devices between MeshCentral groups."],
-                settings: ["Settings", "Module visibility, credentials and integration settings."]
-            };
-            var current = labels[app.activeModule] || labels.scripts;
-            if (!app.showNativePage()) return false;
+        app.openLegacyModule = function (moduleName) {
+            var definition = app.modules[moduleName];
+            if (!definition) return false;
+            app.restoreNativePage();
+            app.active = false;
+            app.activeModule = moduleName;
+            try {
+                if (typeof window.go === "function") {
+                    window.go(definition.viewmode);
+                } else {
+                    window.location.href = "?viewmode=" + definition.viewmode;
+                }
+            } catch (error) {
+                window.location.href = "?viewmode=" + definition.viewmode;
+            }
+            return false;
+        };
 
+        app.renderSettings = function () {
+            if (!app.showNativePage()) return false;
             var content = document.getElementById("MyCompanyContent");
             content.innerHTML = "";
             var heading = document.createElement("h3");
-            heading.textContent = current[0];
+            heading.textContent = "Modules";
             heading.style.marginTop = "0";
             content.appendChild(heading);
-            var note = document.createElement("p");
-            note.textContent = current[1];
-            content.appendChild(note);
-            var status = document.createElement("div");
-            status.className = "alert alert-info";
-            status.textContent = "MyCompany UI is loaded correctly. The next migration stage will connect the existing module backend and files.";
-            content.appendChild(status);
 
-            Array.prototype.forEach.call(document.querySelectorAll("#MyCompanyNavigation [data-mycompany-module]"), function (button) {
-                var selected = button.getAttribute("data-mycompany-module") === app.activeModule;
-                button.className = selected ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm";
-                button.style.marginRight = "8px";
-                button.style.marginBottom = "8px";
+            Object.keys(app.modules).forEach(function (key) {
+                var definition = app.modules[key];
+                var row = document.createElement("div");
+                row.style.display = "flex";
+                row.style.alignItems = "center";
+                row.style.justifyContent = "space-between";
+                row.style.gap = "12px";
+                row.style.padding = "10px 0";
+                row.style.borderBottom = "1px solid rgba(127,127,127,.25)";
+                var text = document.createElement("div");
+                var title = document.createElement("strong");
+                title.textContent = definition.label;
+                var detail = document.createElement("div");
+                detail.textContent = moduleAvailable(definition) ? "Installed and connected" : "Not detected - install or enable the source plugin";
+                detail.style.opacity = ".8";
+                text.appendChild(title);
+                text.appendChild(detail);
+                var open = document.createElement("button");
+                open.type = "button";
+                open.className = moduleAvailable(definition) ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm";
+                open.textContent = "Open";
+                open.disabled = !moduleAvailable(definition);
+                open.onclick = function () { return app.openLegacyModule(key); };
+                row.appendChild(text);
+                row.appendChild(open);
+                content.appendChild(row);
             });
+
+            var note = document.createElement("div");
+            note.className = "alert alert-info";
+            note.style.marginTop = "16px";
+            note.textContent = "My Company now acts as the common entry point. Each button opens the existing production module without duplicating its backend, data or permissions.";
+            content.appendChild(note);
             app.active = true;
             window.xxcurrentView = 106;
-            try { window.history.replaceState(null, "", "?viewmode=106&mycompany=" + encodeURIComponent(app.activeModule)); } catch (error) { }
             return false;
+        };
+
+        app.showModule = function (moduleName) {
+            app.activeModule = moduleName || "scripts";
+            if (app.activeModule === "settings") return app.renderSettings();
+            return app.openLegacyModule(app.activeModule);
         };
 
         app.open = function (event) {
@@ -177,7 +220,7 @@ module.exports.mycompany = function (parent) {
             app.opening = true;
             try {
                 if (typeof window.go === "function") window.go(1);
-                app.showModule(app.activeModule || "scripts");
+                app.renderSettings();
                 if (event && event.preventDefault) event.preventDefault();
                 if (event && event.stopPropagation) event.stopPropagation();
                 return false;
@@ -202,7 +245,6 @@ module.exports.mycompany = function (parent) {
                 main.onmouseup = app.open;
                 mainAnchor.parentNode.insertBefore(main, mainAnchor.nextSibling);
             }
-
             var leftAnchor = document.getElementById("LeftMenuMyDevices");
             if (leftAnchor && leftAnchor.parentNode && !document.getElementById("LeftMenuMyCompany")) {
                 var left = leftAnchor.cloneNode(true);
@@ -222,10 +264,9 @@ module.exports.mycompany = function (parent) {
         app.ensureMenus();
         window.setTimeout(app.ensureMenus, 1000);
         window.setTimeout(app.ensureMenus, 3000);
-
         try {
             var query = new URL(window.location.href).searchParams;
-            if (query.get("viewmode") === "106" || query.get("mycompany")) app.showModule(query.get("mycompany") || "scripts");
+            if (query.get("viewmode") === "106" || query.get("mycompany")) app.renderSettings();
         } catch (error) { }
     };
 
