@@ -14,13 +14,17 @@ Repozytorium korzysta z Git submodules, dzięki czemu zachowuje pełny kod i his
 ```powershell
 git clone --recurse-submodules https://github.com/Eris92/MeshCentral-MyCompany.git
 cd MeshCentral-MyCompany
-npm test
+npm run prepare:test
 ```
 
 Dla istniejącego klona:
 
 ```powershell
+git pull
+git submodule sync --recursive
 git submodule update --init --recursive
+npm run sync:files
+npm test
 ```
 
 ## Architektura docelowa
@@ -30,7 +34,11 @@ MeshCentral-MyCompany/
 ├── core/
 ├── modules/
 │   ├── scripts/
+│   │   ├── index.js
+│   │   └── Files/       # kopia źródeł MeshCentral-MyScripts
 │   ├── commands/
+│   │   ├── index.js
+│   │   └── Files/       # kopia źródeł MeshCentral-MyCommands
 │   ├── approvals/
 │   └── move/
 ├── public/
@@ -40,7 +48,22 @@ MeshCentral-MyCompany/
 └── docs/
 ```
 
-`legacy/` zawiera niezmienione źródła dotychczasowych pluginów jako submodules. Nowy kod należy przenosić etapami do `core/` i `modules/`, bez modyfikowania źródeł referencyjnych.
+Nazwa `Files` została użyta zamiast kolejnego katalogu `scripts`, żeby nie tworzyć nieczytelnej ścieżki `modules/scripts/scripts`.
+
+`legacy/` zawiera niezmienione źródła dotychczasowych pluginów jako submodules. Polecenie:
+
+```powershell
+npm run sync:files
+```
+
+kopiuje pełne źródła:
+
+```text
+legacy/myscripts  -> modules/scripts/Files
+legacy/commands   -> modules/commands/Files
+```
+
+Kopiowane są pliki wymagane do testów, bez `.git`, `node_modules`, logów i danych runtime. Moduły korzystają najpierw z katalogu `Files`, a gdy nie został jeszcze zsynchronizowany — z odpowiedniego katalogu `legacy`.
 
 ## Zasady migracji
 
