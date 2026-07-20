@@ -1,23 +1,81 @@
 "use strict";
 
-var core = require("./core");
-var modules = require("./modules");
+var fs = require("fs");
+var path = require("path");
 
 module.exports.mycompany = function (parent) {
     var obj = {};
-    var service = core.createRuntime(parent, obj);
-    var loadedModules = modules.createAll(service);
+    var pluginRoot = path.join(parent.pluginPath, "mycompany");
+    var embeddedRoot = path.join(pluginRoot, "embedded");
+    var manifestPath = path.join(pluginRoot, "embedded-manifest.json");
+    var manifest = [];
+    var embedded = {};
+
+    try { manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")); }
+    catch (error) { console.log("MyCompany embedded manifest is missing:", error.message); }
+
+    function createParentProxy() {
+        var proxy = Object.create(parent);
+        Object.keys(parent || {}).forEach(function (key) { proxy[key] = parent[key]; });
+        proxy.pluginPath = embeddedRoot;
+        return proxy;
+    }
+
+    function loadEmbedded() {
+        var proxy = createParentProxy();
+        manifest.forEach(function (item) {
+            try {
+                var entry = path.join(embeddedRoot, item.shortName, item.entry);
+                var factory = require(entry)[item.exportName];
+                if (typeof factory !== "function") throw new Error("Plugin factory was not exported.");
+                embedded[item.key] = { meta: item, instance: factory(proxy) };
+                console.log("MyCompany loaded embedded module:", item.key);
+            } catch (error) {
+                embedded[item.key] = { meta: item, error: error };
+                console.log("MyCompany failed to load embedded module " + item.key + ":", error.stack || error);
+            }
+        });
+    }
+
+    loadEmbedded();
 
     obj.parent = parent;
     obj.meshServer = parent && parent.parent;
     obj.exports = ["onWebUIStartupEnd", "goPageStart", "goPageEnd"];
 
+    [
+        ["scripts", "embeddedScriptsStartup"],
+        ["commands", "embeddedCommandsStartup"],
+        ["approvals", "embeddedApprovalsStartup"],
+        ["move", "embeddedMoveStartup"]
+    ].forEach(function (pair) {
+        var record = embedded[pair[0]];
+        if (record && record.instance && typeof record.instance.onWebUIStartupEnd === "function") {
+            obj[pair[1]] = record.instance.onWebUIStartupEnd;
+            obj.exports.push(pair[1]);
+        }
+    });
+
     obj.server_startup = function () {
-        return service.initialize().then(function () {
-            return Promise.all(loadedModules.map(function (item) {
-                return typeof item.initialize === "function" ? item.initialize() : null;
-            }));
+        Object.keys(embedded).forEach(function (key) {
+            var instance = embedded[key].instance;
+            if (instance && typeof instance.server_startup === "function") {
+                try { instance.server_startup(); }
+                catch (error) { console.log("MyCompany module startup failed " + key + ":", error.stack || error); }
+            }
         });
+    };
+
+    obj.handleAdminReq = function (req, res, user) {
+        var key = String(req && req.query && req.query.module || "");
+        var record = embedded[key];
+        if (!record || !record.instance || typeof record.instance.handleAdminReq !== "function") {
+            res.statusCode = 404;
+            res.setHeader("Content-Type", "application/json; charset=utf-8");
+            res.end(JSON.stringify({ ok: false, error: "Embedded module is unavailable: " + key }));
+            return;
+        }
+        return record.instance.handleAdminReq(req, res, user);
     };
 
     obj.onWebUIStartupEnd = function () {
@@ -27,37 +85,56 @@ module.exports.mycompany = function (parent) {
         var app = window.MyCompany = window.MyCompany || {};
         app.initialized = true;
         app.active = false;
-        app.opening = false;
-        app.activeModule = "scripts";
+        app.activeModule = "settings";
         app.nativeState = null;
         app.modules = {
-            scripts: { label: "Scripts", viewmode: 101, globals: ["MyScripts"], menuIds: ["MainMenuMyScripts", "LeftMenuMyScripts"] },
-            commands: { label: "Commands", viewmode: 102, globals: ["MyCommands"], menuIds: ["MainMenuMyCommands", "LeftMenuMyCommands"] },
-            approvals: { label: "Approvals", viewmode: 105, globals: ["ApprovalCenter"], menuIds: ["MainMenuApprovalCenter", "LeftMenuApprovalCenter"] },
-            move: { label: "Move Requests", viewmode: 104, globals: ["MoveRequest", "MoveRequests"], menuIds: ["MainMenuMoveRequest", "LeftMenuMoveRequest"] }
+            scripts: { label: "Scripts", viewmode: 101, globals: ["MyScripts"], startup: "embeddedScriptsStartup" },
+            commands: { label: "Commands", viewmode: 102, globals: ["MyCommands"], startup: "embeddedCommandsStartup" },
+            approvals: { label: "Approvals", viewmode: 105, globals: ["ApprovalCenter"], startup: "embeddedApprovalsStartup" },
+            move: { label: "Move Requests", viewmode: 104, globals: ["MoveRequest", "MoveRequests"], startup: "embeddedMoveStartup" }
         };
 
-        function moduleAvailable(definition) {
-            var index;
-            for (index = 0; index < definition.globals.length; index++) {
-                if (window[definition.globals[index]]) return true;
+        window.MyCompanyAssetUrl = function (moduleName, assetName) {
+            var endpoint = new URL("pluginadmin.ashx", window.location.href);
+            endpoint.searchParams.set("pin", "mycompany");
+            endpoint.searchParams.set("module", moduleName);
+            endpoint.searchParams.set("asset", assetName);
+            return endpoint.href;
+        };
+
+        function getGlobal(definition) {
+            for (var i = 0; i < definition.globals.length; i++) {
+                if (window[definition.globals[i]]) return window[definition.globals[i]];
             }
-            for (index = 0; index < definition.menuIds.length; index++) {
-                if (document.getElementById(definition.menuIds[index])) return true;
-            }
-            return false;
+            return null;
         }
 
-        function createButton(label, moduleName) {
-            var button = document.createElement("button");
-            button.type = "button";
-            button.textContent = label;
-            button.className = "btn btn-secondary btn-sm";
-            button.style.marginRight = "8px";
-            button.style.marginBottom = "8px";
-            button.onclick = function () { return app.showModule(moduleName); };
-            button.setAttribute("data-mycompany-module", moduleName);
-            return button;
+        function removeEmbeddedMenus() {
+            [
+                "MainMenuMyScripts", "LeftMenuMyScripts",
+                "MainMenuMyCommands", "LeftMenuMyCommands",
+                "MainMenuApprovalCenter", "LeftMenuApprovalCenter",
+                "MainMenuMoveRequest", "LeftMenuMoveRequest",
+                "MainMenuMoveRequests", "LeftMenuMoveRequests"
+            ].forEach(function (id) {
+                var node = document.getElementById(id);
+                if (node && node.parentNode) node.parentNode.removeChild(node);
+            });
+        }
+
+        function bootstrapModules() {
+            var api = window.pluginHandler && window.pluginHandler.mycompany;
+            if (!api) return;
+            Object.keys(app.modules).forEach(function (key) {
+                var name = app.modules[key].startup;
+                if (typeof api[name] === "function") {
+                    try { api[name](); }
+                    catch (error) { if (window.console) console.error("MyCompany module bootstrap failed: " + key, error); }
+                }
+            });
+            window.setTimeout(removeEmbeddedMenus, 300);
+            window.setTimeout(removeEmbeddedMenus, 1000);
+            window.setTimeout(removeEmbeddedMenus, 3000);
         }
 
         function hideElement(element) {
@@ -77,37 +154,35 @@ module.exports.mycompany = function (parent) {
             if (!page || !titleHost) return null;
             var host = document.getElementById("MyCompanyWorkspace");
             if (host) return host;
-
             host = document.createElement("div");
             host.id = "MyCompanyWorkspace";
             host.style.display = "none";
             host.style.boxSizing = "border-box";
             host.style.width = "100%";
             host.style.height = "calc(100vh - 104px)";
-            host.style.minHeight = "0";
             host.style.overflow = "auto";
             host.style.padding = "8px 12px 18px";
-
             var nav = document.createElement("div");
             nav.id = "MyCompanyNavigation";
             nav.style.display = "flex";
             nav.style.flexWrap = "wrap";
-            nav.style.alignItems = "center";
+            nav.style.gap = "8px";
             nav.style.marginBottom = "10px";
-            nav.appendChild(createButton("Scripts", "scripts"));
-            nav.appendChild(createButton("Commands", "commands"));
-            nav.appendChild(createButton("Approvals", "approvals"));
-            nav.appendChild(createButton("Move Requests", "move"));
-            nav.appendChild(createButton("Settings", "settings"));
+            [["Scripts", "scripts"], ["Commands", "commands"], ["Approvals", "approvals"], ["Move Requests", "move"], ["Settings", "settings"]].forEach(function (pair) {
+                var button = document.createElement("button");
+                button.type = "button";
+                button.className = "btn btn-secondary btn-sm";
+                button.textContent = pair[0];
+                button.onclick = function () { return app.showModule(pair[1]); };
+                nav.appendChild(button);
+            });
             host.appendChild(nav);
-
             var content = document.createElement("div");
             content.id = "MyCompanyContent";
             content.style.border = "1px solid rgba(127,127,127,.65)";
             content.style.borderRadius = "5px";
             content.style.padding = "18px";
             content.style.minHeight = "260px";
-            content.style.boxSizing = "border-box";
             host.appendChild(content);
             page.appendChild(host);
             return host;
@@ -124,7 +199,7 @@ module.exports.mycompany = function (parent) {
                 for (var child = page.firstElementChild; child; child = child.nextElementSibling) {
                     if (child !== titleHost && child !== workspace) hidden.push(hideElement(child));
                 }
-                app.nativeState = { heading: heading, headingText: heading ? heading.textContent : "", hidden: hidden, toolbar: hideElement(titleHost.querySelector('[id="devListToolbarViewIcons"]')) };
+                app.nativeState = { heading: heading, headingText: heading ? heading.textContent : "", hidden: hidden };
             }
             if (heading) heading.textContent = "My Company";
             workspace.style.display = "block";
@@ -133,32 +208,12 @@ module.exports.mycompany = function (parent) {
         };
 
         app.restoreNativePage = function () {
-            var state = app.nativeState;
-            if (!state) return;
-            if (state.heading) state.heading.textContent = state.headingText;
-            (state.hidden || []).forEach(restoreElement);
-            restoreElement(state.toolbar);
+            if (!app.nativeState) return;
+            if (app.nativeState.heading) app.nativeState.heading.textContent = app.nativeState.headingText;
+            (app.nativeState.hidden || []).forEach(restoreElement);
             var workspace = document.getElementById("MyCompanyWorkspace");
             if (workspace) workspace.style.display = "none";
             app.nativeState = null;
-        };
-
-        app.openLegacyModule = function (moduleName) {
-            var definition = app.modules[moduleName];
-            if (!definition) return false;
-            app.restoreNativePage();
-            app.active = false;
-            app.activeModule = moduleName;
-            try {
-                if (typeof window.go === "function") {
-                    window.go(definition.viewmode);
-                } else {
-                    window.location.href = "?viewmode=" + definition.viewmode;
-                }
-            } catch (error) {
-                window.location.href = "?viewmode=" + definition.viewmode;
-            }
-            return false;
         };
 
         app.renderSettings = function () {
@@ -166,71 +221,45 @@ module.exports.mycompany = function (parent) {
             var content = document.getElementById("MyCompanyContent");
             content.innerHTML = "";
             var heading = document.createElement("h3");
-            heading.textContent = "Modules";
-            heading.style.marginTop = "0";
+            heading.textContent = "Embedded modules";
             content.appendChild(heading);
-
             Object.keys(app.modules).forEach(function (key) {
                 var definition = app.modules[key];
                 var row = document.createElement("div");
-                row.style.display = "flex";
-                row.style.alignItems = "center";
-                row.style.justifyContent = "space-between";
-                row.style.gap = "12px";
                 row.style.padding = "10px 0";
                 row.style.borderBottom = "1px solid rgba(127,127,127,.25)";
-                var text = document.createElement("div");
                 var title = document.createElement("strong");
                 title.textContent = definition.label;
+                row.appendChild(title);
                 var detail = document.createElement("div");
-                detail.textContent = moduleAvailable(definition) ? "Installed and connected" : "Not detected - install or enable the source plugin";
+                detail.textContent = getGlobal(definition) ? "Embedded and initialized" : "Embedded - UI is initializing";
                 detail.style.opacity = ".8";
-                text.appendChild(title);
-                text.appendChild(detail);
-                var open = document.createElement("button");
-                open.type = "button";
-                open.className = moduleAvailable(definition) ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm";
-                open.textContent = "Open";
-                open.disabled = !moduleAvailable(definition);
-                open.onclick = function () { return app.openLegacyModule(key); };
-                row.appendChild(text);
-                row.appendChild(open);
+                row.appendChild(detail);
                 content.appendChild(row);
             });
-
-            var note = document.createElement("div");
-            note.className = "alert alert-info";
-            note.style.marginTop = "16px";
-            note.textContent = "My Company now acts as the common entry point. Each button opens the existing production module without duplicating its backend, data or permissions.";
-            content.appendChild(note);
             app.active = true;
             window.xxcurrentView = 106;
             return false;
         };
 
-        app.showModule = function (moduleName) {
-            app.activeModule = moduleName || "scripts";
-            if (app.activeModule === "settings") return app.renderSettings();
-            return app.openLegacyModule(app.activeModule);
+        app.showModule = function (key) {
+            if (key === "settings") return app.renderSettings();
+            var definition = app.modules[key];
+            if (!definition) return false;
+            app.restoreNativePage();
+            app.active = false;
+            app.activeModule = key;
+            var target = getGlobal(definition);
+            if (target && typeof target.open === "function") return target.open();
+            if (typeof window.go === "function") return window.go(definition.viewmode);
+            window.location.href = "?viewmode=" + definition.viewmode;
+            return false;
         };
 
         app.open = function (event) {
-            if (event && (event.which === 3 || event.button === 2)) return false;
-            if (app.opening) return false;
-            app.opening = true;
-            try {
-                if (typeof window.go === "function") window.go(1);
-                app.renderSettings();
-                if (event && event.preventDefault) event.preventDefault();
-                if (event && event.stopPropagation) event.stopPropagation();
-                return false;
-            } finally { app.opening = false; }
-        };
-
-        app.close = function () {
-            app.restoreNativePage();
-            app.active = false;
-            return false;
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            if (typeof window.go === "function") window.go(1);
+            return app.renderSettings();
         };
 
         app.ensureMenus = function () {
@@ -242,7 +271,6 @@ module.exports.mycompany = function (parent) {
                 main.title = "My Company";
                 main.href = "#";
                 main.onclick = app.open;
-                main.onmouseup = app.open;
                 mainAnchor.parentNode.insertBefore(main, mainAnchor.nextSibling);
             }
             var leftAnchor = document.getElementById("LeftMenuMyDevices");
@@ -250,29 +278,23 @@ module.exports.mycompany = function (parent) {
                 var left = leftAnchor.cloneNode(true);
                 left.id = "LeftMenuMyCompany";
                 left.title = "My Company";
-                left.setAttribute("aria-label", "My Company");
                 left.href = "#";
                 left.onclick = app.open;
-                left.onmouseup = app.open;
-                var text = left.querySelector("span:not(.lbtg)");
-                if (text) text.textContent = "My Company";
                 leftAnchor.parentNode.insertBefore(left, leftAnchor.nextSibling);
             }
         };
 
+        bootstrapModules();
         app.ensureWorkspace();
         app.ensureMenus();
         window.setTimeout(app.ensureMenus, 1000);
         window.setTimeout(app.ensureMenus, 3000);
-        try {
-            var query = new URL(window.location.href).searchParams;
-            if (query.get("viewmode") === "106" || query.get("mycompany")) app.renderSettings();
-        } catch (error) { }
     };
 
-    obj.goPageStart = function () {
-        if (typeof window !== "undefined" && window.MyCompany && window.MyCompany.active) window.MyCompany.close();
+    obj.goPageStart = function (view) {
+        if (typeof window !== "undefined" && window.MyCompany && window.MyCompany.active) window.MyCompany.restoreNativePage();
     };
+
     obj.goPageEnd = function () {
         if (typeof window !== "undefined" && window.MyCompany) window.MyCompany.ensureMenus();
     };
