@@ -11,12 +11,17 @@ module.exports.mycompany = function (parent) {
     var manifest = [];
     var embedded = {};
 
-    try { manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")); }
-    catch (error) { console.log("MyCompany embedded manifest is missing:", error.message); }
+    try {
+        manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    } catch (error) {
+        console.log("MyCompany embedded manifest is missing:", error.message);
+    }
 
     function createParentProxy() {
         var proxy = Object.create(parent);
-        Object.keys(parent || {}).forEach(function (key) { proxy[key] = parent[key]; });
+        Object.keys(parent || {}).forEach(function (key) {
+            proxy[key] = parent[key];
+        });
         proxy.pluginPath = embeddedRoot;
         return proxy;
     }
@@ -27,20 +32,30 @@ module.exports.mycompany = function (parent) {
 
     function loadEmbedded() {
         var proxy = createParentProxy();
+
         manifest.forEach(function (item) {
             try {
-                var entry = path.join(embeddedRoot, item.shortName, item.entry);
-                var factory = require(entry)[item.exportName];
+                var entryPath = path.join(embeddedRoot, item.shortName, item.entry);
+                var entryModule = require(entryPath);
+                var factory = entryModule && entryModule[item.exportName];
                 if (typeof factory !== "function") throw new Error("Plugin factory was not exported.");
+
                 var instance = factory(proxy);
-                embedded[item.key] = { meta: item, instance: instance };
+                embedded[item.key] = {
+                    meta: item,
+                    entryPath: entryPath,
+                    instance: instance
+                };
 
                 if (parent && parent.plugins) parent.plugins[item.shortName] = instance;
-                if (parent && parent.exports) parent.exports[item.shortName] = Array.isArray(instance.exports) ? instance.exports : [];
+                if (parent && parent.exports) parent.exports[item.shortName] = [];
 
                 console.log("MyCompany loaded embedded module:", item.key, "as", item.shortName);
             } catch (error) {
-                embedded[item.key] = { meta: item, error: error };
+                embedded[item.key] = {
+                    meta: item,
+                    error: error
+                };
                 console.log("MyCompany failed to load embedded module " + item.key + ":", error.stack || error);
             }
         });
@@ -50,7 +65,13 @@ module.exports.mycompany = function (parent) {
 
     obj.parent = parent;
     obj.meshServer = parent && parent.parent;
-    obj.exports = ["onWebUIStartupEnd", "goPageStart", "goPageEnd", "onDeviceRefreshEnd", "commandResult"];
+    obj.exports = [
+        "onWebUIStartupEnd",
+        "goPageStart",
+        "goPageEnd",
+        "onDeviceRefreshEnd",
+        "commandResult"
+    ];
 
     [
         ["scripts", "embeddedScriptsStartup"],
@@ -65,14 +86,40 @@ module.exports.mycompany = function (parent) {
         }
     });
 
+    obj.getEmbeddedDiagnostics = function () {
+        return manifest.map(function (item) {
+            var record = embedded[item.key] || {};
+            var instance = record.instance;
+            var entryPath = record.entryPath || path.join(embeddedRoot, item.shortName, item.entry);
+
+            return {
+                key: item.key,
+                label: item.pageText || item.shortName || item.key,
+                shortName: item.shortName,
+                entry: entryPath,
+                entryExists: fs.existsSync(entryPath),
+                loaded: !!instance,
+                serverStarted: !!(instance && instance.__myCompanyStarted),
+                error: record.error ? String(record.error.stack || record.error.message || record.error) : "",
+                hooks: instance ? Object.keys(instance).filter(function (key) {
+                    return typeof instance[key] === "function";
+                }).sort() : []
+            };
+        });
+    };
+
     obj.server_startup = function () {
         ["approvals", "move", "commands", "scripts"].forEach(function (key) {
             var instance = embeddedInstance(key);
             if (!instance || instance.__myCompanyStarted) return;
+
             instance.__myCompanyStarted = true;
             if (typeof instance.server_startup === "function") {
-                try { instance.server_startup(); }
-                catch (error) { console.log("MyCompany module startup failed " + key + ":", error.stack || error); }
+                try {
+                    instance.server_startup();
+                } catch (error) {
+                    console.log("MyCompany module startup failed " + key + ":", error.stack || error);
+                }
             }
         });
     };
@@ -80,37 +127,57 @@ module.exports.mycompany = function (parent) {
     obj.handleAdminReq = function (req, res, user) {
         var key = String(req && req.query && req.query.module || "");
         var instance = embeddedInstance(key);
+
         if (!instance || typeof instance.handleAdminReq !== "function") {
             res.statusCode = 404;
             res.setHeader("Content-Type", "application/json; charset=utf-8");
             res.end(JSON.stringify({ ok: false, error: "Embedded module is unavailable: " + key }));
             return;
         }
+
         return instance.handleAdminReq(req, res, user);
     };
 
     obj.handleAdminPostReq = function (req, res, user) {
         var key = String(req && req.query && req.query.module || "");
         var instance = embeddedInstance(key);
+
         if (!instance || typeof instance.handleAdminPostReq !== "function") {
             res.statusCode = 404;
             res.setHeader("Content-Type", "application/json; charset=utf-8");
             res.end(JSON.stringify({ ok: false, error: "Embedded module POST endpoint is unavailable: " + key }));
             return;
         }
+
         return instance.handleAdminPostReq(req, res, user);
     };
 
     var commandsInstance = embeddedInstance("commands");
     if (commandsInstance) {
-        if (typeof commandsInstance.hook_processAgentData === "function") obj.hook_processAgentData = function () { return commandsInstance.hook_processAgentData.apply(commandsInstance, arguments); };
-        if (typeof commandsInstance.serveraction === "function") obj.serveraction = function () { return commandsInstance.serveraction.apply(commandsInstance, arguments); };
+        if (typeof commandsInstance.hook_processAgentData === "function") {
+            obj.hook_processAgentData = function () {
+                return commandsInstance.hook_processAgentData.apply(commandsInstance, arguments);
+            };
+        }
+        if (typeof commandsInstance.serveraction === "function") {
+            obj.serveraction = function () {
+                return commandsInstance.serveraction.apply(commandsInstance, arguments);
+            };
+        }
     }
 
     var approvalsInstance = embeddedInstance("approvals");
     if (approvalsInstance) {
-        if (typeof approvalsInstance.hook_setupHttpHandlers === "function") obj.hook_setupHttpHandlers = function () { return approvalsInstance.hook_setupHttpHandlers.apply(approvalsInstance, arguments); };
-        if (typeof approvalsInstance.handleExternalApi === "function") obj.handleExternalApi = function () { return approvalsInstance.handleExternalApi.apply(approvalsInstance, arguments); };
+        if (typeof approvalsInstance.hook_setupHttpHandlers === "function") {
+            obj.hook_setupHttpHandlers = function () {
+                return approvalsInstance.hook_setupHttpHandlers.apply(approvalsInstance, arguments);
+            };
+        }
+        if (typeof approvalsInstance.handleExternalApi === "function") {
+            obj.handleExternalApi = function () {
+                return approvalsInstance.handleExternalApi.apply(approvalsInstance, arguments);
+            };
+        }
     }
 
     obj.onWebUIStartupEnd = function () {
@@ -119,38 +186,48 @@ module.exports.mycompany = function (parent) {
 
         var app = window.MyCompany = window.MyCompany || {};
         app.initialized = true;
-        app.active = false;
-        app.activeModule = "settings";
-        app.nativeState = null;
+        app.activeModule = "scripts";
         app.inMyCompany = false;
         app.openingEmbedded = false;
+        app.uiSettings = {
+            tabs: {
+                scripts: true,
+                commands: true,
+                approvals: true,
+                move: true
+            }
+        };
         app.modules = {
-            scripts: { label: "Scripts", globals: ["MyScripts"] },
-            commands: { label: "Commands", globals: ["MyCommands"] },
-            approvals: { label: "Approvals", globals: ["ApprovalCenter"] },
-            move: { label: "Move Requests", globals: ["MoveRequest"] },
-            settings: { label: "Settings", globals: [] }
+            scripts: { label: "Scripts" },
+            commands: { label: "Commands" },
+            approvals: { label: "Approvals" },
+            move: { label: "Move Requests" }
         };
 
         window.MyCompanyAssetUrl = function (moduleName, assetName) {
             var endpoint = new URL("pluginadmin.ashx", window.location.href);
             endpoint.searchParams.set("pin", "mycompany");
-            endpoint.searchParams.set("module", moduleName);
-            endpoint.searchParams.set("asset", assetName);
-            endpoint.searchParams.set("v", "0.5.2");
+            if (moduleName) endpoint.searchParams.set("module", moduleName);
+            if (assetName) endpoint.searchParams.set("asset", assetName);
+            endpoint.searchParams.set("v", "0.7.0");
             return endpoint.href;
         };
 
-        function getGlobal(definition) {
-            var names = definition && definition.globals || [];
-            for (var index = 0; index < names.length; index++) {
-                if (window[names[index]]) return window[names[index]];
-            }
-            return null;
+        function removeDisallowedMenuEntries() {
+            [
+                "MainMenuMyCompany",
+                "LeftMenuMyCompany",
+                "MainMenuMyCommands",
+                "LeftMenuMyCommands"
+            ].forEach(function (id) {
+                var element = document.getElementById(id);
+                if (element && element.parentNode) element.parentNode.removeChild(element);
+            });
         }
 
         function loadScript(id, source, readyCheck) {
             if (typeof readyCheck === "function" && readyCheck()) return Promise.resolve();
+
             var existing = document.getElementById(id);
             if (existing && existing.getAttribute("data-mycompany-loaded") === "1") return Promise.resolve();
             if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
@@ -173,46 +250,56 @@ module.exports.mycompany = function (parent) {
         }
 
         function loadStyle(id, source) {
-            var existing = document.getElementById(id);
-            if (existing) return;
-            var style = document.createElement("link");
-            style.id = id;
-            style.rel = "stylesheet";
-            style.href = source;
-            (document.head || document.documentElement).appendChild(style);
+            if (document.getElementById(id)) return;
+            var link = document.createElement("link");
+            link.id = id;
+            link.rel = "stylesheet";
+            link.href = source;
+            (document.head || document.documentElement).appendChild(link);
         }
 
         app.bootstrapApprovalCenter = function () {
             var approval = window.ApprovalCenter = window.ApprovalCenter || {};
             if (typeof approval.open === "function" && typeof approval.initialize === "function") {
-                return Promise.resolve(approval.initialize()).then(function () { return approval; });
+                return Promise.resolve(approval.initialize()).then(function () {
+                    return approval;
+                });
             }
             if (app.approvalBootstrapPromise) return app.approvalBootstrapPromise;
 
-            loadStyle("mycompany-approvalcenter-style", window.MyCompanyAssetUrl("approvals", "plugin.css"));
+            loadStyle(
+                "mycompany-approvalcenter-style-070",
+                window.MyCompanyAssetUrl("approvals", "plugin.css")
+            );
 
             app.approvalBootstrapPromise = loadScript(
-                "mycompany-approvalcenter-core",
+                "mycompany-approvalcenter-core-070",
                 window.MyCompanyAssetUrl("approvals", "core.js"),
                 function () { return !!window.MeshPluginCore; }
             ).then(function () {
                 return loadScript(
-                    "mycompany-approvalcenter-main",
+                    "mycompany-approvalcenter-main-070",
                     window.MyCompanyAssetUrl("approvals", "main.js"),
-                    function () { return !!(window.ApprovalCenter && typeof window.ApprovalCenter.open === "function"); }
+                    function () {
+                        return !!(window.ApprovalCenter && typeof window.ApprovalCenter.open === "function");
+                    }
                 );
             }).then(function () {
                 return loadScript(
-                    "mycompany-approvalcenter-noapproval",
+                    "mycompany-approvalcenter-noapproval-070",
                     window.MyCompanyAssetUrl("approvals", "noapproval.js"),
-                    function () { return document.getElementById("approvalcenter-noapproval-script") != null; }
+                    function () {
+                        return !!(window.ApprovalCenter && window.ApprovalCenter.__noApprovalPatchInstalled);
+                    }
                 );
             }).then(function () {
                 var current = window.ApprovalCenter;
                 if (!current || typeof current.initialize !== "function" || typeof current.open !== "function") {
-                    throw new Error("Approval Center scripts loaded, but the UI API is missing.");
+                    throw new Error("Approval Center UI API is missing.");
                 }
-                return Promise.resolve(current.initialize()).then(function () { return current; });
+                return Promise.resolve(current.initialize()).then(function () {
+                    return current;
+                });
             }).catch(function (error) {
                 app.approvalBootstrapPromise = null;
                 throw error;
@@ -222,135 +309,74 @@ module.exports.mycompany = function (parent) {
             return app.approvalBootstrapPromise;
         };
 
-        app.bootstrapMoveRequest = function () {
-            var move = window.MoveRequest = window.MoveRequest || {};
-            if (typeof move.initialize === "function") return Promise.resolve(move.initialize()).then(function () { return move; });
-            if (app.moveBootstrapPromise) return app.moveBootstrapPromise;
-
-            app.moveBootstrapPromise = loadScript(
-                "mycompany-moverequest-core",
-                window.MyCompanyAssetUrl("move", "core.js"),
-                function () { return !!window.MeshPluginCore; }
-            ).then(function () {
-                return loadScript(
-                    "mycompany-moverequest-main",
-                    window.MyCompanyAssetUrl("move", "main.js"),
-                    function () { return !!(window.MoveRequest && typeof window.MoveRequest.initialize === "function"); }
-                );
-            }).then(function () {
-                var current = window.MoveRequest;
-                if (!current || typeof current.initialize !== "function") throw new Error("Move Request UI API is missing.");
-                return Promise.resolve(current.initialize()).then(function () { return current; });
-            }).catch(function (error) {
-                app.moveBootstrapPromise = null;
-                throw error;
-            });
-
-            return app.moveBootstrapPromise;
-        };
-
-        function removeEmbeddedMenus() {
-            [
-                "MainMenuMyScripts", "LeftMenuMyScripts",
-                "MainMenuMyCommands", "LeftMenuMyCommands",
-                "MainMenuApprovalCenter", "LeftMenuApprovalCenter",
-                "MainMenuMoveRequest", "LeftMenuMoveRequest",
-                "MainMenuMoveRequests", "LeftMenuMoveRequests"
-            ].forEach(function (id) {
-                var node = document.getElementById(id);
-                if (node && node.parentNode) node.parentNode.removeChild(node);
-            });
-        }
-
-        function invokeEmbeddedStartups() {
+        app.invokeEmbeddedStartups = function () {
             var api = window.pluginHandler && window.pluginHandler.mycompany;
-            if (api) {
-                [
-                    ["scripts", "embeddedScriptsStartup"],
-                    ["commands", "embeddedCommandsStartup"],
-                    ["approvals", "embeddedApprovalsStartup"],
-                    ["move", "embeddedMoveStartup"]
-                ].forEach(function (pair) {
-                    if (typeof api[pair[1]] === "function") {
-                        try { api[pair[1]](); }
-                        catch (error) { if (window.console) console.error("MyCompany module bootstrap failed: " + pair[0], error); }
-                    }
-                });
-            }
+            if (!api) return;
+
+            [
+                ["scripts", "embeddedScriptsStartup"],
+                ["commands", "embeddedCommandsStartup"],
+                ["move", "embeddedMoveStartup"]
+            ].forEach(function (pair) {
+                if (typeof api[pair[1]] !== "function") return;
+                try {
+                    api[pair[1]]();
+                } catch (error) {
+                    if (window.console) console.error("MyCompany module bootstrap failed: " + pair[0], error);
+                }
+            });
 
             app.bootstrapApprovalCenter().catch(function (error) {
-                if (window.console) console.error("MyCompany direct Approval Center bootstrap failed", error);
+                if (window.console) console.error("MyCompany Approval Center bootstrap failed", error);
             });
-            app.bootstrapMoveRequest().catch(function (error) {
-                if (window.console) console.error("MyCompany direct Move Request bootstrap failed", error);
-            });
-        }
-
-        function hideElement(element) {
-            if (!element) return null;
-            var state = { element: element, display: element.style.display };
-            element.style.display = "none";
-            return state;
-        }
-
-        function restoreElement(state) {
-            if (state && state.element) state.element.style.display = state.display;
-        }
+        };
 
         app.ensureNavigation = function () {
             var titleHost = document.getElementById("p1title");
             if (!titleHost) return null;
 
             var navigation = document.getElementById("MyCompanyNavigation");
-            if (navigation) {
-                if (navigation.parentNode !== titleHost) titleHost.appendChild(navigation);
-                return navigation;
+            if (!navigation) {
+                navigation = document.createElement("div");
+                navigation.id = "MyCompanyNavigation";
+                navigation.style.display = "none";
+                navigation.style.flexWrap = "wrap";
+                navigation.style.gap = "8px";
+                navigation.style.width = "100%";
+                navigation.style.boxSizing = "border-box";
+                navigation.style.marginTop = "8px";
+                navigation.style.padding = "0 0 4px 0";
             }
 
-            navigation = document.createElement("div");
-            navigation.id = "MyCompanyNavigation";
-            navigation.style.display = "none";
-            navigation.style.flexWrap = "wrap";
-            navigation.style.gap = "8px";
-            navigation.style.width = "100%";
-            navigation.style.boxSizing = "border-box";
-            navigation.style.marginTop = "8px";
-            navigation.style.padding = "0 0 4px 0";
+            if (navigation.parentNode !== titleHost) titleHost.appendChild(navigation);
+            navigation.innerHTML = "";
 
-            [
-                ["Scripts", "scripts"],
-                ["Commands", "commands"],
-                ["Approvals", "approvals"],
-                ["Move Requests", "move"],
-                ["Settings", "settings"]
-            ].forEach(function (pair) {
+            ["scripts", "commands", "approvals", "move"].forEach(function (key) {
+                if (app.uiSettings.tabs[key] === false) return;
+
                 var button = document.createElement("button");
                 button.type = "button";
-                button.className = "btn btn-secondary btn-sm";
-                button.textContent = pair[0];
-                button.setAttribute("data-mycompany-module", pair[1]);
+                button.className = key === app.activeModule ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm";
+                button.textContent = app.modules[key].label;
+                button.setAttribute("data-mycompany-module", key);
                 button.onclick = function (event) {
                     if (event) {
                         if (event.preventDefault) event.preventDefault();
                         if (event.stopPropagation) event.stopPropagation();
                     }
-                    return app.showModule(pair[1]);
+                    return app.showModule(key);
                 };
                 navigation.appendChild(button);
             });
 
-            titleHost.appendChild(navigation);
             return navigation;
         };
 
         app.showNavigation = function (key) {
+            app.activeModule = key || app.activeModule || "scripts";
             var navigation = app.ensureNavigation();
             if (!navigation) return;
             navigation.style.display = "flex";
-            Array.prototype.forEach.call(navigation.querySelectorAll("[data-mycompany-module]"), function (button) {
-                var active = button.getAttribute("data-mycompany-module") === key;
-                button.className = active ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm";
-            });
         };
 
         app.hideNavigation = function () {
@@ -358,301 +384,188 @@ module.exports.mycompany = function (parent) {
             if (navigation) navigation.style.display = "none";
         };
 
-        app.closeActivePlugin = function () {
-            var closed = [];
-            var active = window.MeshPluginCore && window.MeshPluginCore.activePlugin;
-            var candidates = [active, window.ApprovalCenter, window.MyScripts, window.MyCommands];
-            candidates.forEach(function (plugin) {
-                if (!plugin || closed.indexOf(plugin) >= 0) return;
-                closed.push(plugin);
-                if (plugin.state && plugin.state.active && typeof plugin.close === "function") {
-                    try { plugin.close(false); } catch (error) { }
-                }
-            });
-        };
+        app.wrapModuleOpeners = function () {
+            function wrap(target, methodName, resolveKey) {
+                if (!target || typeof target[methodName] !== "function") return;
+                if (target[methodName].__myCompanyWrapped === true) return;
 
-        app.ensureWorkspace = function () {
-            var page = document.getElementById("p1");
-            var titleHost = document.getElementById("p1title");
-            if (!page || !titleHost) return null;
-            app.ensureNavigation();
-
-            var host = document.getElementById("MyCompanyWorkspace");
-            if (host) return host;
-
-            host = document.createElement("div");
-            host.id = "MyCompanyWorkspace";
-            host.style.display = "none";
-            host.style.boxSizing = "border-box";
-            host.style.width = "100%";
-            host.style.height = "calc(100vh - 150px)";
-            host.style.overflow = "auto";
-            host.style.padding = "8px 12px 18px";
-
-            var content = document.createElement("div");
-            content.id = "MyCompanyContent";
-            content.style.border = "1px solid rgba(127,127,127,.65)";
-            content.style.borderRadius = "5px";
-            content.style.padding = "18px";
-            content.style.minHeight = "260px";
-            host.appendChild(content);
-            page.appendChild(host);
-            return host;
-        };
-
-        app.showNativePage = function () {
-            var page = document.getElementById("p1");
-            var titleHost = document.getElementById("p1title");
-            var workspace = app.ensureWorkspace();
-            if (!page || !titleHost || !workspace) return null;
-            var heading = titleHost.querySelector("h1") || titleHost.querySelector(".fs-4") || titleHost.querySelector("h2");
-            if (!app.nativeState) {
-                var hidden = [];
-                for (var child = page.firstElementChild; child; child = child.nextElementSibling) {
-                    if (child !== titleHost && child !== workspace) hidden.push(hideElement(child));
-                }
-                app.nativeState = { heading: heading, headingText: heading ? heading.textContent : "", hidden: hidden };
-            }
-            if (heading) heading.textContent = "My Company";
-            workspace.style.display = "block";
-            page.style.display = "";
-            return page;
-        };
-
-        app.restoreNativePage = function () {
-            if (!app.nativeState) return;
-            if (app.nativeState.heading) app.nativeState.heading.textContent = app.nativeState.headingText;
-            (app.nativeState.hidden || []).forEach(restoreElement);
-            var workspace = document.getElementById("MyCompanyWorkspace");
-            if (workspace) workspace.style.display = "none";
-            app.nativeState = null;
-        };
-
-        app.showStatus = function (title, message, isError) {
-            app.inMyCompany = true;
-            app.showNavigation(app.activeModule || "settings");
-            if (!app.showNativePage()) return false;
-            var content = document.getElementById("MyCompanyContent");
-            content.innerHTML = "";
-            var heading = document.createElement("h3");
-            heading.textContent = title || "My Company";
-            content.appendChild(heading);
-            var status = document.createElement("div");
-            status.className = isError ? "alert alert-danger" : "alert alert-info";
-            status.textContent = message || "";
-            content.appendChild(status);
-            app.active = true;
-            window.xxcurrentView = 106;
-            return false;
-        };
-
-        app.openApprovalCenter = function (providerType) {
-            var title = providerType === "moverequest" ? "Move Requests" : "Approval Center";
-            app.activeModule = providerType === "moverequest" ? "move" : "approvals";
-            app.inMyCompany = true;
-            app.showNavigation(app.activeModule);
-            app.closeActivePlugin();
-            app.showStatus(title, "Loading...", false);
-
-            app.bootstrapApprovalCenter().then(function (approval) {
-                app.restoreNativePage();
-                app.active = false;
-                app.openingEmbedded = true;
-                approval.open();
-                app.showNavigation(app.activeModule);
-                if (providerType && typeof approval.activateTab === "function") {
+                var original = target[methodName];
+                var wrapped = function () {
+                    var key = typeof resolveKey === "function" ? resolveKey() : resolveKey;
+                    app.inMyCompany = true;
+                    app.openingEmbedded = true;
+                    app.activeModule = key;
+                    var result = original.apply(target, arguments);
                     window.setTimeout(function () {
-                        approval.activateTab(providerType);
-                        app.showNavigation(app.activeModule);
-                    }, 50);
-                }
-                window.setTimeout(function () {
-                    app.openingEmbedded = false;
-                    app.showNavigation(app.activeModule);
-                }, 150);
-            }).catch(function (error) {
-                app.openingEmbedded = false;
-                var prefix = providerType === "moverequest" ? "Move Requests uses Approval Center. " : "";
-                app.showStatus(title, prefix + (error && error.message || "Approval Center initialization failed."), true);
+                        app.openingEmbedded = false;
+                        removeDisallowedMenuEntries();
+                        app.showNavigation(key);
+                    }, 100);
+                    return result;
+                };
+                wrapped.__myCompanyWrapped = true;
+                wrapped.__myCompanyOriginal = original;
+                target[methodName] = wrapped;
+            }
+
+            wrap(window.MyScripts, "open", "scripts");
+            wrap(window.MyCommands, "openStandalone", "commands");
+            wrap(window.ApprovalCenter, "open", function () {
+                return app.activeModule === "move" ? "move" : "approvals";
             });
-            return false;
-        };
-
-        app.renderSettings = function () {
-            app.activeModule = "settings";
-            app.inMyCompany = true;
-            app.closeActivePlugin();
-            app.showNavigation("settings");
-            if (!app.showNativePage()) return false;
-
-            var content = document.getElementById("MyCompanyContent");
-            content.innerHTML = "";
-            var heading = document.createElement("h3");
-            heading.textContent = "Settings";
-            content.appendChild(heading);
-
-            var description = document.createElement("p");
-            description.textContent = "Embedded module status";
-            content.appendChild(description);
-
-            ["scripts", "commands", "approvals", "move"].forEach(function (key) {
-                var definition = app.modules[key];
-                var target = getGlobal(definition);
-                var ready = false;
-                if (key === "scripts") ready = !!(target && typeof target.open === "function");
-                else if (key === "commands") ready = !!(target && typeof target.openStandalone === "function");
-                else if (key === "approvals") ready = !!(target && typeof target.open === "function");
-                else if (key === "move") ready = !!(target && typeof target.initialize === "function");
-
-                var row = document.createElement("div");
-                row.style.padding = "10px 0";
-                row.style.borderBottom = "1px solid rgba(127,127,127,.25)";
-                var title = document.createElement("strong");
-                title.textContent = definition.label;
-                row.appendChild(title);
-                var detail = document.createElement("div");
-                detail.textContent = ready ? "Embedded and initialized" : "Embedded - UI is initializing";
-                detail.style.opacity = ".8";
-                row.appendChild(detail);
-                content.appendChild(row);
-            });
-
-            app.active = true;
-            window.xxcurrentView = 106;
-            return false;
         };
 
         app.showModule = function (key) {
-            if (!app.modules[key]) return app.showStatus("Module", "Unknown module: " + key, true);
-            if (key === "settings") return app.renderSettings();
+            if (!app.modules[key] || app.uiSettings.tabs[key] === false) return false;
 
             app.activeModule = key;
             app.inMyCompany = true;
-            app.showNavigation(key);
-            app.closeActivePlugin();
-            app.restoreNativePage();
-            app.active = false;
             app.openingEmbedded = true;
+            app.wrapModuleOpeners();
 
             if (key === "scripts") {
                 if (window.MyScripts && typeof window.MyScripts.open === "function") {
-                    var scriptsResult = window.MyScripts.open();
-                    window.setTimeout(function () { app.openingEmbedded = false; app.showNavigation("scripts"); }, 100);
-                    return scriptsResult;
+                    return window.MyScripts.open();
                 }
+                app.invokeEmbeddedStartups();
                 app.openingEmbedded = false;
-                invokeEmbeddedStartups();
-                return app.showStatus("Scripts", "My Scripts UI is still loading. Try again in a moment.", true);
+                return false;
             }
 
             if (key === "commands") {
                 if (window.MyCommands && typeof window.MyCommands.openStandalone === "function") {
-                    var commandsResult = window.MyCommands.openStandalone();
-                    window.setTimeout(function () { app.openingEmbedded = false; app.showNavigation("commands"); }, 100);
-                    return commandsResult;
+                    return window.MyCommands.openStandalone();
                 }
+                app.invokeEmbeddedStartups();
                 app.openingEmbedded = false;
-                invokeEmbeddedStartups();
-                return app.showStatus("Commands", "My Commands UI is still loading or access is not granted.", true);
+                return false;
+            }
+
+            if (key === "approvals" || key === "move") {
+                app.bootstrapApprovalCenter().then(function (approval) {
+                    app.wrapModuleOpeners();
+                    approval.open();
+                    if (key === "move" && typeof approval.activateTab === "function") {
+                        window.setTimeout(function () {
+                            approval.activateTab("moverequest");
+                            app.showNavigation("move");
+                        }, 50);
+                    }
+                    app.openingEmbedded = false;
+                    app.showNavigation(key);
+                }).catch(function (error) {
+                    app.openingEmbedded = false;
+                    if (window.console) console.error("MyCompany could not open " + key, error);
+                });
+                return false;
             }
 
             app.openingEmbedded = false;
-            if (key === "approvals") return app.openApprovalCenter("");
-            if (key === "move") return app.openApprovalCenter("moverequest");
             return false;
         };
 
-        app.open = function (event) {
-            if (event) {
-                if (event.preventDefault) event.preventDefault();
-                if (event.stopPropagation) event.stopPropagation();
-            }
-            app.inMyCompany = true;
-            app.activeModule = "settings";
-            app.openingEmbedded = true;
-            if (typeof window.go === "function") window.go(1);
-            app.openingEmbedded = false;
-            return app.renderSettings();
-        };
+        app.loadUiSettings = function () {
+            var endpoint = new URL("pluginadmin.ashx", window.location.href);
+            endpoint.searchParams.set("pin", "mycompany");
+            endpoint.searchParams.set("asset", "ui-config");
+            endpoint.searchParams.set("v", "0.7.0");
 
-        app.ensureMenus = function () {
-            var mainAnchor = document.getElementById("MainMenuMyDevices");
-            if (mainAnchor && mainAnchor.parentNode && !document.getElementById("MainMenuMyCompany")) {
-                var main = mainAnchor.cloneNode(false);
-                main.id = "MainMenuMyCompany";
-                main.textContent = "My Company";
-                main.title = "My Company";
-                main.href = "#";
-                main.onclick = app.open;
-                main.onmouseup = app.open;
-                mainAnchor.parentNode.insertBefore(main, mainAnchor.nextSibling);
-            }
-
-            var leftAnchor = document.getElementById("LeftMenuMyDevices");
-            if (leftAnchor && leftAnchor.parentNode && !document.getElementById("LeftMenuMyCompany")) {
-                var left = leftAnchor.cloneNode(true);
-                left.id = "LeftMenuMyCompany";
-                left.title = "My Company";
-                left.href = "#";
-                left.onclick = app.open;
-                left.onmouseup = app.open;
-                leftAnchor.parentNode.insertBefore(left, leftAnchor.nextSibling);
-            }
+            return fetch(endpoint.href, {
+                credentials: "same-origin",
+                cache: "no-store"
+            }).then(function (response) {
+                return response.json();
+            }).then(function (value) {
+                var tabs = value && value.settings && value.settings.tabs;
+                if (tabs && typeof tabs === "object") {
+                    ["scripts", "commands", "approvals", "move"].forEach(function (key) {
+                        app.uiSettings.tabs[key] = tabs[key] !== false;
+                    });
+                }
+                app.ensureNavigation();
+                if (app.inMyCompany) app.showNavigation(app.activeModule);
+            }).catch(function (error) {
+                if (window.console) console.error("MyCompany UI settings load failed", error);
+            });
         };
 
         [0, 100, 500, 1500, 3000].forEach(function (delay) {
-            window.setTimeout(invokeEmbeddedStartups, delay);
-        });
-        [800, 1800, 3500].forEach(function (delay) {
-            window.setTimeout(removeEmbeddedMenus, delay);
+            window.setTimeout(function () {
+                removeDisallowedMenuEntries();
+                app.invokeEmbeddedStartups();
+                app.wrapModuleOpeners();
+                app.ensureNavigation();
+            }, delay);
         });
 
-        app.ensureWorkspace();
-        app.ensureNavigation();
-        app.ensureMenus();
-        window.setTimeout(app.ensureMenus, 1000);
-        window.setTimeout(app.ensureMenus, 3000);
+        app.loadUiSettings();
     };
 
     obj.goPageStart = function (view) {
         if (typeof window === "undefined") return;
+
         var app = window.MyCompany;
-        if (app && app.active) app.restoreNativePage();
         if (app && !app.openingEmbedded) {
             app.inMyCompany = false;
             app.hideNavigation();
         }
-        if (window.MyScripts && typeof window.MyScripts.onNativePageStart === "function") window.MyScripts.onNativePageStart(view);
-        if (window.MyCommands && typeof window.MyCommands.onNativePageStart === "function") window.MyCommands.onNativePageStart(view);
-        if (window.ApprovalCenter && typeof window.ApprovalCenter.onNativePageStart === "function") window.ApprovalCenter.onNativePageStart(view);
+
+        if (window.MyScripts && typeof window.MyScripts.onNativePageStart === "function") {
+            window.MyScripts.onNativePageStart(view);
+        }
+        if (window.MyCommands && typeof window.MyCommands.onNativePageStart === "function") {
+            window.MyCommands.onNativePageStart(view);
+        }
+        if (window.ApprovalCenter && typeof window.ApprovalCenter.onNativePageStart === "function") {
+            window.ApprovalCenter.onNativePageStart(view);
+        }
     };
 
     obj.goPageEnd = function (view) {
         if (typeof window === "undefined") return;
-        if (window.MyScripts && typeof window.MyScripts.onNativePageEnd === "function") window.MyScripts.onNativePageEnd(view);
-        if (window.MyCommands && typeof window.MyCommands.onNativePageEnd === "function") window.MyCommands.onNativePageEnd(view);
-        if (window.ApprovalCenter && typeof window.ApprovalCenter.onNativePageEnd === "function") window.ApprovalCenter.onNativePageEnd(view);
+
+        if (window.MyScripts && typeof window.MyScripts.onNativePageEnd === "function") {
+            window.MyScripts.onNativePageEnd(view);
+        }
+        if (window.MyCommands && typeof window.MyCommands.onNativePageEnd === "function") {
+            window.MyCommands.onNativePageEnd(view);
+        }
+        if (window.ApprovalCenter && typeof window.ApprovalCenter.onNativePageEnd === "function") {
+            window.ApprovalCenter.onNativePageEnd(view);
+        }
+
         if (window.MyCompany) {
-            window.MyCompany.ensureMenus();
-            window.MyCompany.ensureNavigation();
-            if (window.MyCompany.inMyCompany) window.MyCompany.showNavigation(window.MyCompany.activeModule || "settings");
+            window.MyCompany.wrapModuleOpeners();
+            if (window.MyCompany.inMyCompany) {
+                window.MyCompany.showNavigation(window.MyCompany.activeModule);
+            }
         }
     };
 
     obj.onDeviceRefreshEnd = function (nodeId) {
         if (typeof window === "undefined") return;
+
         if (window.MyCommands) {
             window.MyCommands.pendingNodeId = nodeId;
-            if (typeof window.MyCommands.onDeviceRefreshEnd === "function") window.MyCommands.onDeviceRefreshEnd(nodeId);
+            if (typeof window.MyCommands.onDeviceRefreshEnd === "function") {
+                window.MyCommands.onDeviceRefreshEnd(nodeId);
+            }
         }
+
         if (window.MoveRequest) {
-            if (typeof window.MoveRequest.setHostNodeId === "function") window.MoveRequest.setHostNodeId(nodeId);
-            if (typeof window.MoveRequest.scheduleHostButton === "function") window.MoveRequest.scheduleHostButton();
+            if (typeof window.MoveRequest.setHostNodeId === "function") {
+                window.MoveRequest.setHostNodeId(nodeId);
+            }
+            if (typeof window.MoveRequest.scheduleHostButton === "function") {
+                window.MoveRequest.scheduleHostButton();
+            }
         }
     };
 
     obj.commandResult = function (server, message) {
-        if (typeof window !== "undefined" && window.MyCommands && typeof window.MyCommands.commandResult === "function") window.MyCommands.commandResult(message);
+        if (typeof window !== "undefined" && window.MyCommands && typeof window.MyCommands.commandResult === "function") {
+            window.MyCommands.commandResult(message);
+        }
     };
 
     return obj;
