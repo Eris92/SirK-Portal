@@ -1,5 +1,39 @@
 [
   {
+    "version": "0.5.9",
+    "date": "2026-07-20",
+    "changes": [
+      "Removed configurable tab visibility introduced in 0.5.8",
+      "Restored the previous stable navigation behavior",
+      "Restored the My Company menu entry",
+      "Kept the native admin Debug panel"
+    ]
+  },
+  {
+    "version": "0.5.7",
+    "date": "2026-07-20",
+    "changes": [
+      "Added native My Company admin panel",
+      "Added module and log diagnostics",
+      "Fixed empty admin module routing"
+    ]
+  },
+  {
+    "version": "0.5.5",
+    "date": "2026-07-20",
+    "changes": [
+      "Fixed serialized startup functions",
+      "Fixed Approval Center initialization"
+    ]
+  },
+  {
+    "version": "0.5.0",
+    "date": "2026-07-20",
+    "changes": [
+      "Published the complete standalone package on main"
+    ]
+  },
+  {
     "version": "0.1.1",
     "date": "2026-07-20",
     "changes": [
