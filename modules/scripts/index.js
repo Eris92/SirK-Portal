@@ -15,7 +15,8 @@ exports.create = function (runtime) {
         filesRoot: filesRoot,
         initialize: function () {
             if (!fs.existsSync(sourceRoot)) {
-                throw new Error("My Scripts source files are missing. Run npm run sync:files.");
+                runtime.audit("mycompanymodulewarning", "My Scripts source files are not bundled yet. Module remains disabled until Files are synchronized.");
+                return;
             }
             runtime.audit("mycompanymoduleloaded", "Scripts module loaded from " + sourceRoot + ".");
         }
