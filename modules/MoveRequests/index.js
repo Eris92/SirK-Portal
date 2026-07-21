@@ -25,26 +25,31 @@ module.exports.createModule = function (context) {
         });
     }
 
+    function normalizeLevelList(value) {
+        if (value === 0 || value === "0") return [];
+        if (!Array.isArray(value)) value = value == null ? [] : [value];
+        return value.map(Number).filter(function (level, index, all) {
+            return level >= 1 && level <= 3 && Math.floor(level) === level && all.indexOf(level) === index;
+        }).sort();
+    }
+
     function normalizeMeshApprovalLevels(value, allowedMeshIds) {
         value = value && typeof value === "object" && !Array.isArray(value) ? value : {};
         allowedMeshIds = Array.isArray(allowedMeshIds) ? allowedMeshIds.map(String) : [];
         var result = {};
         Object.keys(value).forEach(function (meshId) {
             meshId = String(meshId || "");
-            var level = Number(value[meshId]);
             if (!meshId || allowedMeshIds.indexOf(meshId) < 0) return;
-            if (level < 0 || level > 3 || Math.floor(level) !== level) return;
-            result[meshId] = level;
+            result[meshId] = normalizeLevelList(value[meshId]);
         });
         return result;
     }
 
-    function configuredLevel(targetMeshId) {
+    function configuredLevels(targetMeshId) {
         var config = context.settings.read().modules.moverequests || {};
         var levels = config.targetMeshApprovalLevels || {};
-        if (!Object.prototype.hasOwnProperty.call(levels, targetMeshId)) return 1;
-        var level = Number(levels[targetMeshId]);
-        return level >= 0 && level <= 3 ? level : 1;
+        if (!Object.prototype.hasOwnProperty.call(levels, targetMeshId)) return [1];
+        return normalizeLevelList(levels[targetMeshId]);
     }
 
     function moveNode(payload, request) {
@@ -104,8 +109,7 @@ module.exports.createModule = function (context) {
                 (payload.targetMeshName || payload.targetMeshId);
         },
         getApprovalLevels: function (payload) {
-            var level = configuredLevel(String(payload && payload.targetMeshId || ""));
-            return level === 0 ? [] : [level];
+            return configuredLevels(String(payload && payload.targetMeshId || ""));
         },
         canSubmit: function (user) {
             return !!user;
