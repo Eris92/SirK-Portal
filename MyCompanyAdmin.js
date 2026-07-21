@@ -60,6 +60,22 @@ module.exports.admin = function (plugin) {
         });
     }
 
+    function serveVendorPortal(res, asset) {
+        var prefix = "vendor/sirk-portal/";
+        if (asset.indexOf(prefix) !== 0) return false;
+        var name = asset.slice(prefix.length);
+        if (!/^[a-z0-9._-]+$/i.test(name)) {
+            shared.send(res, 400, "text/plain; charset=utf-8", "Invalid asset name");
+            return true;
+        }
+        var type = /\.css$/i.test(name) ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8";
+        fs.readFile(path.join(root, "public", "vendor", "sirk-portal", name), function (error, data) {
+            if (error) shared.send(res, 404, "text/plain; charset=utf-8", "SirK Portal vendor asset unavailable");
+            else shared.send(res, 200, type, data);
+        });
+        return true;
+    }
+
     function moduleObject(moduleName) {
         return plugin.runtime && plugin.runtime.modules && plugin.runtime.modules[String(moduleName || "").toLowerCase()];
     }
@@ -75,6 +91,7 @@ module.exports.admin = function (plugin) {
     obj.req = function (req, res, user) {
         var asset = String(req && req.query && req.query.asset || "");
         var moduleName = String(req && req.query && req.query.module || "");
+        if (serveVendorPortal(res, asset)) return;
         if (assets[asset]) { serve(res, asset); return; }
         if (asset === "bootstrap") { plugin.runtime.request("GET", "_runtime", "bootstrap", req, res, user); return; }
         if (moduleName === "myscripts" && asset === "folder-icon") {
