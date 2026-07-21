@@ -72,12 +72,19 @@ function validateArchitecture() {
     if (myScriptsModule.indexOf("Script does not require approval.") >= 0) errors.push("MyScripts must not return a synthetic direct result.");
 
     var commandsModule = read("modules/MyCommands/index.js");
-    ["approvalResults", 'asset === "multi-execute"', "maxMultiHostNodes", "multiHostConcurrency"].forEach(function (value) {
+    [
+        "approvalResults", 'asset === "multi-execute"', "maxMultiHostNodes", "multiHostConcurrency",
+        "publicCatalog", "commandId", 'asset === "output"', "Open PowerShell", "Open CMD",
+        "Registry Editor", "Local Security Policy", "Windows Firewall", "MMC", "Services",
+        "Device Manager", "Event Viewer", "Task Manager", "Printer Management",
+        "Certificates (computer)", "Certificates (user)", "Indexing Options", "Disk Cleanup",
+        "Flush DNS", "Check DNS", "Check port", "Open ports", "Filter by port"
+    ].forEach(function (value) {
         need(commandsModule, value, "MyCommands missing: " + value, errors);
     });
 
     var tree = read("public/shared-ui/tree.js");
-    ["iconData", "mc-tree-folder-body", "scriptActions", "mc-tree-script-actions"].forEach(function (value) {
+    ["iconData", "mc-tree-folder-body", "scriptActions", "mc-tree-script-actions", "options.node && options.node.icon"].forEach(function (value) {
         need(tree, value, "Shared tree missing: " + value, errors);
     });
     need(tree, "if (!graphic)", "Folder arrow must be hidden when an icon exists.", errors);
@@ -112,6 +119,7 @@ function validateArchitecture() {
         match(source, /tabs\s*:\s*\[\s*\]/, name + " must not render duplicate tabs.", errors);
         match(source, /clear\s*:\s*false/, name + " must not render duplicate Clear.", errors);
     });
+
     var myScripts = read("public/myscripts.js");
     ["variableValues", "SharedResultsView.mountResult"].forEach(function (value) {
         need(myScripts, value, "MyScripts UI missing: " + value, errors);
@@ -120,11 +128,17 @@ function validateArchitecture() {
     match(myScripts, /multi\s*:\s*false/, "MyScripts must hide multi-device execution.", errors);
 
     var myCommands = read("public/mycommands.js");
-    ["openMultiExecution", 'post("multi-execute"'].forEach(function (value) {
+    [
+        "openMultiExecution", 'post("multi-execute"', "resultsPosition: \"end\"",
+        'name: "Scripts"', '"@menu/" + category.key', "commandId", 'tabs: []'
+    ].forEach(function (value) {
         need(myCommands, value, "MyCommands UI missing: " + value, errors);
     });
     match(myCommands, /order\s*:\s*60/, "MyCommands multi action order is invalid.", errors);
     match(myCommands, /collapse\s*:\s*\{/, "MyCommands must expose Collapse.", errors);
+
+    var sharedCatalog = read("public/shared-ui/catalog.js");
+    need(sharedCatalog, 'resultsPosition !== "end"', "Shared catalog must support putting Results at the end of the left menu.", errors);
 
     var approval = read("public/approvalcenter.js");
     ["Filter requests", "SharedResultsView.mountTable", "mc-approval-nav-icon"].forEach(function (value) {
