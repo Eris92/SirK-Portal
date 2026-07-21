@@ -3,6 +3,8 @@
 var crypto = require("crypto");
 var shared = require("./shared.js");
 
+var VARIABLE_DIRECTIVE = /^(VariableSelectRequired|VariableSelect|VariableSwitchRequired|VariableSwitch|VariableUserRequired|VariableUser|VariableAssetRequired|VariableAsset|VariableRequired|Variable|SaveSecretRequired|SaveSecret)$/i;
+
 function yes(value) {
     return /^(1|y|yes|t|tak|true)$/i.test(
         String(value == null ? "" : value).trim()
@@ -74,9 +76,13 @@ function parseScript(path, text, fileName) {
         .split(/\r?\n/);
     var variables = [];
     var secretVariables = [];
+    var variableDefinitions = [];
+    var secretDefinitions = [];
     var approvalFlags = {};
     var label = path.basename(fileName, path.extname(fileName));
     var description = "";
+    var extraHeaders = [];
+    var titleParsed = false;
     var runAsUser = 0;
     var multiHost = false;
     var index = 0;
@@ -95,9 +101,8 @@ function parseScript(path, text, fileName) {
         );
         var runAs = header.match(/^runAsUser\s*:\s*([012])\s*$/i);
         var multi = header.match(/^MultiHost\s*:\s*(true|false)\s*$/i);
-        var directive = header.match(
-            /^(VariableSelectRequired|VariableSelect|VariableSwitchRequired|VariableSwitch|VariableUserRequired|VariableUser|VariableAssetRequired|VariableAsset|VariableRequired|Variable|SaveSecretRequired|SaveSecret)\s*:\s*(.+)$/i
-        );
+        var directive = header.match(/^([^:]+)\s*:\s*(.*)$/);
+        var directiveName = directive && String(directive[1] || "").trim();
 
         if (approval) {
             approvalFlags[Number(approval[1] || 1)] =
@@ -106,8 +111,9 @@ function parseScript(path, text, fileName) {
             runAsUser = Number(runAs[1]);
         } else if (multi) {
             multiHost = multi[1].toLowerCase() === "true";
-        } else if (directive) {
-            var kind = directive[1].toLowerCase();
+        } else if (directive && VARIABLE_DIRECTIVE.test(directiveName)) {
+            var value = String(directive[2] || "").trim();
+            var kind = directiveName.toLowerCase();
             var required = kind.indexOf("required") >= 0;
             var control = kind.indexOf("select") >= 0
                 ? "select"
@@ -120,11 +126,21 @@ function parseScript(path, text, fileName) {
                             : kind.indexOf("savesecret") >= 0
                                 ? "secret"
                                 : "text";
-            var parsed = parseVariable(directive[2], required, control);
+            var parsed = parseVariable(value, required, control);
+            var definition = {
+                directive: directiveName,
+                value: value
+            };
             if (parsed) {
-                (control === "secret" ? secretVariables : variables).push(parsed);
+                if (control === "secret") {
+                    secretVariables.push(parsed);
+                    secretDefinitions.push(definition);
+                } else {
+                    variables.push(parsed);
+                    variableDefinitions.push(definition);
+                }
             }
-        } else if (!description) {
+        } else if (!titleParsed) {
             var separator = header.indexOf("|");
             if (separator >= 0) {
                 label = header.slice(0, separator).trim() || label;
@@ -132,6 +148,9 @@ function parseScript(path, text, fileName) {
             } else {
                 label = header.trim() || label;
             }
+            titleParsed = true;
+        } else {
+            extraHeaders.push(header);
         }
         index++;
     }
@@ -144,13 +163,39 @@ function parseScript(path, text, fileName) {
         approvalLevels: levels,
         body: lines.slice(index).join("\n"),
         description: shared.cleanText(description, 1000),
+        extraHeaders: extraHeaders,
         label: shared.cleanText(label, 200),
         multiHost: multiHost,
         requiresApproval: levels.length > 0,
         runAsUser: runAsUser,
+        secretDefinitions: secretDefinitions,
         secretVariables: secretVariables,
+        variableDefinitions: variableDefinitions,
         variables: variables
     };
+}
+
+function normalizeLevels(value) {
+    value = Array.isArray(value) ? value : [];
+    return [1, 2, 3].filter(function (level) {
+        return value.map(Number).indexOf(level) >= 0;
+    });
+}
+
+function normalizeDefinitions(value, secret) {
+    value = Array.isArray(value) ? value : [];
+    return value.map(function (item) {
+        item = item && typeof item === "object" ? item : {};
+        var directive = shared.cleanText(item.directive, 80).trim();
+        var directiveMatch = directive.match(VARIABLE_DIRECTIVE);
+        if (!directiveMatch) return null;
+        directive = directiveMatch[1];
+        var isSecret = /^SaveSecret/i.test(directive);
+        if (isSecret !== secret) return null;
+        var text = shared.cleanText(item.value, 4000).trim();
+        if (!text) return null;
+        return { directive: directive, value: text };
+    }).filter(Boolean);
 }
 
 module.exports.createScriptLibrary = function (options) {
@@ -316,6 +361,70 @@ module.exports.createScriptLibrary = function (options) {
         return getScript(relativePath, true);
     }
 
+    function getDefinition(relativePath) {
+        var source = getSource(relativePath);
+        if (!source) return null;
+        var target = targetFor(relativePath);
+        var parsed = parseScript(path, source.text, target);
+        return {
+            path: source.path,
+            label: parsed.label,
+            description: parsed.description,
+            approvalLevels: parsed.approvalLevels,
+            variables: parsed.variableDefinitions,
+            secretVariables: parsed.secretDefinitions,
+            runAsUser: parsed.runAsUser,
+            multiHost: parsed.multiHost
+        };
+    }
+
+    function saveDefinition(relativePath, definition) {
+        if (!allowWrite) throw new Error("Script library is read-only.");
+        var source = getSource(relativePath);
+        if (!source) throw new Error("Script not found.");
+        var target = targetFor(relativePath);
+        var current = parseScript(path, source.text, target);
+        definition = definition && typeof definition === "object" ? definition : {};
+
+        var label = shared.cleanText(
+            definition.label || current.label || path.basename(target, path.extname(target)),
+            200
+        ).trim();
+        var description = shared.cleanText(definition.description, 1000).trim();
+        var levels = normalizeLevels(definition.approvalLevels);
+        var variables = normalizeDefinitions(definition.variables, false);
+        var secrets = normalizeDefinitions(definition.secretVariables, true);
+        var runAsUser = Math.max(0, Math.min(2, Number(definition.runAsUser) || 0));
+        var multiHost = definition.multiHost === true;
+        var newline = source.text.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
+        var header = ["# " + label + (description ? " | " + description : "")];
+
+        levels.forEach(function (level) {
+            header.push("# Approval_" + level + ": true");
+        });
+        if (runAsUser) header.push("# runAsUser: " + runAsUser);
+        if (multiHost) header.push("# MultiHost: true");
+        variables.forEach(function (item) {
+            header.push("# " + item.directive + ": " + item.value);
+        });
+        secrets.forEach(function (item) {
+            header.push("# " + item.directive + ": " + item.value);
+        });
+        current.extraHeaders.forEach(function (item) {
+            header.push("# " + item);
+        });
+
+        var next = header.join(newline);
+        if (current.body) next += newline + newline + current.body;
+        else next += newline;
+
+        saveSource(relativePath, next);
+        return {
+            script: getScript(relativePath, true),
+            definition: getDefinition(relativePath)
+        };
+    }
+
     function getTree() {
         if (treeCache.value && treeCache.expiresAt > Date.now()) {
             return shared.copy(treeCache.value);
@@ -394,12 +503,14 @@ module.exports.createScriptLibrary = function (options) {
 
     return {
         ensure: ensure,
+        getDefinition: getDefinition,
         getRoots: getRoots,
         getScript: getScript,
         getSource: getSource,
         getTree: getTree,
         invalidate: invalidate,
         root: root,
+        saveDefinition: saveDefinition,
         saveSource: saveSource
     };
 };
