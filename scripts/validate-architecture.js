@@ -13,12 +13,14 @@ var required = [
     "core/approval-service.js",
     "core/atomic-json.js",
     "core/settings-store.js",
+    "core/script-library.js",
     "modules/ApprovalCenter/index.js",
     "modules/MoveRequests/index.js",
     "modules/MyCommands/index.js",
     "modules/MyScripts/index.js",
     "modules/MyJira/index.js",
     "modules/DefenderTools/index.js",
+    "public/approvalcenter.js",
     "public/shared-ui/toolbar.js",
     "public/shared-ui/toolbar-api.js",
     "public/shared-ui/toolbar-config.js",
@@ -48,8 +50,8 @@ function validateArchitecture() {
     if (config.shortName !== "MyCompany") {
         errors.push("config.shortName must be MyCompany.");
     }
-    if (config.version !== "1.3.0") {
-        errors.push("config.version must be 1.3.0.");
+    if (config.version !== "1.3.1") {
+        errors.push("config.version must be 1.3.1.");
     }
 
     var entrypoints = fs.readdirSync(root).filter(function (name) {
@@ -64,6 +66,25 @@ function validateArchitecture() {
     }
     if (fs.existsSync(path.join(root, "legacy"))) {
         errors.push("legacy source directory is not allowed.");
+    }
+
+    var runtimeSource = fs.readFileSync(
+        path.join(root, "core", "runtime.js"),
+        "utf8"
+    );
+    if (runtimeSource.indexOf('"seed", "MyScripts"') < 0) {
+        errors.push("Runtime must resolve MyScripts from seed/MyScripts.");
+    }
+    if (runtimeSource.indexOf('"seed", "MyCommands"') < 0) {
+        errors.push("Runtime must resolve MyCommands from seed/MyCommands.");
+    }
+
+    var myScriptsSource = fs.readFileSync(
+        path.join(root, "modules", "MyScripts", "index.js"),
+        "utf8"
+    );
+    if (myScriptsSource.indexOf('context.pluginRoot, "seed", "MyScripts"') < 0) {
+        errors.push("MyScripts must read directly from seed/MyScripts.");
     }
 
     if (errors.length) {
@@ -90,14 +111,14 @@ function validateSettingsWriter() {
     }).then(function () {
         var value = JSON.parse(fs.readFileSync(filePath, "utf8"));
         if (value.version !== 2 || value.enabled !== false) {
-            throw new Error("Atomic settings writer returned invalid data.");
+            throw new Error("Settings writer returned invalid data.");
         }
 
         var leftovers = fs.readdirSync(directory).filter(function (name) {
             return /\.(tmp|bak)$/.test(name);
         });
         if (leftovers.length) {
-            throw new Error("Atomic settings writer left temporary files: " + leftovers.join(", "));
+            throw new Error("Settings writer left temporary files: " + leftovers.join(", "));
         }
     }).finally(function () {
         fs.rmSync(directory, { recursive: true, force: true });
