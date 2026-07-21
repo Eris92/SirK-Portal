@@ -187,7 +187,8 @@
     }
 
     function execute(shell, item, button, values, outputHost) {
-        button.disabled = true;
+        if (button) button.disabled = true;
+        outputHost.classList.remove("mc-shared-error");
         renderWaiting(outputHost, "Submitting command...");
         var payload = {
             nodeId: node(shell),
@@ -224,7 +225,7 @@
             renderWaiting(outputHost, outputs[item.path]);
             outputHost.classList.add("mc-shared-error");
         }).then(function () {
-            button.disabled = false;
+            if (button) button.disabled = false;
         });
     }
 
@@ -246,10 +247,26 @@
         sync(shell);
     }
 
-    function show(shell, item) {
+    function executeFromMenu(shell, item) {
+        var host = shell.state.page.details;
+        host.innerHTML = "";
+        var card = shell.card(item.label || item.name, item.description || item.path);
+        var outputHost = document.createElement("div");
+        outputHost.className = "mc-command-inline-result";
+        card.appendChild(outputHost);
+        host.appendChild(card);
+        sync(shell);
+        execute(shell, item, null, {}, outputHost);
+    }
+
+    function show(shell, item, executeOnSelect) {
         pollSequence++;
         if (item.kind === "command") {
-            showDefinition(shell, item);
+            if (executeOnSelect === true && (!Array.isArray(item.variables) || item.variables.length === 0)) {
+                executeFromMenu(shell, item);
+            } else {
+                showDefinition(shell, item);
+            }
             return;
         }
         shell.api("script", { path: item.path }).then(function (response) {
@@ -317,7 +334,6 @@
             state: treeState,
             search: shell.state.search,
             resultsActive: mode === "results",
-            resultsPosition: "end",
             emptyText: tools.state.favoritesOnly ? "No favorite command scripts found." : "No commands found.",
             filterScript: filterItem,
             scriptActions: function (item) { return actions(shell, item); },
@@ -334,7 +350,7 @@
             },
             onScript: function (item) {
                 mode = "commands";
-                show(shell, item);
+                show(shell, item, true);
             }
         });
     }
@@ -364,7 +380,7 @@
             return;
         }
         var item = window.SharedDirectoryTree.find(tree, treeState.selectedScript);
-        if (item && filterItem(item)) show(shell, item);
+        if (item && filterItem(item)) show(shell, item, false);
         else {
             treeState.selectedScript = "";
             empty(shell);
