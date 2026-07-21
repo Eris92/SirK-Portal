@@ -88,6 +88,11 @@
                     core.assetUrl("", "shared-ui/script-definition-form.js")
                 );
             }).then(function () {
+                return core.loadScript(
+                    "mycompany-shared-confirm-execution-form",
+                    core.assetUrl("", "shared-ui/confirm-execution-form.js")
+                );
+            }).then(function () {
                 installCredentialsActions();
                 return core.loadScript(
                     "mycompany-shared-script-edit-actions",
