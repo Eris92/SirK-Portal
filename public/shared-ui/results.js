@@ -2,254 +2,198 @@
     "use strict";
 
     function valueAt(row, path, fallback) {
-        var current = row;
-        var parts = String(path || "").split(".");
-        for (var index = 0; index < parts.length; index++) {
-            if (current == null) return fallback;
-            current = current[parts[index]];
-        }
+        var current = row, parts = String(path || "").split(".");
+        for (var i = 0; i < parts.length; i++) { if (current == null) return fallback; current = current[parts[i]]; }
         return current == null || current === "" ? fallback : current;
     }
 
     function approver(row) {
         if (row.approver && row.approver.name) return row.approver.name;
         var decisions = Array.isArray(row.approvalDecisions) ? row.approvalDecisions : [];
-        for (var index = decisions.length - 1; index >= 0; index--) {
-            if (decisions[index].user && decisions[index].user.name) return decisions[index].user.name;
-        }
+        for (var i = decisions.length - 1; i >= 0; i--) if (decisions[i].user && decisions[i].user.name) return decisions[i].user.name;
         return "—";
     }
 
-    function resultText(row) {
+    function rawResult(row) {
         var result = row && row.result || {};
-        return result.output || result.message || row.output || (row.status === "pending"
-            ? "Waiting for approval."
-            : row.status === "executing" ? "Executing..." : row.status || "—");
+        var value = result.output || result.message || result.rawOutput || row.output || row.rawOutput;
+        if (value != null && value !== "") return typeof value === "string" ? value : JSON.stringify(value, null, 2);
+        if (row.status === "pending") return "Waiting for approval.";
+        if (row.status === "executing") return "Executing...";
+        if (row.summary) return String(row.summary);
+        try { return JSON.stringify(row, null, 2); } catch (error) { return String(row.status || "—"); }
     }
 
-    function debugText(row) {
-        var result = row && row.result || {};
-        return result.debug || result.rawOutput || result.stderr || row.debug || row.rawOutput || resultText(row);
-    }
-
-    function structuredRows(row) {
-        var result = row && row.result || {};
-        var candidates = [result.table, result.rows, result.data, row.table, row.rows];
-        for (var index = 0; index < candidates.length; index++) {
-            if (Array.isArray(candidates[index]) && candidates[index].length) return candidates[index];
+    function parseLine(line, delimiter) {
+        var values = [], value = "", quoted = false;
+        for (var i = 0; i < line.length; i++) {
+            var ch = line.charAt(i);
+            if (ch === '"') {
+                if (quoted && line.charAt(i + 1) === '"') { value += '"'; i++; }
+                else quoted = !quoted;
+            } else if (ch === delimiter && !quoted) { values.push(value.trim()); value = ""; }
+            else value += ch;
         }
-        return [];
+        values.push(value.trim()); return values;
     }
 
-    function copyText(text) {
-        text = String(text == null ? "" : text);
-        if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
-        var area = document.createElement("textarea");
-        area.value = text;
-        area.style.position = "fixed";
-        area.style.opacity = "0";
-        document.body.appendChild(area);
-        area.select();
-        try { document.execCommand("copy"); } finally { document.body.removeChild(area); }
-        return Promise.resolve();
+    function parseStructured(value) {
+        var raw = String(value == null ? "" : value).trim(), parsed = null, table = null, portal = null;
+        if (!raw) return { raw: "", table: null, portal: null };
+        try { parsed = JSON.parse(raw); } catch (error) {}
+        if (parsed) {
+            if (parsed.meshPortal === true) portal = parsed;
+            else if (parsed.meshTable === true) table = parsed;
+            else if (parsed.data && parsed.data.meshTable === true) table = parsed.data;
+            else if (parsed.data && parsed.data.table) table = parsed.data.table;
+            else if (Array.isArray(parsed)) table = { title: "Result", rows: parsed };
+            else if (Array.isArray(parsed.rows)) table = parsed;
+        }
+        if (!table && !portal) {
+            var lines = raw.split(/\r?\n/).filter(function (line) { return line.trim(); });
+            if (lines.length > 1) {
+                var delimiter = lines[0].indexOf("\t") >= 0 ? "\t" : lines[0].indexOf(";") >= 0 ? ";" : lines[0].indexOf(",") >= 0 ? "," : "";
+                if (delimiter) {
+                    var columns = parseLine(lines[0], delimiter);
+                    table = { title: "Result", columns: columns, rows: lines.slice(1).map(function (line) {
+                        var values = parseLine(line, delimiter), row = {};
+                        columns.forEach(function (column, index) { row[column] = values[index] == null ? "" : values[index]; }); return row;
+                    }) };
+                }
+            }
+        }
+        return { raw: raw, table: table, portal: portal };
     }
 
-    function renderObjectTable(host, rows) {
-        if (!rows.length || typeof rows[0] !== "object" || rows[0] == null) return false;
-        var keys = [];
-        rows.forEach(function (row) {
-            Object.keys(row || {}).forEach(function (key) {
-                if (keys.indexOf(key) < 0) keys.push(key);
-            });
-        });
-        var wrapper = document.createElement("div");
-        wrapper.className = "mc-results-table-wrap";
-        var table = document.createElement("table");
-        table.className = "style1 mc-results-table mc-results-structured-table";
-        wrapper.appendChild(table);
-        var header = table.createTHead().insertRow();
-        keys.forEach(function (key) {
-            var cell = document.createElement("th");
-            cell.textContent = key;
-            header.appendChild(cell);
-        });
-        var body = table.createTBody();
-        rows.forEach(function (row) {
-            var tr = body.insertRow();
-            keys.forEach(function (key) {
-                var value = row[key];
-                var cell = tr.insertCell();
-                cell.textContent = typeof value === "object" && value != null ? JSON.stringify(value) : String(value == null ? "" : value);
-            });
-        });
-        host.appendChild(wrapper);
-        return true;
+    function copyText(value) {
+        if (window.SharedScriptTools && window.SharedScriptTools.copyText) return window.SharedScriptTools.copyText(value);
+        value = String(value == null ? "" : value);
+        if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(value);
+        var area = document.createElement("textarea"); area.value = value; area.style.position = "fixed"; area.style.opacity = "0"; document.body.appendChild(area); area.select();
+        try { document.execCommand("copy"); } finally { area.remove(); } return Promise.resolve();
+    }
+
+    function appendValue(cell, value) {
+        if (value && typeof value === "object" && /^https:\/\//i.test(String(value.url || ""))) {
+            var link = document.createElement("a"); link.href = value.url; link.target = "_blank"; link.rel = "noopener"; link.textContent = value.text || "Open"; cell.appendChild(link);
+        } else cell.textContent = value == null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
+    }
+
+    function renderStructured(host, data) {
+        if (data.portal) {
+            var heading = document.createElement("h3"); heading.textContent = data.portal.title || "Portal"; host.appendChild(heading);
+            if (data.portal.description) { var description = document.createElement("p"); description.textContent = data.portal.description; host.appendChild(description); }
+            if (/^https:\/\//i.test(String(data.portal.url || ""))) { var link = document.createElement("a"); link.href = data.portal.url; link.target = "_blank"; link.rel = "noopener"; link.className = "btn btn-primary"; link.textContent = data.portal.buttonLabel || "Open"; host.appendChild(link); }
+            return;
+        }
+        if (data.table && Array.isArray(data.table.rows)) {
+            var rows = data.table.rows, columns = Array.isArray(data.table.columns) ? data.table.columns.slice() : [];
+            if (!columns.length && rows.length) columns = Object.keys(rows[0] || {});
+            var heading = document.createElement("h3"); heading.textContent = data.table.title || "Result"; host.appendChild(heading);
+            var wrapper = document.createElement("div"); wrapper.className = "mc-results-table-wrap";
+            var table = document.createElement("table"); table.className = "style1 mc-results-table mc-results-structured-table";
+            var header = table.createTHead().insertRow(); columns.forEach(function (column) { var cell = document.createElement("th"); cell.textContent = column; header.appendChild(cell); });
+            var body = table.createTBody(); rows.forEach(function (source) { var row = body.insertRow(); columns.forEach(function (column) { appendValue(row.insertCell(), source && source[column]); }); });
+            wrapper.appendChild(table); host.appendChild(wrapper); return;
+        }
+        var output = document.createElement("pre"); output.className = "mc-results-viewer-output"; output.textContent = data.raw || "No output."; host.appendChild(output);
+    }
+
+    function copyResult(data, button) {
+        var output = data.raw;
+        if (data.table && Array.isArray(data.table.rows)) {
+            var rows = data.table.rows, columns = Array.isArray(data.table.columns) ? data.table.columns.slice() : [];
+            if (!columns.length && rows.length) columns = Object.keys(rows[0] || {});
+            output = [columns.join("\t")].concat(rows.map(function (row) { return columns.map(function (column) { var value = row && row[column]; return String(value == null ? "" : typeof value === "object" ? JSON.stringify(value) : value).replace(/[\t\r\n]+/g, " "); }).join("\t"); })).join("\n");
+        }
+        return copyText(output).then(function () { if (!button) return; button.textContent = "Copied"; setTimeout(function () { if (button.isConnected) button.textContent = "Copy"; }, 1200); });
     }
 
     function openViewer(row, options) {
         options = options || {};
-        var overlay = document.createElement("div");
-        overlay.className = "mc-results-viewer-overlay";
-        var dialog = document.createElement("section");
-        dialog.className = "mc-results-viewer";
-        overlay.appendChild(dialog);
-
-        var header = document.createElement("div");
-        header.className = "mc-results-viewer-header";
-        var title = document.createElement("h3");
-        title.textContent = options.title || row.title || "Result";
-        header.appendChild(title);
-        var actions = document.createElement("div");
-        actions.className = "mc-results-viewer-actions";
-        var copy = document.createElement("button");
-        copy.type = "button";
-        copy.className = "btn btn-secondary btn-sm";
-        copy.textContent = "Copy";
-        copy.onclick = function () { copyText(debugText(row)); };
-        var close = document.createElement("button");
-        close.type = "button";
-        close.className = "btn btn-secondary btn-sm";
-        close.textContent = "Close";
-        close.onclick = function () { overlay.remove(); };
-        actions.appendChild(copy);
-        actions.appendChild(close);
-        header.appendChild(actions);
-        dialog.appendChild(header);
-
-        var content = document.createElement("div");
-        content.className = "mc-results-viewer-content";
-        var rows = structuredRows(row);
-        if (!renderObjectTable(content, rows)) {
-            var output = document.createElement("pre");
-            output.className = "mc-results-viewer-output";
-            output.textContent = resultText(row);
-            content.appendChild(output);
-        }
-
-        var details = document.createElement("details");
-        details.className = "mc-results-debug";
-        var summary = document.createElement("summary");
-        summary.textContent = "Debug / full output";
-        details.appendChild(summary);
-        var debug = document.createElement("pre");
-        debug.textContent = debugText(row);
-        details.appendChild(debug);
-        content.appendChild(details);
-        dialog.appendChild(content);
-
+        var raw = typeof options.resultValue === "function" ? options.resultValue(row) : rawResult(row);
+        var data = parseStructured(raw);
+        var overlay = document.createElement("div"); overlay.className = "mc-results-viewer-overlay";
+        var dialog = document.createElement("section"); dialog.className = "mc-results-viewer"; dialog.setAttribute("role", "dialog"); dialog.setAttribute("aria-modal", "true"); overlay.appendChild(dialog);
+        var header = document.createElement("div"); header.className = "mc-results-viewer-header";
+        var title = document.createElement("h3"); title.textContent = options.dialogTitle || row.title || "Result"; header.appendChild(title);
+        var actions = document.createElement("div"); actions.className = "mc-results-viewer-actions";
+        var copy = document.createElement("button"); copy.type = "button"; copy.className = "btn btn-secondary btn-sm"; copy.textContent = "Copy"; copy.onclick = function () { copyResult(data, copy).catch(function () { copy.textContent = "Copy failed"; }); };
+        var close = document.createElement("button"); close.type = "button"; close.className = "btn btn-secondary btn-sm"; close.textContent = "Close"; close.onclick = function () { overlay.remove(); };
+        actions.appendChild(copy); actions.appendChild(close); header.appendChild(actions); dialog.appendChild(header);
+        var content = document.createElement("div"); content.className = "mc-results-viewer-content"; renderStructured(content, data);
+        var details = document.createElement("details"); details.className = "mc-results-debug";
+        var summary = document.createElement("summary"); summary.textContent = "Debug / raw output"; details.appendChild(summary);
+        var debug = document.createElement("pre"); debug.textContent = data.raw; details.appendChild(debug); content.appendChild(details); dialog.appendChild(content);
         overlay.onclick = function (event) { if (event.target === overlay) overlay.remove(); };
-        document.body.appendChild(overlay);
+        document.body.appendChild(overlay); close.focus();
     }
 
     function defaultColumns(kind) {
         var columns = [
             { title: "DateTime", value: function (row) { return row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"; } },
-            { title: kind === "commands" ? "Command" : "Script", value: function (row) { return row.title || valueAt(row, "result.command", "") || row.summary || "—"; } }
+            { title: kind === "commands" ? "Command" : "Script", value: function (row) { return row.title || valueAt(row, "result.command", "") || valueAt(row, "fields.script", "") || row.summary || "—"; } }
         ];
-        if (kind === "commands") {
-            columns.push({ title: "Device", value: function (row) { return valueAt(row, "result.nodeName", "") || valueAt(row, "result.nodeId", "") || String(row.summary || "").replace(/^Device:\s*/i, "") || "—"; } });
-        }
+        if (kind === "commands") columns.push({ title: "Device", value: function (row) { return valueAt(row, "result.nodeName", "") || valueAt(row, "result.nodeId", "") || String(row.summary || "").replace(/^Device:\s*/i, "") || "—"; } });
         columns.push(
             { title: "Requester", value: function (row) { return valueAt(row, "requester.name", "—"); } },
             { title: "Approver", value: approver },
+            { title: "Approval", value: function (row) { var p = row.approvalProgress || {}; return p.text || ((p.approved || 0) + "/" + (p.total || 0)); } },
             { title: "Status", value: function (row) { return row.status || "—"; }, className: function (row) { return "mc-results-status mc-results-status-" + String(row.status || "unknown").toLowerCase(); } },
-            { title: "Result", value: resultText, pre: true },
-            { title: "Actions", action: true }
+            { title: "Result", value: function (row) { var value = rawResult(row); return value.length > 180 ? value.slice(0, 180) + "…" : value; } }
         );
         return columns;
     }
 
+    function searchText(row, columns) {
+        var values = columns.map(function (column) { try { return typeof column.value === "function" ? column.value(row) : valueAt(row, column.path, ""); } catch (error) { return ""; } });
+        values.push(rawResult(row)); try { values.push(JSON.stringify(row)); } catch (error) {}
+        return values.join(" ").toLocaleLowerCase();
+    }
+
     window.SharedResultsView = {
+        parseStructured: parseStructured,
+        openViewer: openViewer,
+        copyText: copyText,
         mountStatus: function (host, options) {
             options = options || {};
             window.SharedStatusNav.mount(host, { selected: options.selected || "", counts: options.counts, onSelect: options.onSelect });
         },
-        openViewer: openViewer,
-        copyText: copyText,
         mountTable: function (host, options) {
             options = options || {};
-            var rows = Array.isArray(options.rows) ? options.rows.slice() : [];
+            var sourceRows = Array.isArray(options.rows) ? options.rows.slice() : [];
             var columns = options.columns || defaultColumns(options.kind || "scripts");
             host.innerHTML = "";
-
-            if (options.title) {
-                var title = document.createElement("h3");
-                title.className = "mc-results-title";
-                title.textContent = options.title;
-                host.appendChild(title);
-            }
-
-            if (options.filter !== false) {
-                var filter = document.createElement("input");
-                filter.type = "search";
-                filter.className = "mc-results-filter";
-                filter.placeholder = options.filterPlaceholder || "Filter results";
-                host.appendChild(filter);
-                filter.oninput = function () {
-                    var query = filter.value.toLowerCase();
-                    Array.prototype.forEach.call(host.querySelectorAll("tbody tr"), function (row) {
-                        row.hidden = query && row.textContent.toLowerCase().indexOf(query) < 0;
+            if (options.title) { var title = document.createElement("h3"); title.className = "mc-results-title"; title.textContent = options.title; host.appendChild(title); }
+            var filter = document.createElement("input"); filter.type = "search"; filter.className = "mc-results-filter"; filter.placeholder = options.filterPlaceholder || "Filter results"; filter.value = options.filterValue || "";
+            if (options.filter !== false) host.appendChild(filter);
+            var tableHost = document.createElement("div"); host.appendChild(tableHost);
+            function render() {
+                tableHost.innerHTML = "";
+                var query = String(filter.value || "").trim().toLocaleLowerCase();
+                var rows = query ? sourceRows.filter(function (row) { return searchText(row, columns).indexOf(query) >= 0; }) : sourceRows;
+                if (!rows.length) {
+                    var empty = document.createElement("div"); empty.className = "mc-shared-card"; empty.appendChild(document.createElement("strong")).textContent = "No results";
+                    var message = document.createElement("div"); message.className = "mc-shared-muted"; message.textContent = options.emptyText || "No results match the selected status or filter."; empty.appendChild(message); tableHost.appendChild(empty); return;
+                }
+                var wrapper = document.createElement("div"); wrapper.className = "mc-results-table-wrap";
+                var table = document.createElement("table"); table.className = "style1 mc-results-table"; wrapper.appendChild(table); tableHost.appendChild(wrapper);
+                var header = table.createTHead().insertRow(); columns.forEach(function (column) { var cell = document.createElement("th"); cell.textContent = column.title; header.appendChild(cell); });
+                if (options.showView !== false) { var viewHead = document.createElement("th"); viewHead.textContent = "View"; header.appendChild(viewHead); }
+                if (typeof options.actions === "function") { var actionHead = document.createElement("th"); actionHead.textContent = "Actions"; header.appendChild(actionHead); }
+                var body = table.createTBody(); rows.forEach(function (row) {
+                    var tableRow = body.insertRow();
+                    columns.forEach(function (column) {
+                        var cell = tableRow.insertCell();
+                        if (typeof column.render === "function") { column.render(cell, row); return; }
+                        var value = typeof column.value === "function" ? column.value(row) : valueAt(row, column.path, "—");
+                        cell.className = typeof column.className === "function" ? column.className(row) || "" : column.className || ""; appendValue(cell, value);
                     });
-                };
-            }
-
-            if (!rows.length) {
-                var empty = document.createElement("div");
-                empty.className = "mc-shared-card";
-                empty.appendChild(document.createElement("strong")).textContent = "No results";
-                var message = document.createElement("div");
-                message.className = "mc-shared-muted";
-                message.textContent = options.emptyText || "No results match the selected status.";
-                empty.appendChild(message);
-                host.appendChild(empty);
-                return;
-            }
-
-            var wrapper = document.createElement("div");
-            wrapper.className = "mc-results-table-wrap";
-            var table = document.createElement("table");
-            table.className = "style1 mc-results-table";
-            wrapper.appendChild(table);
-            host.appendChild(wrapper);
-            var header = table.createTHead().insertRow();
-            columns.forEach(function (column) {
-                var cell = document.createElement("th");
-                cell.textContent = column.title;
-                header.appendChild(cell);
-            });
-            var body = table.createTBody();
-            rows.forEach(function (row) {
-                var tableRow = body.insertRow();
-                columns.forEach(function (column) {
-                    var cell = tableRow.insertCell();
-                    if (column.action) {
-                        var view = document.createElement("button");
-                        view.type = "button";
-                        view.className = "btn btn-primary btn-sm mc-results-view-button";
-                        view.textContent = "View";
-                        view.onclick = function () { openViewer(row, options); };
-                        var copy = document.createElement("button");
-                        copy.type = "button";
-                        copy.className = "btn btn-secondary btn-sm mc-results-copy-button";
-                        copy.title = "Copy result";
-                        copy.textContent = "⧉";
-                        copy.onclick = function () { copyText(debugText(row)); };
-                        cell.appendChild(view);
-                        cell.appendChild(copy);
-                        return;
-                    }
-                    var value = typeof column.value === "function" ? column.value(row) : valueAt(row, column.path, "—");
-                    cell.className = typeof column.className === "function" ? column.className(row) || "" : column.className || "";
-                    if (column.pre) {
-                        var pre = document.createElement("pre");
-                        pre.className = "mc-results-output";
-                        pre.textContent = String(value == null ? "" : value);
-                        cell.appendChild(pre);
-                    } else {
-                        cell.textContent = String(value == null ? "" : value);
-                    }
+                    if (options.showView !== false) { var viewCell = tableRow.insertCell(), view = document.createElement("button"); view.type = "button"; view.className = "btn btn-primary btn-sm mc-results-view-button"; view.textContent = "View"; view.onclick = function () { openViewer(row, options); }; viewCell.appendChild(view); }
+                    if (typeof options.actions === "function") { var actionCell = tableRow.insertCell(); options.actions(actionCell, row); }
                 });
-            });
+            }
+            var timer = 0; filter.oninput = function () { clearTimeout(timer); timer = setTimeout(render, 120); }; render();
         }
     };
 }());
