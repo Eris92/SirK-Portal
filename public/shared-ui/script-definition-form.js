@@ -58,9 +58,11 @@
         var section = element("section", "mc-definition-section");
         var header = element("div", "mc-definition-section-header");
         header.appendChild(element("h4", "", title));
+        var headerActions = element("div", "mc-definition-section-actions");
         var add = element("button", "btn btn-secondary btn-sm", "Add variable");
         add.type = "button";
-        header.appendChild(add);
+        headerActions.appendChild(add);
+        header.appendChild(headerActions);
         section.appendChild(header);
 
         var wrapper = element("div", "mc-definition-table-wrap");
@@ -108,6 +110,13 @@
 
         return {
             element: section,
+            headerActions: headerActions,
+            addRow: addRow,
+            names: function () {
+                return controls.map(function (row) {
+                    return text(row.name.value).trim().replace(/^[\s$%]+/, "").toLowerCase();
+                }).filter(Boolean);
+            },
             values: function () {
                 return controls.map(function (row) {
                     var value = directiveValue(row);
@@ -117,14 +126,93 @@
         };
     }
 
+    function detectExternalVariables(sourceText) {
+        var source = text(sourceText);
+        var assigned = Object.create(null);
+        var referenced = Object.create(null);
+        var excluded = {
+            args: true, error: true, false: true, home: true, host: true, input: true,
+            matches: true, myinvocation: true, null: true, pid: true, profile: true,
+            psboundparameters: true, pscmdlet: true, pscommandpath: true, psitem: true,
+            psscriptroot: true, pwd: true, shellid: true, this: true, true: true,
+            _: true, env: true, foreach: true, switch: true, executioncontext: true,
+            lastexitcode: true, nestedpromptlevel: true, ofS: true
+        };
+
+        source.split(/\r?\n/).forEach(function (line) {
+            var code = line.replace(/#.*$/, "");
+            var assignment = code.match(/^\s*\$([A-Za-z_][A-Za-z0-9_]*)\s*(?:\[[^\]]+\]\s*)?(?:=|\+=|-=|\*=|\/=)/);
+            if (assignment) assigned[assignment[1].toLowerCase()] = true;
+            var match;
+            var pattern = /\$([A-Za-z_][A-Za-z0-9_]*)/g;
+            while ((match = pattern.exec(code))) {
+                referenced[match[1].toLowerCase()] = match[1];
+            }
+        });
+
+        return Object.keys(referenced).filter(function (key) {
+            return !assigned[key] && !excluded[key];
+        }).map(function (key) {
+            return referenced[key];
+        }).sort(function (a, b) {
+            return a.localeCompare(b);
+        });
+    }
+
+    function createSystemCredentialsSection(state) {
+        state = state || { profiles: [] };
+        var section = element("section", "mc-definition-section mc-definition-system-credentials");
+        section.appendChild(element("h4", "", "Credentials / secrets - System"));
+        section.appendChild(element(
+            "div",
+            "mc-shared-muted mc-system-credentials-description",
+            "Use credentials configured globally in MyCompany. Secrets remain encrypted and are not copied into the script."
+        ));
+        var list = element("div", "mc-system-credentials-list");
+        var boxes = [];
+        var profiles = Array.isArray(state.profiles) ? state.profiles : [];
+
+        profiles.forEach(function (profile) {
+            var label = element("label", "mc-system-credential-item");
+            var box = element("input");
+            box.type = "checkbox";
+            box.value = profile.name;
+            box.checked = profile.selected === true;
+            box.disabled = profile.configured !== true;
+            label.appendChild(box);
+            label.appendChild(element("span", "mc-system-credential-name", profile.label || profile.name));
+            label.appendChild(element(
+                "span",
+                profile.configured ? "mc-system-credential-configured" : "mc-system-credential-unavailable",
+                profile.configured ? "Configured" : "Not configured globally"
+            ));
+            list.appendChild(label);
+            boxes.push(box);
+        });
+
+        if (!profiles.length) {
+            list.appendChild(element("div", "mc-shared-muted", "No global integration profiles are available."));
+        }
+        section.appendChild(list);
+        return {
+            element: section,
+            selected: function () {
+                return boxes.filter(function (box) { return box.checked && !box.disabled; })
+                    .map(function (box) { return box.value; });
+            }
+        };
+    }
+
     function installDefinitionEditor(tool) {
         tool.openDefinitionEditor = function (shell, script, onSaved) {
             Promise.all([
                 shell.api("definition", { path: script.path }),
-                shell.api("script-secrets", { path: script.path }).catch(function () { return { secrets: { variables: [] } }; })
+                shell.api("script-secrets", { path: script.path }).catch(function () { return { secrets: { variables: [] } }; }),
+                shell.api("system-credentials", { path: script.path }).catch(function () { return { systemCredentials: { profiles: [] } }; })
             ]).then(function (responses) {
                 var value = responses[0].definition || {};
                 var secretState = responses[1].secrets || { variables: [] };
+                var systemState = responses[2].systemCredentials || { profiles: [] };
                 var host = shell.state.page.details;
                 host.innerHTML = "";
 
@@ -176,6 +264,9 @@
                 );
                 card.appendChild(secrets.element);
 
+                var systemCredentials = createSystemCredentialsSection(systemState);
+                card.appendChild(systemCredentials.element);
+
                 var execution = element("section", "mc-definition-section");
                 execution.appendChild(element("h4", "", "Execution"));
                 var runAs = createSelect(["0", "1", "2"], String(value.runAsUser || 0));
@@ -201,6 +292,22 @@
                 sourceDetails.appendChild(source);
                 card.appendChild(sourceDetails);
 
+                var detect = element("button", "btn btn-secondary btn-sm", "Detect variables from script");
+                detect.type = "button";
+                detect.onclick = function () {
+                    var existing = variables.names();
+                    var added = 0;
+                    detectExternalVariables(source.value).forEach(function (variableName) {
+                        if (existing.indexOf(variableName.toLowerCase()) >= 0) return;
+                        variables.addRow({ directive: "VariableRequired", name: variableName, value: variableName });
+                        existing.push(variableName.toLowerCase());
+                        added++;
+                    });
+                    detect.textContent = added ? ("Added " + added + " variable" + (added === 1 ? "" : "s")) : "No new variables detected";
+                    window.setTimeout(function () { detect.textContent = "Detect variables from script"; }, 1600);
+                };
+                variables.headerActions.insertBefore(detect, variables.headerActions.firstChild);
+
                 if ((secretState.variables || []).length) {
                     var hint = element("div", "mc-definition-secret-state");
                     hint.appendChild(element("strong", "", "Credential status: "));
@@ -218,21 +325,27 @@
 
                 save.onclick = function () {
                     save.disabled = true;
-                    shell.post("definition", {
-                        path: script.path,
-                        definition: {
-                            label: name.value,
-                            description: description.value,
-                            approvalLevels: Array.prototype.map.call(approvalBoxes.querySelectorAll("input:checked"), function (box) { return Number(box.value); }),
-                            variables: variables.values(),
-                            secretVariables: secrets.values(),
-                            runAsUser: Number(runAs.value) || 0,
-                            multiHost: multi.checked,
-                            body: source.value
-                        }
-                    }).then(function (result) {
+                    Promise.all([
+                        shell.post("definition", {
+                            path: script.path,
+                            definition: {
+                                label: name.value,
+                                description: description.value,
+                                approvalLevels: Array.prototype.map.call(approvalBoxes.querySelectorAll("input:checked"), function (box) { return Number(box.value); }),
+                                variables: variables.values(),
+                                secretVariables: secrets.values(),
+                                runAsUser: Number(runAs.value) || 0,
+                                multiHost: multi.checked,
+                                body: source.value
+                            }
+                        }),
+                        shell.post("system-credentials", {
+                            path: script.path,
+                            selected: systemCredentials.selected()
+                        }).catch(function () { return null; })
+                    ]).then(function (results) {
                         tool.state.editMode = false;
-                        if (typeof onSaved === "function") onSaved(result);
+                        if (typeof onSaved === "function") onSaved(results[0]);
                     }).catch(function (error) {
                         save.disabled = false;
                         var note = element("div", "mc-shared-error", error.message || String(error));
