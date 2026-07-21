@@ -18,7 +18,8 @@
 #sirkPortalRoot .sirk-management-item{width:100%;display:flex;align-items:center;gap:10px;min-height:42px;padding:9px 11px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--sirk-text,#172033);text-align:left;font:500 14px Segoe UI,Arial,sans-serif;cursor:pointer;white-space:nowrap}
 #sirkPortalRoot .sirk-management-item:hover{background:rgba(96,165,250,.09)}
 #sirkPortalRoot .sirk-management-item.is-active,#sirkPortalRoot .sirk-script-row.is-active>.sirk-script-open{background:rgba(96,165,250,.16);font-weight:700}
-#sirkPortalRoot .sirk-management-item-icon{display:grid;place-items:center;flex:0 0 24px;width:24px;height:24px;color:#60a5fa}
+#sirkPortalRoot .sirk-management-item-icon{display:grid;place-items:center;flex:0 0 24px;width:24px;height:24px;color:#60a5fa;font-size:0;line-height:0;overflow:hidden}
+#sirkPortalRoot .sirk-management-folder-image{display:block;width:20px;height:20px;object-fit:contain}
 #sirkPortalRoot .is-management-collapsed .sirk-management-workspace>.sirk-management-column:first-child .sirk-management-item{justify-content:center;padding:9px;font-size:0}
 #sirkPortalRoot .is-management-collapsed .sirk-management-workspace>.sirk-management-column:first-child .sirk-management-item-icon{width:28px;height:28px}
 #sirkPortalRoot .sirk-folder-heading{display:flex;align-items:center;gap:10px;min-height:34px;padding:7px 8px 7px calc(8px + var(--sirk-depth,0)*12px);color:var(--sirk-muted,#657187);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
