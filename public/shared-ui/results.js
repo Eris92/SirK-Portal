@@ -50,6 +50,28 @@
         return { table: table, portal: portal };
     }
 
+    function decodeBase64Utf8(value) {
+        var binary = window.atob(String(value || ""));
+        var bytes = new Uint8Array(binary.length);
+        for (var index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+        if (typeof window.TextDecoder === "function") return new window.TextDecoder("utf-8").decode(bytes);
+        var encoded = "";
+        for (var offset = 0; offset < bytes.length; offset++) encoded += "%" + ("0" + bytes[offset].toString(16)).slice(-2);
+        try { return decodeURIComponent(encoded); } catch (error) { return binary; }
+    }
+
+    function parseMyCommandsTable(raw) {
+        var match = String(raw || "").match(/__MYCOMMANDS_TABLE_B64__([A-Za-z0-9+/=]+)/);
+        if (!match) return null;
+        try {
+            var parsed = JSON.parse(decodeBase64Utf8(match[1]));
+            var structured = structuredFromParsed(parsed);
+            if (structured.table) return structured.table;
+            if (parsed && typeof parsed === "object") return { title: "Result", rows: [parsed] };
+        } catch (error) {}
+        return null;
+    }
+
     function parseJsonSuffix(raw) {
         try { return JSON.parse(raw); } catch (error) {}
         var lines = raw.split(/\r?\n/);
@@ -74,14 +96,21 @@
     function parseStructured(value) {
         var raw = String(value == null ? "" : value).trim(), parsed = null, table = null, portal = null;
         if (!raw) return { raw: "", table: null, portal: null };
-        parsed = parseJsonSuffix(raw);
-        if (parsed) {
-            var structured = structuredFromParsed(parsed);
-            table = structured.table;
-            portal = structured.portal;
+
+        table = parseMyCommandsTable(raw);
+        if (!table) {
+            parsed = parseJsonSuffix(raw);
+            if (parsed) {
+                var structured = structuredFromParsed(parsed);
+                table = structured.table;
+                portal = structured.portal;
+            }
         }
+
         if (!table && !portal) {
-            var lines = raw.split(/\r?\n/).filter(function (line) { return line.trim(); });
+            var lines = raw.split(/\r?\n/).filter(function (line) {
+                return line.trim() && !/^__(?:MYCOMMANDS|COMMANDTABS)_PROGRESS__/i.test(line.trim());
+            });
             if (lines.length > 1) {
                 var delimiter = lines[0].indexOf("\t") >= 0 ? "\t" : lines[0].indexOf(";") >= 0 ? ";" : lines[0].indexOf(",") >= 0 ? "," : "";
                 if (delimiter) {
@@ -189,7 +218,7 @@
         columns.push(
             { title: "Requester", value: function (row) { return valueAt(row, "requester.name", "—"); } },
             { title: "Approver", value: approver },
-            { title: "Approval", value: function (row) { var p = row.approvalProgress || {}; return p.text || ((p.approved || 0) + "/" + (p.total || 0)); } },
+            { title: "Approval", value: function (row) { var progress = row.approvalProgress || {}; return progress.text || ((progress.approved || 0) + "/" + (progress.total || 0)); } },
             { title: "Status", value: function (row) { return row.status || "—"; }, className: function (row) { return "mc-results-status mc-results-status-" + String(row.status || "unknown").toLowerCase(); } },
             { title: "Result", value: function (row) { var value = rawResult(row); return value.length > 180 ? value.slice(0, 180) + "…" : value; } }
         );
