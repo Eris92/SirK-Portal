@@ -2,6 +2,7 @@
 
 var shared = require("../../core/shared.js");
 var libraryFactory = require("../../core/script-library.js");
+var adminFactory = require("../../core/script-admin-service.js");
 
 module.exports.createModule = function (context) {
     var root = context.path.join(context.pluginRoot, "seed", "MyScripts");
@@ -11,6 +12,11 @@ module.exports.createModule = function (context) {
         root: root,
         readOnly: true,
         allowWrite: true
+    });
+    var admin = adminFactory.createScriptAdminService({
+        context: context,
+        library: library,
+        namespace: "script-secrets.myscripts"
     });
     var unregister = null;
 
@@ -110,6 +116,12 @@ module.exports.createModule = function (context) {
                 if (!source) throw new Error("Script not found.");
                 return { ok: true, source: source };
             }
+            if (asset === "definition") {
+                return { ok: true, definition: admin.getDefinition(user, q.path) };
+            }
+            if (asset === "script-secrets") {
+                return { ok: true, secrets: admin.getSecretState(user, q.path) };
+            }
             if (asset === "results") {
                 return context.approval.list(user, {
                     type: "myscripts",
@@ -145,6 +157,23 @@ module.exports.createModule = function (context) {
                     ok: true,
                     script: library.saveSource(value.path, value.text),
                     tree: library.getTree()
+                };
+            }
+            if (asset === "definition") {
+                var saved = admin.saveDefinition(user, value.path, value.definition);
+                saved.ok = true;
+                saved.tree = library.getTree();
+                return saved;
+            }
+            if (asset === "script-secrets") {
+                return {
+                    ok: true,
+                    secrets: admin.saveSecrets(
+                        user,
+                        value.path,
+                        value.values,
+                        value.clearNames
+                    )
                 };
             }
             if (asset === "request") {
