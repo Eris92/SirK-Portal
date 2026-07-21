@@ -140,6 +140,16 @@
         });
     }
 
+    function panelTitle(panel) {
+        var heading = panel && panel.querySelector(".mc-admin-section-header h3");
+        return String(heading && heading.textContent || "").trim();
+    }
+
+    function cardTitle(card) {
+        var title = card && card.querySelector(":scope > h3, :scope > .mc-admin-card-toggle .mc-admin-card-toggle-text strong");
+        return String(title && title.textContent || "").trim();
+    }
+
     function existingProviderTitles(panel) {
         var result = Object.create(null);
         panel.querySelectorAll(".mc-admin-card").forEach(function (card) {
@@ -216,6 +226,89 @@
         });
     }
 
+    function globalSaveBar(panel) {
+        return Array.prototype.filter.call(panel.children || [], function (node) {
+            return node.classList && node.classList.contains("mc-admin-actions");
+        })[0] || panel.querySelector(".mc-admin-actions");
+    }
+
+    function invokeGlobalSave(panel, localButton, localStatus) {
+        var bar = globalSaveBar(panel);
+        var globalButton = bar && bar.querySelector(".mc-admin-primary");
+        var globalStatus = bar && bar.querySelector(".mc-admin-save-status");
+        if (!globalButton) {
+            localStatus.className = "mc-admin-save-status mc-admin-error";
+            localStatus.textContent = "Save action is unavailable.";
+            return;
+        }
+
+        localButton.disabled = true;
+        localStatus.className = "mc-admin-save-status";
+        localStatus.textContent = "Saving...";
+        globalButton.click();
+
+        var attempts = 0;
+        function syncStatus() {
+            if (!localButton.isConnected) return;
+            var text = String(globalStatus && globalStatus.textContent || "").trim();
+            if (text && text !== "Saving...") {
+                localStatus.className = globalStatus.className || "mc-admin-save-status";
+                localStatus.textContent = text;
+                localButton.disabled = false;
+                return;
+            }
+            attempts++;
+            if (attempts < 300) window.setTimeout(syncStatus, 100);
+            else {
+                localStatus.className = "mc-admin-save-status mc-admin-error";
+                localStatus.textContent = "Save status timeout.";
+                localButton.disabled = false;
+            }
+        }
+        window.setTimeout(syncStatus, 100);
+    }
+
+    function addSaveProxy(card, panel, label) {
+        if (!card || card.querySelector(".mc-admin-inline-actions") || card.querySelector("[data-mycompany-save-proxy]")) return;
+        var actions = element("div", "mc-admin-inline-actions");
+        actions.setAttribute("data-mycompany-save-proxy", "1");
+        var save = element("button", "mc-admin-primary", label);
+        save.type = "button";
+        var status = element("span", "mc-admin-save-status");
+        save.onclick = function () { invokeGlobalSave(panel, save, status); };
+        actions.appendChild(save);
+        actions.appendChild(status);
+        card.appendChild(actions);
+    }
+
+    function ensureInlineSaveActions(panel) {
+        var bar = globalSaveBar(panel);
+        if (!bar) return;
+
+        if (panelIsApprovalCenter(panel)) {
+            var labels = {
+                "General": "Save General",
+                "Move Requests": "Save Move Requests",
+                "My Commands": "Save My Commands",
+                "My Scripts": "Save My Scripts"
+            };
+            panel.querySelectorAll(".mc-admin-card").forEach(function (card) {
+                var title = cardTitle(card);
+                if (labels[title]) addSaveProxy(card, panel, labels[title]);
+            });
+            bar.style.display = "none";
+            bar.setAttribute("aria-hidden", "true");
+            return;
+        }
+
+        if (/^my\s*commands$/i.test(panelTitle(panel))) {
+            var cards = panel.querySelectorAll(".mc-admin-card");
+            if (cards.length) addSaveProxy(cards[cards.length - 1], panel, "Save My Commands");
+            bar.style.display = "none";
+            bar.setAttribute("aria-hidden", "true");
+        }
+    }
+
     function makeCollapsible(card) {
         if (!card || card.dataset.collapsibleReady === "1") return;
         card.dataset.collapsibleReady = "1";
@@ -255,6 +348,7 @@
         if (!panels.length) panels = [content];
         Array.prototype.forEach.call(panels, function (panel) {
             addMissingProviders(panel);
+            ensureInlineSaveActions(panel);
             panel.querySelectorAll(".mc-admin-card").forEach(makeCollapsible);
         });
     }
