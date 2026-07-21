@@ -34,6 +34,14 @@
         });
     }
 
+    function normalizeLevels(value) {
+        if (value === 0 || value === "0") return [];
+        if (!Array.isArray(value)) value = value == null ? [] : [value];
+        return value.map(Number).filter(function (level, index, all) {
+            return level >= 1 && level <= 3 && all.indexOf(level) === index;
+        }).sort();
+    }
+
     function load() {
         if (loaded) return Promise.resolve(loaded);
         if (loading) return new Promise(function (resolve) {
@@ -46,7 +54,7 @@
         });
         loading = true;
         var target = pluginUrl("settings", "GET");
-        return fetch(target.url, { method: target.method, credentials: "same-origin" })
+        return fetch(target.url, { method: target.method, credentials: "same-origin", cache: "no-store" })
             .then(parseResponse)
             .then(function (value) {
                 loaded = value;
@@ -65,6 +73,7 @@
         return fetch(target.url, {
             method: target.method,
             credentials: "same-origin",
+            cache: "no-store",
             headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
             body: body.toString()
         }).then(parseResponse);
@@ -94,41 +103,75 @@
         section.appendChild(element(
             "div",
             "mc-admin-field-description",
-            "Assign the approval level required when a device is moved into each MeshCentral device group. Groups without an explicit value default to Level 1."
+            "Select the full approval chain required when a device is moved into each MeshCentral device group. No selection means no approval. Groups without an explicit saved value default to Level 1."
         ));
 
         var wrapper = element("div", "mc-move-mesh-levels-table-wrap");
         var table = element("table", "mc-move-mesh-levels-table");
         var head = table.createTHead().insertRow();
         head.appendChild(element("th", "", "MeshCentral group"));
-        head.appendChild(element("th", "", "Required approval"));
+        head.appendChild(element("th", "", "No approval"));
+        head.appendChild(element("th", "", "Level 1"));
+        head.appendChild(element("th", "", "Level 2"));
+        head.appendChild(element("th", "", "Level 3"));
         var tableBody = table.createTBody();
 
         (value.meshes || []).forEach(function (mesh) {
             var row = tableBody.insertRow();
             row.appendChild(element("td", "", mesh.name || mesh.id));
-            var cell = row.insertCell();
-            var select = element("select", "mc-admin-input mc-move-mesh-level-select");
-            [
-                { value: 0, title: "No approval" },
-                { value: 1, title: "Level 1" },
-                { value: 2, title: "Level 2" },
-                { value: 3, title: "Level 3" }
-            ].forEach(function (choice) {
-                var option = element("option", "", choice.title);
-                option.value = String(choice.value);
-                option.selected = Number(stored[mesh.id]) === choice.value ||
-                    (!Object.prototype.hasOwnProperty.call(stored, mesh.id) && choice.value === 1);
-                select.appendChild(option);
+
+            var hasStored = Object.prototype.hasOwnProperty.call(stored, mesh.id);
+            var selected = hasStored ? normalizeLevels(stored[mesh.id]) : [1];
+            levels[mesh.id] = selected.slice();
+
+            var none = element("input");
+            none.type = "checkbox";
+            none.checked = selected.length === 0;
+            row.insertCell().appendChild(none);
+
+            var boxes = [];
+            [1, 2, 3].forEach(function (level) {
+                var box = element("input");
+                box.type = "checkbox";
+                box.value = String(level);
+                box.checked = selected.indexOf(level) >= 0;
+                boxes.push(box);
+                row.insertCell().appendChild(box);
             });
-            levels[mesh.id] = Number(select.value);
-            select.onchange = function () { levels[mesh.id] = Number(select.value); };
-            cell.appendChild(select);
+
+            function sync() {
+                if (none.checked) {
+                    boxes.forEach(function (box) { box.checked = false; });
+                    levels[mesh.id] = [];
+                    return;
+                }
+                var selectedLevels = boxes.filter(function (box) { return box.checked; })
+                    .map(function (box) { return Number(box.value); });
+                if (!selectedLevels.length) {
+                    none.checked = true;
+                    levels[mesh.id] = [];
+                } else {
+                    levels[mesh.id] = selectedLevels;
+                }
+            }
+
+            none.onchange = function () {
+                if (!none.checked && !boxes.some(function (box) { return box.checked; })) {
+                    boxes[0].checked = true;
+                }
+                sync();
+            };
+            boxes.forEach(function (box) {
+                box.onchange = function () {
+                    if (box.checked) none.checked = false;
+                    sync();
+                };
+            });
         });
 
         if (!(value.meshes || []).length) {
             var empty = tableBody.insertRow().insertCell();
-            empty.colSpan = 2;
+            empty.colSpan = 5;
             empty.textContent = "No MeshCentral device groups are visible to this administrator.";
         }
 
