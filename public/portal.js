@@ -14,7 +14,6 @@
         "sirk-portal-patch-0.2.8.js",
         "sirk-ui-icons-0.3.4.js",
         "sirk-layout-0.3.1.js",
-        "sirk-management-workspace-0.3.6.js",
         "sirk-ui-runtime-0.3.15.js",
         "sirk-device-layout-0.3.13.js",
         "sirk-controls-0.3.17.js"
@@ -41,7 +40,9 @@
                 return core.loadScript("mycompany-sirk-vendor-" + name.replace(/[^a-z0-9]/gi, "-"), vendorAsset(name));
             });
         });
-        return chain;
+        return chain.then(function () {
+            return core.loadScript("mycompany-portal-management", core.assetUrl("", "portal-management.js"));
+        });
     }
 
     function moduleEnabled(key) {
@@ -61,7 +62,6 @@
 
     function mountModule(key, host, title) {
         if (!host) return;
-        host.classList.add("mycompany-portal-module-host", "mycompany-portal-module-" + key);
         if (!moduleEnabled(key)) {
             moduleError(host, title, "Moduł jest wyłączony albo użytkownik nie ma dostępu.");
             return;
@@ -74,11 +74,7 @@
         if (host.getAttribute("data-mycompany-mounted") === key && host.querySelector(":scope > .mc-shared-page")) return;
         host.innerHTML = "";
         host.setAttribute("data-mycompany-mounted", key);
-        var mountPoint = document.createElement("div");
-        host.appendChild(mountPoint);
-        module.mount(mountPoint, "sirk-portal-" + key);
-        mountPoint.classList.add("sirk-mycompany-module", "sirk-mycompany-module-" + key);
-        mountPoint.setAttribute("data-sirk-module", key);
+        module.mount(host, "sirk-portal-" + key);
     }
 
     function mountSettings(host) {
@@ -109,48 +105,48 @@
             label.textContent = text;
             return;
         }
-        var icon = button.querySelector("svg,.sirk-nav-icon,.sirk-menu-icon");
-        button.textContent = "";
-        if (icon) button.appendChild(icon);
         var created = document.createElement("span");
         created.className = "sirk-menu-label";
         created.textContent = text;
         button.appendChild(created);
     }
 
-    function firstButton(root, view) {
-        var buttons = root.querySelectorAll('[data-sirk-view="' + view + '"]');
-        return buttons.length ? buttons[0] : null;
+    function managementIcon() {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg>';
     }
 
-    function hideDuplicateButtons(root, view, keep) {
-        root.querySelectorAll('[data-sirk-view="' + view + '"]').forEach(function (button) {
-            if (button !== keep) button.hidden = true;
-        });
+    function ensureManagementNavigation(root) {
+        var button = root.querySelector('[data-sirk-view="management"]');
+        if (button) return button;
+        var automation = root.querySelector('[data-sirk-view="automation"]');
+        var nav = automation && automation.parentNode || root.querySelector(".sirk-nav");
+        if (!nav) return null;
+        button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("data-sirk-view", "management");
+        button.innerHTML = '<span class="sirk-menu-icon" aria-hidden="true">' + managementIcon() + '</span><span class="sirk-menu-label">Zarządzanie</span>';
+        if (automation && automation.nextSibling) nav.insertBefore(button, automation.nextSibling);
+        else nav.appendChild(button);
+        return button;
     }
 
     function normalizeNavigation(root) {
+        ensureManagementNavigation(root);
         var labels = {
             overview: "Przegląd",
             devices: "Urządzenia",
             approvals: "Akceptacje",
+            automation: "Automatyzacja",
             management: "Zarządzanie",
             monitoring: "Monitoring",
-            mesh: "Mesh",
             administration: "Ustawienia"
         };
-
         Object.keys(labels).forEach(function (view) {
-            var button = firstButton(root, view);
-            if (!button) return;
-            buttonLabel(button, labels[view]);
-            hideDuplicateButtons(root, view, button);
-            if (view === "administration" && !siteAdmin()) button.hidden = true;
-        });
-
-        root.querySelectorAll('[data-sirk-view="automation"]').forEach(function (button) {
-            button.hidden = true;
-            button.setAttribute("aria-hidden", "true");
+            var buttons = root.querySelectorAll('[data-sirk-view="' + view + '"]');
+            if (!buttons.length) return;
+            buttonLabel(buttons[0], labels[view]);
+            for (var index = 1; index < buttons.length; index++) buttons[index].hidden = true;
+            if (view === "administration" && !siteAdmin()) buttons[0].hidden = true;
         });
     }
 
@@ -161,24 +157,36 @@
             if (!main) return null;
             host = document.createElement("section");
             host.className = "sirk-view";
+            host.hidden = true;
             host.setAttribute("data-view", "management");
             main.appendChild(host);
         }
         host.classList.add("mycompany-management-host");
-        host.setAttribute("data-sirk-management-version", "mycompany");
         return host;
+    }
+
+    function mountManagement(root) {
+        var host = managementHost(root);
+        if (!host) return;
+        if (!moduleEnabled("myscripts")) {
+            moduleError(host, "Zarządzanie", "MyScripts jest wyłączony albo użytkownik nie ma dostępu.");
+            return;
+        }
+        if (!window.MyCompanyPortalManagement || typeof window.MyCompanyPortalManagement.mount !== "function") {
+            moduleError(host, "Zarządzanie", "Renderer Zarządzania nie został załadowany.");
+            return;
+        }
+        if (host.getAttribute("data-mycompany-native-management") === "1" && host.querySelector(".sirk-management-shell")) return;
+        host.setAttribute("data-mycompany-native-management", "1");
+        window.MyCompanyPortalManagement.mount(host);
     }
 
     function mountView(view) {
         var root = document.getElementById("sirkPortalRoot");
         if (!root) return;
-        if (view === "management" || view === "automation") {
-            mountModule("myscripts", managementHost(root), "Zarządzanie");
-        } else if (view === "approvals") {
-            mountModule("approvalcenter", root.querySelector('[data-view="approvals"]'), "Akceptacje");
-        } else if (view === "administration") {
-            mountSettings(root.querySelector('[data-view="administration"]'));
-        }
+        if (view === "management") mountManagement(root);
+        else if (view === "approvals") mountModule("approvalcenter", root.querySelector('[data-view="approvals"]'), "Akceptacje");
+        else if (view === "administration") mountSettings(root.querySelector('[data-view="administration"]'));
     }
 
     function selectedView(root) {
@@ -204,7 +212,6 @@
                     mountView(view);
                 }, 0);
             });
-
             var pending = 0;
             new MutationObserver(function () {
                 window.clearTimeout(pending);
@@ -215,7 +222,6 @@
                 }, 40);
             }).observe(root, { childList: true, subtree: true });
         }
-
         var active = selectedView(root);
         if (active) mountView(active);
         return true;
@@ -238,7 +244,7 @@
     }
 
     function normalizeView(view) {
-        var map = { automation: "management", settings: "administration" };
+        var map = { settings: "administration" };
         return map[view] || view || "overview";
     }
 
@@ -263,10 +269,7 @@
             var target = normalizeView(view);
             if (window.SirKPortal && typeof window.SirKPortal.open === "function") {
                 window.SirKPortal.open(target);
-                window.setTimeout(function () {
-                    adaptPortal();
-                    mountView(target);
-                }, 0);
+                window.setTimeout(function () { adaptPortal(); mountView(target); }, 0);
             }
         },
         openMesh: function () {
