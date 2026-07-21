@@ -4,17 +4,17 @@
         collapse: { title: "Collapse", icon: "◀", side: "left", order: 10, handler: "onCollapse" },
         favorites: { title: "Favorites", icon: "★", side: "left", order: 20, handler: "onFavorites" },
         link: { title: "Copy link", icon: "🔗", side: "left", order: 30, handler: "onLink" },
-        search: { title: "Search", icon: "⌕", side: "left", order: 40, handler: "onSearchToggle", search: true },
-        manage: { title: "Manage", icon: "✎", side: "left", order: 50, handler: "onManage" },
+        manage: { title: "Manage", icon: "✎", side: "left", order: 40, handler: "onManage" },
+        search: { title: "Search", icon: "⌕", side: "left", order: 50, handler: "onSearchToggle", search: true },
         refresh: { title: "Refresh", icon: "↻", side: "right", order: 100, handler: "onRefresh" },
         clear: { title: "Clear", icon: "⌫", side: "right", order: 110, handler: "onClear" },
         settings: { title: "Settings", icon: "⚙", side: "right", order: 140, handler: "onSettings" }
     };
     var presets = {
         approvalcenter: { collapse: true, link: true, refresh: true, clear: true, favorites: false, search: true, manage: false, settings: false },
-        myscripts: { collapse: true, favorites: true, link: true, search: true, manage: true, refresh: true, clear: true, settings: false },
-        mycommands: { collapse: true, favorites: true, link: true, search: true, manage: true, refresh: true, clear: true, settings: false },
-        standard: { collapse: true, link: true, search: true, manage: false, refresh: true, clear: true, favorites: false, settings: true },
+        myscripts: { collapse: true, favorites: true, link: true, manage: true, search: true, refresh: true, clear: true, settings: false },
+        mycommands: { collapse: true, favorites: true, link: true, manage: true, search: true, refresh: true, clear: true, settings: false },
+        standard: { collapse: true, link: true, manage: false, search: true, refresh: true, clear: true, favorites: false, settings: true },
         minimal: { collapse: true, search: true, refresh: true }
     };
     function clone(value) {
