@@ -1,22 +1,125 @@
 (function () {
     "use strict";
+
     var definitions = {
-        collapse: { title: "Collapse", icon: "◀", side: "left", order: 10, handler: "onCollapse" },
-        favorites: { title: "Favorites", icon: "★", side: "left", order: 20, handler: "onFavorites" },
-        link: { title: "Copy link", icon: "🔗", side: "left", order: 30, handler: "onLink" },
-        manage: { title: "Manage", icon: "✎", side: "left", order: 40, handler: "onManage" },
-        search: { title: "Search", icon: "⌕", side: "left", order: 50, handler: "onSearchToggle", search: true },
-        refresh: { title: "Refresh", icon: "↻", side: "right", order: 100, handler: "onRefresh" },
-        clear: { title: "Clear", icon: "⌫", side: "right", order: 110, handler: "onClear" },
-        settings: { title: "Settings", icon: "⚙", side: "right", order: 140, handler: "onSettings" }
+        collapse: {
+            title: "Collapse",
+            icon: "◀",
+            side: "left",
+            order: 10,
+            handler: "onCollapse"
+        },
+        favorites: {
+            title: "Favorites",
+            icon: "★",
+            side: "left",
+            order: 20,
+            handler: "onFavorites"
+        },
+        link: {
+            title: "Copy link",
+            icon: "🔗",
+            side: "left",
+            order: 30,
+            handler: "onLink"
+        },
+        manage: {
+            title: "Edit",
+            icon: "✎",
+            side: "left",
+            order: 40,
+            handler: "onManage"
+        },
+        refresh: {
+            title: "Refresh",
+            icon: "↻",
+            side: "left",
+            order: 50,
+            handler: "onRefresh"
+        },
+        multi: {
+            title: "Multi-device execution",
+            icon: "⟳",
+            side: "left",
+            order: 60,
+            handler: "onMulti"
+        },
+        search: {
+            title: "Search",
+            icon: "⌕",
+            side: "left",
+            order: 70,
+            handler: "onSearchToggle",
+            search: true
+        },
+        clear: {
+            title: "Clear",
+            icon: "⌫",
+            side: "right",
+            order: 110,
+            handler: "onClear"
+        },
+        settings: {
+            title: "Settings",
+            icon: "⚙",
+            side: "right",
+            order: 140,
+            handler: "onSettings"
+        }
     };
+
     var presets = {
-        approvalcenter: { collapse: true, link: true, refresh: true, clear: true, favorites: false, search: true, manage: false, settings: false },
-        myscripts: { collapse: true, favorites: true, link: true, manage: true, search: true, refresh: true, clear: true, settings: false },
-        mycommands: { collapse: true, favorites: true, link: true, manage: true, search: true, refresh: true, clear: true, settings: false },
-        standard: { collapse: true, link: true, manage: false, search: true, refresh: true, clear: true, favorites: false, settings: true },
-        minimal: { collapse: true, search: true, refresh: true }
+        approvalcenter: {
+            collapse: true,
+            link: true,
+            refresh: true,
+            clear: false,
+            favorites: false,
+            search: true,
+            manage: false,
+            multi: false,
+            settings: false
+        },
+        myscripts: {
+            collapse: true,
+            favorites: true,
+            link: true,
+            manage: true,
+            refresh: true,
+            multi: false,
+            search: true,
+            clear: false,
+            settings: false
+        },
+        mycommands: {
+            collapse: true,
+            favorites: true,
+            link: true,
+            manage: true,
+            refresh: true,
+            multi: true,
+            search: true,
+            clear: false,
+            settings: false
+        },
+        standard: {
+            collapse: true,
+            link: true,
+            manage: false,
+            refresh: true,
+            multi: false,
+            search: true,
+            clear: false,
+            favorites: false,
+            settings: true
+        },
+        minimal: {
+            collapse: true,
+            refresh: true,
+            search: true
+        }
     };
+
     function clone(value) {
         var result = {};
         Object.keys(value || {}).forEach(function (key) {
@@ -24,6 +127,7 @@
         });
         return result;
     }
+
     window.SharedToolbarConfig = {
         definitions: definitions,
         presets: presets,
