@@ -44,7 +44,6 @@
             searchInput.type = "search";
             searchInput.placeholder = options.searchPlaceholder || "Search";
             searchWrap.appendChild(searchInput);
-            left.appendChild(searchWrap);
 
             var context = {
                 root: root,
@@ -69,12 +68,7 @@
                 var item = button(definition);
                 context.buttons[definition.key] = item;
                 var group = context.groups[definition.side] || right;
-                group.insertBefore(
-                    item,
-                    definition.side === "left" && definition.key === "search"
-                        ? searchWrap
-                        : null
-                );
+                group.appendChild(item);
                 item.onclick = function (event) {
                     if (definition.search) {
                         api.showSearch(!context.state.searchVisible);
@@ -100,7 +94,9 @@
                 add(definition);
             });
 
+            left.appendChild(searchWrap);
             api.addButton = add;
+
             var timer = 0;
             searchInput.oninput = function () {
                 context.state.search = searchInput.value || "";
