@@ -34,19 +34,16 @@ function parseVariable(text, required, control) {
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) return null;
 
     var label = parts.join(",").trim() || name;
-    var options = [];
+    var choices = [];
 
     if (control === "select") {
         var optionParts = label.split("|");
-
         if (optionParts.length && optionParts[0].indexOf("=") < 0) {
             label = String(optionParts.shift() || "").trim();
         }
-
-        options = optionParts.map(function (item) {
+        choices = optionParts.map(function (item) {
             var pieces = item.split("=");
             var value = String(pieces.shift() || "").trim();
-
             return {
                 value: value,
                 label: String(pieces.join("=") || "").trim() || value
@@ -54,10 +51,7 @@ function parseVariable(text, required, control) {
         }).filter(function (item) {
             return item.value;
         });
-
-        if (!defaultValue && options.length) {
-            defaultValue = options[0].value;
-        }
+        if (!defaultValue && choices.length) defaultValue = choices[0].value;
     }
 
     if (control === "switch") {
@@ -70,7 +64,7 @@ function parseVariable(text, required, control) {
         required: required === true,
         control: control || "text",
         defaultValue: shared.cleanText(defaultValue, 4000),
-        options: options
+        options: choices
     };
 }
 
@@ -84,16 +78,15 @@ function parseScript(path, text, fileName) {
     var label = path.basename(fileName, path.extname(fileName));
     var description = "";
     var runAsUser = 0;
+    var multiHost = false;
     var index = 0;
 
     while (index < lines.length) {
         var trimmed = String(lines[index] || "").trim();
-
         if (!trimmed) {
             index++;
             continue;
         }
-
         if (trimmed.charAt(0) !== "#") break;
 
         var header = trimmed.replace(/^\s*#\s*/, "");
@@ -101,6 +94,7 @@ function parseScript(path, text, fileName) {
             /^Approval(?:_([123]))?\s*:\s*(true|false)$/i
         );
         var runAs = header.match(/^runAsUser\s*:\s*([012])\s*$/i);
+        var multi = header.match(/^MultiHost\s*:\s*(true|false)\s*$/i);
         var directive = header.match(
             /^(VariableSelectRequired|VariableSelect|VariableSwitchRequired|VariableSwitch|VariableUserRequired|VariableUser|VariableAssetRequired|VariableAsset|VariableRequired|Variable|SaveSecretRequired|SaveSecret)\s*:\s*(.+)$/i
         );
@@ -110,6 +104,8 @@ function parseScript(path, text, fileName) {
                 approval[2].toLowerCase() === "true";
         } else if (runAs) {
             runAsUser = Number(runAs[1]);
+        } else if (multi) {
+            multiHost = multi[1].toLowerCase() === "true";
         } else if (directive) {
             var kind = directive[1].toLowerCase();
             var required = kind.indexOf("required") >= 0;
@@ -124,21 +120,12 @@ function parseScript(path, text, fileName) {
                             : kind.indexOf("savesecret") >= 0
                                 ? "secret"
                                 : "text";
-            var parsed = parseVariable(
-                directive[2],
-                required,
-                control
-            );
-
+            var parsed = parseVariable(directive[2], required, control);
             if (parsed) {
-                (control === "secret"
-                    ? secretVariables
-                    : variables
-                ).push(parsed);
+                (control === "secret" ? secretVariables : variables).push(parsed);
             }
         } else if (!description) {
             var separator = header.indexOf("|");
-
             if (separator >= 0) {
                 label = header.slice(0, separator).trim() || label;
                 description = header.slice(separator + 1).trim();
@@ -146,7 +133,6 @@ function parseScript(path, text, fileName) {
                 label = header.trim() || label;
             }
         }
-
         index++;
     }
 
@@ -159,6 +145,7 @@ function parseScript(path, text, fileName) {
         body: lines.slice(index).join("\n"),
         description: shared.cleanText(description, 1000),
         label: shared.cleanText(label, 200),
+        multiHost: multiHost,
         requiresApproval: levels.length > 0,
         runAsUser: runAsUser,
         secretVariables: secretVariables,
@@ -171,6 +158,7 @@ module.exports.createScriptLibrary = function (options) {
     var path = options.path;
     var root = options.root;
     var readOnly = options.readOnly === true;
+    var allowWrite = options.allowWrite === true;
     var extensions = options.extensions || {
         ".ps1": "powershell",
         ".cmd": "cmd",
@@ -186,14 +174,10 @@ module.exports.createScriptLibrary = function (options) {
     var maxSize = Number(options.maxSize) || 2 * 1024 * 1024;
     var maxIconSize = Number(options.maxIconSize) || 1024 * 1024;
     var cache = Object.create(null);
-    var treeCache = {
-        value: null,
-        expiresAt: 0
-    };
+    var treeCache = { value: null, expiresAt: 0 };
 
     function ensure() {
         var stat;
-
         try {
             stat = fs.statSync(root);
         } catch (error) {
@@ -203,7 +187,6 @@ module.exports.createScriptLibrary = function (options) {
             fs.mkdirSync(root, { recursive: true });
             return;
         }
-
         if (!stat.isDirectory()) {
             throw new Error("Script library path is not a directory: " + root);
         }
@@ -212,73 +195,49 @@ module.exports.createScriptLibrary = function (options) {
     function folderIcon(directory, relative) {
         var base = path.basename(directory);
         var extensionsList = Object.keys(iconTypes);
-
-        for (
-            var index = 0;
-            index < extensionsList.length;
-            index++
-        ) {
+        for (var index = 0; index < extensionsList.length; index++) {
             var extension = extensionsList[index];
-            var candidate = path.join(
-                directory,
-                base + extension
-            );
-
+            var candidate = path.join(directory, base + extension);
             try {
                 var stat = fs.statSync(candidate);
-
                 if (
                     stat.isFile() &&
                     stat.size > 0 &&
                     stat.size <= maxIconSize
                 ) {
                     var data = fs.readFileSync(candidate);
-
                     return {
-                        path: (
-                            relative
-                                ? relative + "/"
-                                : ""
-                        ) + base + extension,
-                        dataUrl:
-                            "data:" + iconTypes[extension] +
+                        path: (relative ? relative + "/" : "") + base + extension,
+                        dataUrl: "data:" + iconTypes[extension] +
                             ";base64," + data.toString("base64")
                     };
                 }
             } catch (error) {}
         }
+        return { path: "", dataUrl: "" };
+    }
 
-        return {
-            path: "",
-            dataUrl: ""
-        };
+    function targetFor(relativePath) {
+        var target = shared.normalizeRelativePath(path, root, relativePath);
+        if (!target) return null;
+        var extension = path.extname(target).toLowerCase();
+        return extensions[extension] ? target : null;
     }
 
     function getScript(relativePath, includeBody) {
-        var target = shared.normalizeRelativePath(
-            path,
-            root,
-            relativePath
-        );
-
+        var target = targetFor(relativePath);
         if (!target) return null;
 
-        var extension = path.extname(target).toLowerCase();
-        if (!extensions[extension]) return null;
-
         var stat;
-
         try {
             stat = fs.statSync(target);
         } catch (error) {
             return null;
         }
-
         if (!stat.isFile() || stat.size > maxSize) return null;
 
         var key = target.toLowerCase();
         var cached = cache[key];
-
         if (
             cached &&
             cached.size === stat.size &&
@@ -290,16 +249,12 @@ module.exports.createScriptLibrary = function (options) {
         }
 
         var buffer = fs.readFileSync(target);
-        var parsed = parseScript(
-            path,
-            buffer.toString("utf8"),
-            target
-        );
+        var parsed = parseScript(path, buffer.toString("utf8"), target);
         var result = {
             type: "script",
             name: path.basename(target),
             path: String(relativePath).replace(/\\/g, "/"),
-            shell: extensions[extension],
+            shell: extensions[path.extname(target).toLowerCase()],
             label: parsed.label,
             description: parsed.description,
             variables: parsed.variables,
@@ -307,9 +262,8 @@ module.exports.createScriptLibrary = function (options) {
             approvalLevels: parsed.approvalLevels,
             requiresApproval: parsed.requiresApproval,
             runAsUser: parsed.runAsUser,
-            hash: crypto.createHash("sha256")
-                .update(buffer)
-                .digest("hex"),
+            multiHost: parsed.multiHost,
+            hash: crypto.createHash("sha256").update(buffer).digest("hex"),
             size: stat.size,
             mtimeMs: stat.mtimeMs,
             body: parsed.body
@@ -320,58 +274,77 @@ module.exports.createScriptLibrary = function (options) {
             mtimeMs: stat.mtimeMs,
             value: result
         };
-
         result = shared.copy(result);
         if (!includeBody) delete result.body;
         return result;
     }
 
+    function getSource(relativePath) {
+        var target = targetFor(relativePath);
+        if (!target) return null;
+        var stat;
+        try {
+            stat = fs.statSync(target);
+        } catch (error) {
+            return null;
+        }
+        if (!stat.isFile() || stat.size > maxSize) return null;
+        return {
+            path: String(relativePath).replace(/\\/g, "/"),
+            text: fs.readFileSync(target, "utf8").replace(/^\uFEFF/, "")
+        };
+    }
+
+    function saveSource(relativePath, source) {
+        if (!allowWrite) throw new Error("Script library is read-only.");
+        var target = targetFor(relativePath);
+        if (!target) throw new Error("Invalid script path.");
+        source = String(source == null ? "" : source).replace(/^\uFEFF/, "");
+        if (!source.trim()) throw new Error("Script source cannot be empty.");
+        if (Buffer.byteLength(source, "utf8") > maxSize) {
+            throw new Error("Script exceeds the maximum allowed size.");
+        }
+        var stat;
+        try {
+            stat = fs.statSync(target);
+        } catch (error) {
+            throw new Error("Script not found.");
+        }
+        if (!stat.isFile()) throw new Error("Script not found.");
+        fs.writeFileSync(target, source, "utf8");
+        invalidate();
+        return getScript(relativePath, true);
+    }
+
     function getTree() {
-        if (
-            treeCache.value &&
-            treeCache.expiresAt > Date.now()
-        ) {
+        if (treeCache.value && treeCache.expiresAt > Date.now()) {
             return shared.copy(treeCache.value);
         }
-
         ensure();
 
         function walk(directory, relative, depth) {
             var icon = relative
                 ? folderIcon(directory, relative)
-                : {
-                    path: "",
-                    dataUrl: ""
-                };
+                : { path: "", dataUrl: "" };
             var node = {
                 type: "directory",
-                name: relative
-                    ? path.basename(directory)
-                    : "scripts",
+                name: relative ? path.basename(directory) : "scripts",
                 path: relative,
                 icon: icon.path,
                 iconData: icon.dataUrl,
                 children: []
             };
-
             if (depth > 12) return node;
 
             var entries = [];
-
             try {
-                entries = fs.readdirSync(directory, {
-                    withFileTypes: true
-                });
+                entries = fs.readdirSync(directory, { withFileTypes: true });
             } catch (error) {
                 node.error = error.message;
                 return node;
             }
-
             entries.sort(function (left, right) {
-                if (
-                    left.isDirectory() !==
-                    right.isDirectory()
-                ) {
+                if (left.isDirectory() !== right.isDirectory()) {
                     return left.isDirectory() ? -1 : 1;
                 }
                 return left.name.localeCompare(right.name);
@@ -382,40 +355,22 @@ module.exports.createScriptLibrary = function (options) {
                     entry.name === ".git" ||
                     entry.name === "node_modules" ||
                     entry.name === ".gitkeep"
-                ) {
-                    return;
-                }
+                ) return;
 
                 var relativePath = relative
                     ? relative + "/" + entry.name
                     : entry.name;
-                var fullPath = path.join(
-                    directory,
-                    entry.name
-                );
-
+                var fullPath = path.join(directory, entry.name);
                 if (entry.isDirectory()) {
-                    node.children.push(
-                        walk(
-                            fullPath,
-                            relativePath,
-                            depth + 1
-                        )
-                    );
+                    node.children.push(walk(fullPath, relativePath, depth + 1));
                 } else if (
                     entry.isFile() &&
-                    extensions[
-                        path.extname(entry.name).toLowerCase()
-                    ]
+                    extensions[path.extname(entry.name).toLowerCase()]
                 ) {
-                    var script = getScript(
-                        relativePath,
-                        false
-                    );
+                    var script = getScript(relativePath, false);
                     if (script) node.children.push(script);
                 }
             });
-
             return node;
         }
 
@@ -423,32 +378,28 @@ module.exports.createScriptLibrary = function (options) {
             value: walk(root, "", 0),
             expiresAt: Date.now() + 5000
         };
-
         return shared.copy(treeCache.value);
     }
 
     function getRoots() {
-        return (getTree().children || []).filter(
-            function (node) {
-                return node.type === "directory";
-            }
-        );
+        return (getTree().children || []).filter(function (node) {
+            return node.type === "directory";
+        });
     }
 
     function invalidate() {
         cache = Object.create(null);
-        treeCache = {
-            value: null,
-            expiresAt: 0
-        };
+        treeCache = { value: null, expiresAt: 0 };
     }
 
     return {
         ensure: ensure,
         getRoots: getRoots,
         getScript: getScript,
+        getSource: getSource,
         getTree: getTree,
         invalidate: invalidate,
-        root: root
+        root: root,
+        saveSource: saveSource
     };
 };
