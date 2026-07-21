@@ -6,7 +6,9 @@
 
     var core = window.MyCompanyCore;
     var bootstrapState = null;
+    var forcedView = "";
     var vendorVersion = "0.3.17";
+    var sidebarStorageKey = "mycompany.sirkportal.sidebarCollapsed";
     var vendorScripts = [
         "sirk-preflight-0.3.13.js",
         "sirk-portal.js",
@@ -127,12 +129,12 @@
     }
 
     function findManagementNavigation(root) {
-        var direct = root.querySelector('[data-sirk-view="management"]');
+        var direct = root.querySelector('[data-mycompany-management-nav="1"], [data-sirk-view="management"]');
         if (direct) return direct;
         var candidates = root.querySelectorAll(".sirk-nav button,.sirk-sidebar button,[role=\"navigation\"] button");
         for (var index = 0; index < candidates.length; index++) {
-            var text = String(candidates[index].textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
-            if (text === "zarządzanie" || text === "management") return candidates[index];
+            var value = String(candidates[index].textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+            if (value === "zarządzanie" || value === "management") return candidates[index];
         }
         return null;
     }
@@ -158,8 +160,30 @@
         return button;
     }
 
+    function hideLegacyManagementSubmenu(button) {
+        if (!button) return;
+        var parent = button.parentElement;
+        var next = button.nextElementSibling;
+        if (next && /defender|jira|entra|zabbix|inne/i.test(String(next.textContent || ""))) {
+            next.hidden = true;
+            next.setAttribute("aria-hidden", "true");
+            next.setAttribute("data-mycompany-hidden-management-submenu", "1");
+        }
+        if (!parent) return;
+        var candidates = parent.querySelectorAll('[data-sirk-parent="management"],[data-parent-view="management"],.sirk-submenu,.sirk-nav-submenu');
+        Array.prototype.forEach.call(candidates, function (item) {
+            if (item.contains(button)) return;
+            if (/defender|jira|entra|zabbix|inne/i.test(String(item.textContent || ""))) {
+                item.hidden = true;
+                item.setAttribute("aria-hidden", "true");
+                item.setAttribute("data-mycompany-hidden-management-submenu", "1");
+            }
+        });
+    }
+
     function normalizeNavigation(root) {
         var management = ensureManagementNavigation(root);
+        hideLegacyManagementSubmenu(management);
         var labels = {
             overview: "Przegląd",
             devices: "Urządzenia",
@@ -187,7 +211,7 @@
     function managementHost(root) {
         var host = root.querySelector('[data-view="management"]');
         if (!host) {
-            var main = root.querySelector(".sirk-main");
+            var main = root.querySelector(".sirk-main,.sirk-content,.sirk-portal-main");
             if (!main) return null;
             host = document.createElement("section");
             host.className = "sirk-view";
@@ -199,7 +223,7 @@
         return host;
     }
 
-    function mountManagement(root) {
+    function mountManagement(root, force) {
         var host = managementHost(root);
         if (!host) return;
         if (!moduleEnabled("myscripts")) {
@@ -210,20 +234,120 @@
             moduleError(host, "Zarządzanie", "Renderer Zarządzania nie został załadowany.");
             return;
         }
-        if (host.getAttribute("data-mycompany-native-management") === "1" && host.querySelector(".sirk-management-shell")) return;
+        if (!force && host.getAttribute("data-mycompany-native-management") === "1" && host.querySelector(".sirk-management-shell")) return;
         host.setAttribute("data-mycompany-native-management", "1");
         window.MyCompanyPortalManagement.mount(host);
+    }
+
+    function setActiveNavigation(root, view) {
+        var buttons = root.querySelectorAll("[data-sirk-view]");
+        Array.prototype.forEach.call(buttons, function (button) {
+            var active = button.getAttribute("data-sirk-view") === view;
+            button.classList.toggle("is-active", active);
+            button.setAttribute("aria-current", active ? "page" : "false");
+        });
+    }
+
+    function showOnlyView(root, view) {
+        var host = view === "management" ? managementHost(root) : root.querySelector('[data-view="' + view + '"]');
+        var views = root.querySelectorAll("[data-view]");
+        Array.prototype.forEach.call(views, function (item) {
+            var visible = item === host;
+            item.hidden = !visible;
+            item.style.display = visible ? "" : "none";
+            item.classList.toggle("is-active", visible);
+        });
+        if (host) {
+            host.hidden = false;
+            host.style.display = "";
+        }
+        setActiveNavigation(root, view);
+        return host;
+    }
+
+    function activateManagement(root) {
+        forcedView = "management";
+        normalizeNavigation(root);
+        showOnlyView(root, "management");
+        mountManagement(root, false);
+    }
+
+    function readSidebarCollapsed() {
+        try { return window.localStorage.getItem(sidebarStorageKey) === "1"; }
+        catch (error) { return false; }
+    }
+
+    function saveSidebarCollapsed(value) {
+        try { window.localStorage.setItem(sidebarStorageKey, value ? "1" : "0"); }
+        catch (error) {}
+    }
+
+    function applySidebarCollapsed(root, collapsed) {
+        var sidebar = root.querySelector(".sirk-sidebar,.sirk-nav,.sirk-portal-sidebar");
+        root.classList.toggle("mycompany-sidebar-collapsed", collapsed);
+        root.classList.toggle("is-sidebar-collapsed", collapsed);
+        root.setAttribute("data-sidebar-collapsed", collapsed ? "1" : "0");
+        if (sidebar) {
+            sidebar.classList.toggle("is-collapsed", collapsed);
+            sidebar.classList.toggle("sirk-sidebar-collapsed", collapsed);
+            sidebar.setAttribute("data-collapsed", collapsed ? "1" : "0");
+        }
+        saveSidebarCollapsed(collapsed);
+    }
+
+    function findSidebarToggle(root) {
+        return root.querySelector([
+            '[data-sirk-action="collapse"]',
+            '[data-action="collapse"]',
+            '[data-sidebar-toggle]',
+            '.sirk-sidebar-toggle',
+            '.sirk-collapse-toggle',
+            'button[title*="Collapse" i]',
+            'button[aria-label*="Collapse" i]',
+            'button[title*="Zwiń" i]',
+            'button[aria-label*="Zwiń" i]'
+        ].join(","));
+    }
+
+    function bindSidebarToggle(root) {
+        if (root.__myCompanySidebarToggleBound) return;
+        root.__myCompanySidebarToggleBound = true;
+        applySidebarCollapsed(root, readSidebarCollapsed());
+        root.addEventListener("click", function (event) {
+            var toggle = event.target.closest([
+                '[data-sirk-action="collapse"]',
+                '[data-action="collapse"]',
+                '[data-sidebar-toggle]',
+                '.sirk-sidebar-toggle',
+                '.sirk-collapse-toggle',
+                'button[title*="Collapse" i]',
+                'button[aria-label*="Collapse" i]',
+                'button[title*="Zwiń" i]',
+                'button[aria-label*="Zwiń" i]'
+            ].join(","));
+            if (!toggle || !root.contains(toggle)) return;
+            window.setTimeout(function () {
+                var collapsed = !root.classList.contains("mycompany-sidebar-collapsed");
+                applySidebarCollapsed(root, collapsed);
+            }, 0);
+        }, true);
+        var toggle = findSidebarToggle(root);
+        if (toggle) toggle.setAttribute("data-mycompany-sidebar-toggle", "1");
     }
 
     function mountView(view) {
         var root = document.getElementById("sirkPortalRoot");
         if (!root) return;
-        if (view === "management") mountManagement(root);
-        else if (view === "approvals") mountModule("approvalcenter", root.querySelector('[data-view="approvals"]'), "Akceptacje");
-        else if (view === "administration") mountSettings(root.querySelector('[data-view="administration"]'));
+        if (view === "management") activateManagement(root);
+        else {
+            forcedView = "";
+            if (view === "approvals") mountModule("approvalcenter", root.querySelector('[data-view="approvals"]'), "Akceptacje");
+            else if (view === "administration") mountSettings(root.querySelector('[data-view="administration"]'));
+        }
     }
 
     function selectedView(root) {
+        if (forcedView) return forcedView;
         var selected = root.querySelector("[data-sirk-view].is-active");
         return selected && selected.getAttribute("data-sirk-view") || "";
     }
@@ -235,12 +359,22 @@
         root.setAttribute("data-mycompany-portal", "1");
         root.setAttribute("data-sirk-vendor-version", vendorVersion);
         normalizeNavigation(root);
+        bindSidebarToggle(root);
 
         if (!root.__myCompanyPortalAdapterBound) {
             root.__myCompanyPortalAdapterBound = true;
             root.addEventListener("click", function (event) {
+                var button = event.target.closest('[data-mycompany-management-nav="1"],[data-sirk-view="management"]');
+                if (!button || !root.contains(button)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+                activateManagement(root);
+            }, true);
+            root.addEventListener("click", function (event) {
                 var button = event.target.closest("[data-sirk-view]");
-                if (!button) return;
+                if (!button || button.getAttribute("data-sirk-view") === "management") return;
+                forcedView = "";
                 var view = button.getAttribute("data-sirk-view");
                 window.setTimeout(function () {
                     normalizeNavigation(root);
@@ -252,9 +386,15 @@
                 window.clearTimeout(pending);
                 pending = window.setTimeout(function () {
                     normalizeNavigation(root);
+                    applySidebarCollapsed(root, readSidebarCollapsed());
+                    if (forcedView === "management") {
+                        showOnlyView(root, "management");
+                        mountManagement(root, false);
+                        return;
+                    }
                     var view = selectedView(root);
                     if (view) mountView(view);
-                }, 40);
+                }, 50);
             }).observe(root, { childList: true, subtree: true });
         }
         var active = selectedView(root);
