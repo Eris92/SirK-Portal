@@ -10,6 +10,7 @@ module.exports.admin = function (plugin) {
         "admin.css": ["web/admin.css", "text/css; charset=utf-8"],
         "admin.js": ["web/admin.js", "text/javascript; charset=utf-8"],
         "admin-layout.js": ["web/admin-layout.js", "text/javascript; charset=utf-8"],
+        "admin-approval-policy.js": ["web/admin-approval-policy.js", "text/javascript; charset=utf-8"],
         "core.js": ["public/core.js", "text/javascript; charset=utf-8"],
         "mesh-plugin-core.js": ["public/mesh-plugin-core.js", "text/javascript; charset=utf-8"],
         "module-shell.js": ["public/module-shell.js", "text/javascript; charset=utf-8"],
@@ -52,8 +53,7 @@ module.exports.admin = function (plugin) {
     }
 
     function moduleObject(moduleName) {
-        return plugin.runtime &&
-            plugin.runtime.modules &&
+        return plugin.runtime && plugin.runtime.modules &&
             plugin.runtime.modules[String(moduleName || "").toLowerCase()];
     }
 
@@ -70,11 +70,8 @@ module.exports.admin = function (plugin) {
             return;
         }
         if (moduleName === "myscripts" && asset === "folder-icon") {
-            if (
-                plugin.runtime.modules &&
-                plugin.runtime.modules.myscripts &&
-                typeof plugin.runtime.modules.myscripts.serveIcon === "function"
-            ) {
+            if (plugin.runtime.modules && plugin.runtime.modules.myscripts &&
+                typeof plugin.runtime.modules.myscripts.serveIcon === "function") {
                 plugin.runtime.modules.myscripts.serveIcon(req, res, user);
             } else {
                 shared.send(res, 404, "text/plain; charset=utf-8", "Folder icon unavailable");
@@ -117,27 +114,16 @@ module.exports.admin = function (plugin) {
             }
 
             var module = moduleObject(moduleName);
-            if (
-                asset === "settings" &&
-                shared.isSiteAdmin(user) &&
-                module &&
-                !module.__loadError &&
-                typeof module.apiPost === "function"
-            ) {
+            if (asset === "settings" && shared.isSiteAdmin(user) && module &&
+                !module.__loadError && typeof module.apiPost === "function") {
                 try {
                     Promise.resolve(module.apiPost(asset, req, user)).then(function (value) {
                         shared.sendJson(res, 200, value || { ok: true });
                     }).catch(function (error) {
-                        shared.sendJson(res, 400, {
-                            ok: false,
-                            error: String(error && error.message || error)
-                        });
+                        shared.sendJson(res, 400, { ok: false, error: String(error && error.message || error) });
                     });
                 } catch (error) {
-                    shared.sendJson(res, 400, {
-                        ok: false,
-                        error: String(error && error.message || error)
-                    });
+                    shared.sendJson(res, 400, { ok: false, error: String(error && error.message || error) });
                 }
                 return;
             }
@@ -156,10 +142,7 @@ module.exports.admin = function (plugin) {
             plugin.runtime.saveAdminSettings(user, payload).then(function (snapshot) {
                 shared.sendJson(res, 200, { ok: true, snapshot: snapshot });
             }).catch(function (error) {
-                shared.sendJson(res, 403, {
-                    ok: false,
-                    error: String(error && error.message || error)
-                });
+                shared.sendJson(res, 403, { ok: false, error: String(error && error.message || error) });
             });
             return;
         }
