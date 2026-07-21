@@ -10,7 +10,8 @@ module.exports.createModule = function (context) {
         fs: context.fs,
         path: context.path,
         root: root,
-        readOnly: true
+        readOnly: true,
+        allowWrite: true
     });
     var unregister = null;
 
@@ -21,6 +22,10 @@ module.exports.createModule = function (context) {
             ? config.accessGroupIds
             : [];
         return !groups.length || shared.isUserInAnyGroup(user, groups);
+    }
+
+    function requireAdmin(user) {
+        if (!shared.isSiteAdmin(user)) throw new Error("Permission denied.");
     }
 
     function executionRows() {
@@ -108,7 +113,6 @@ module.exports.createModule = function (context) {
             executionRows().forEach(function (row) {
                 byId[String(row.id || "")] = row;
             });
-
             value.rows = (value.rows || []).map(function (request) {
                 var resultId = request.result && request.result.id;
                 if (resultId && byId[String(resultId)]) {
@@ -118,6 +122,90 @@ module.exports.createModule = function (context) {
             });
             value.ok = true;
             return value;
+        });
+    }
+
+    function normalizeNodeIds(value) {
+        var list = Array.isArray(value)
+            ? value
+            : String(value || "").split(/[\r\n,;]+/);
+        var seen = Object.create(null);
+        return list.map(function (item) {
+            return String(item || "").trim();
+        }).filter(function (item) {
+            if (!item || seen[item]) return false;
+            seen[item] = true;
+            return true;
+        });
+    }
+
+    function multiExecute(user, value) {
+        value = value || {};
+        var settings = context.settings.read().modules.mycommands || {};
+        var maxNodes = Math.max(
+            1,
+            Math.min(1000, Number(settings.maxMultiHostNodes) || 200)
+        );
+        var concurrency = Math.max(
+            1,
+            Math.min(64, Number(settings.multiHostConcurrency) || 8)
+        );
+        var nodeIds = normalizeNodeIds(value.nodeIds);
+        if (!nodeIds.length && value.nodeId) nodeIds = [String(value.nodeId)];
+        if (!nodeIds.length) throw new Error("Select at least one device.");
+        if (nodeIds.length > maxNodes) {
+            throw new Error("A maximum of " + maxNodes + " devices can be selected.");
+        }
+
+        var script = library.getScript(value.scriptPath, true);
+        if (!script) throw new Error("Script not found.");
+        var cursor = 0;
+        var rows = [];
+
+        function worker() {
+            if (cursor >= nodeIds.length) return Promise.resolve();
+            var nodeId = nodeIds[cursor++];
+            return context.approval.submit("mycommands", user, {
+                nodeId: nodeId,
+                scriptPath: script.path,
+                label: script.label,
+                description: script.description,
+                approvalLevels: script.approvalLevels || [],
+                multiHost: true
+            }, value.note).then(function (request) {
+                rows.push({
+                    nodeId: nodeId,
+                    ok: true,
+                    request: request
+                });
+            }).catch(function (error) {
+                rows.push({
+                    nodeId: nodeId,
+                    ok: false,
+                    error: String(error && error.message || error)
+                });
+            }).then(worker);
+        }
+
+        var workers = [];
+        var workerCount = Math.min(concurrency, nodeIds.length);
+        for (var index = 0; index < workerCount; index++) {
+            workers.push(worker());
+        }
+
+        return Promise.all(workers).then(function () {
+            var failed = rows.filter(function (row) { return !row.ok; }).length;
+            var pending = rows.filter(function (row) {
+                return row.ok && row.request && row.request.status === "pending";
+            }).length;
+            return {
+                ok: failed === 0,
+                total: nodeIds.length,
+                submitted: rows.length - failed,
+                pending: pending,
+                failed: failed,
+                rows: rows
+            };
         });
     }
 
@@ -158,12 +246,15 @@ module.exports.createModule = function (context) {
                 showInMenu: false,
                 showOnDevice: value.showOnDevice !== false,
                 scriptsRoot: root,
+                maxMultiHostNodes: Number(value.maxMultiHostNodes) || 200,
+                multiHostConcurrency: Number(value.multiHostConcurrency) || 8,
                 toolbar: {
-                    refresh: false,
+                    refresh: true,
                     clear: false,
-                    favorites: false,
-                    search: false,
-                    manage: false,
+                    favorites: true,
+                    search: true,
+                    manage: true,
+                    multiHost: true,
                     settings: false
                 }
             };
@@ -211,6 +302,12 @@ module.exports.createModule = function (context) {
                 if (!script) throw new Error("Script not found.");
                 return { ok: true, script: script };
             }
+            if (asset === "source") {
+                requireAdmin(user);
+                var source = library.getSource(query.path);
+                if (!source) throw new Error("Script not found.");
+                return { ok: true, source: source };
+            }
             if (asset === "results") {
                 return approvalResults(user, query);
             }
@@ -237,14 +334,23 @@ module.exports.createModule = function (context) {
                     return { ok: true, request: request };
                 });
             }
+            if (asset === "multi-execute") {
+                return multiExecute(user, value);
+            }
             if (asset === "refresh") {
                 library.invalidate();
                 return { ok: true, tree: library.getTree() };
             }
+            if (asset === "source") {
+                requireAdmin(user);
+                return {
+                    ok: true,
+                    script: library.saveSource(value.path, value.text),
+                    tree: library.getTree()
+                };
+            }
             if (asset === "settings") {
-                if (!shared.isSiteAdmin(user)) {
-                    throw new Error("Permission denied.");
-                }
+                requireAdmin(user);
                 return context.settings.update(function (current) {
                     var config = current.modules.mycommands;
                     config.showInMenu = false;
