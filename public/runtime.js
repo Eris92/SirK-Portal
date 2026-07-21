@@ -132,12 +132,13 @@
                             module.onDeviceRefreshEnd(runtime.state.nodeId);
                         }
                     });
-                }).then(function () {
-                    if (key !== "portal") return null;
-                    return core.loadScript("mycompany-portal-final-fix", core.assetUrl("", "portal-fix.js"));
                 });
             });
-            return chain;
+            return chain.then(function () {
+                var portal = bootstrap.modules && bootstrap.modules.portal;
+                if (!portal || !portal.enabled || portal.ready === false || window.top !== window.self) return null;
+                return core.loadScript("mycompany-portal-ui-fix", core.assetUrl("", "portal-ui-fix.js"));
+            });
         }).catch(function (error) {
             runtime.state.initializePromise = null;
             throw error;
