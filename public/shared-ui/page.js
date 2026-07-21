@@ -1,5 +1,12 @@
 (function () {
     "use strict";
+
+    function storageKey(options) {
+        if (options.layoutStorageKey) return String(options.layoutStorageKey);
+        var preset = String(options.preset || "standard").toLowerCase();
+        return "mycompany.layout." + preset + ".collapsed";
+    }
+
     window.SharedPage = {
         mount: function (options) {
             options = options || {};
@@ -16,7 +23,7 @@
             host.appendChild(layoutHost);
             var layout = window.SharedLayout.mount({
                 container: layoutHost,
-                storageKey: options.layoutStorageKey || ""
+                storageKey: storageKey(options)
             });
             var toolbar = window.SharedToolbar.mount({
                 container: toolbarHost,
