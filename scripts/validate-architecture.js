@@ -95,7 +95,7 @@ function validateArchitecture() {
     });
 
     var results = read("public/shared-ui/results.js");
-    ["parseStructured", "Filter results", "View", "Debug / raw output", "Copy", "meshTable", "parseLine", "mountResult", "Filter result rows", "parseJsonSuffix"].forEach(function (value) {
+    ["parseStructured", "Filter results", "View", "Debug / raw output", "Copy", "meshTable", "parseLine", "mountResult", "Filter result rows", "parseJsonSuffix", "__MYCOMMANDS_TABLE_B64__"].forEach(function (value) {
         need(results, value, "Shared result viewer missing: " + value, errors);
     });
 
@@ -129,16 +129,23 @@ function validateArchitecture() {
 
     var myCommands = read("public/mycommands.js");
     [
-        "openMultiExecution", 'post("multi-execute"', "resultsPosition: \"end\"",
-        'name: "Scripts"', '"@menu/" + category.key', "commandId", 'tabs: []'
+        "openMultiExecution", 'post("multi-execute"', "executeFromMenu", "executeOnSelect",
+        'name: "Scripts"', '"@menu/" + category.key', "commandId", 'tabs: []',
+        "show(shell, item, true)", "show(shell, item, false)"
     ].forEach(function (value) {
         need(myCommands, value, "MyCommands UI missing: " + value, errors);
     });
+    if (myCommands.indexOf('resultsPosition: "end"') >= 0) errors.push("MyCommands Results must be the first left-menu entry.");
     match(myCommands, /order\s*:\s*60/, "MyCommands multi action order is invalid.", errors);
     match(myCommands, /collapse\s*:\s*\{/, "MyCommands must expose Collapse.", errors);
 
     var sharedCatalog = read("public/shared-ui/catalog.js");
-    need(sharedCatalog, 'resultsPosition !== "end"', "Shared catalog must support putting Results at the end of the left menu.", errors);
+    need(sharedCatalog, 'resultsPosition !== "end"', "Shared catalog must support putting Results at the start of the left menu.", errors);
+
+    var adminEnhancements = read("web/admin-ui-enhancements.js");
+    ["Save General", "Save My Commands", "ensureInlineSaveActions", "invokeGlobalSave"].forEach(function (value) {
+        need(adminEnhancements, value, "Admin inline save actions missing: " + value, errors);
+    });
 
     var approval = read("public/approvalcenter.js");
     ["Filter requests", "SharedResultsView.mountTable", "mc-approval-nav-icon"].forEach(function (value) {
