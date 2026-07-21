@@ -22,6 +22,7 @@ var required = [
     "modules/DefenderTools/index.js",
     "public/approvalcenter.js",
     "public/myscripts.js",
+    "public/mycommands.js",
     "public/shared-ui/toolbar.js",
     "public/shared-ui/toolbar-api.js",
     "public/shared-ui/toolbar-config.js",
@@ -30,10 +31,16 @@ var required = [
     "public/shared-ui/settings.js",
     "public/shared-ui/status-nav.js",
     "public/shared-ui/tree.js",
+    "public/shared-ui/catalog.js",
+    "public/shared-ui/results.js",
     "public/shared-ui/page.js",
     "seed/MyScripts",
     "seed/MyCommands"
 ];
+
+function read(relative) {
+    return fs.readFileSync(path.join(root, relative), "utf8");
+}
 
 function validateArchitecture() {
     var errors = [];
@@ -44,11 +51,7 @@ function validateArchitecture() {
         }
     });
 
-    var config = JSON.parse(
-        fs.readFileSync(path.join(root, "config.json"), "utf8")
-            .replace(/^\uFEFF/, "")
-    );
-
+    var config = JSON.parse(read("config.json").replace(/^\uFEFF/, ""));
     if (config.shortName !== "MyCompany") {
         errors.push("config.shortName must be MyCompany.");
     }
@@ -59,7 +62,6 @@ function validateArchitecture() {
     var entrypoints = fs.readdirSync(root).filter(function (name) {
         return name.toLowerCase() === "mycompany.js";
     });
-
     if (entrypoints.length !== 1 || entrypoints[0] !== "MyCompany.js") {
         errors.push("Exactly one case-insensitive MyCompany.js entrypoint is required.");
     }
@@ -70,10 +72,7 @@ function validateArchitecture() {
         errors.push("legacy source directory is not allowed.");
     }
 
-    var runtimeSource = fs.readFileSync(
-        path.join(root, "core", "runtime.js"),
-        "utf8"
-    );
+    var runtimeSource = read("core/runtime.js");
     if (runtimeSource.indexOf('"seed", "MyScripts"') < 0) {
         errors.push("Runtime must resolve MyScripts from seed/MyScripts.");
     }
@@ -81,18 +80,21 @@ function validateArchitecture() {
         errors.push("Runtime must resolve MyCommands from seed/MyCommands.");
     }
 
-    var myScriptsModuleSource = fs.readFileSync(
-        path.join(root, "modules", "MyScripts", "index.js"),
-        "utf8"
-    );
-    if (myScriptsModuleSource.indexOf('context.pluginRoot, "seed", "MyScripts"') < 0) {
+    var myScriptsModule = read("modules/MyScripts/index.js");
+    if (myScriptsModule.indexOf('context.pluginRoot, "seed", "MyScripts"') < 0) {
         errors.push("MyScripts must read directly from seed/MyScripts.");
     }
 
-    var treeSource = fs.readFileSync(
-        path.join(root, "public", "shared-ui", "tree.js"),
-        "utf8"
-    );
+    var myCommandsModule = read("modules/MyCommands/index.js");
+    if (myCommandsModule.indexOf('context.pluginRoot, "seed", "MyCommands"') < 0) {
+        errors.push("MyCommands must read directly from seed/MyCommands.");
+    }
+    if (myCommandsModule.indexOf('type: "mycommands"') < 0 ||
+        myCommandsModule.indexOf("approvalResults") < 0) {
+        errors.push("MyCommands results must use the shared approval workflow.");
+    }
+
+    var treeSource = read("public/shared-ui/tree.js");
     if (treeSource.indexOf("iconData") < 0) {
         errors.push("Shared directory tree must render embedded folder icons.");
     }
@@ -103,32 +105,44 @@ function validateArchitecture() {
         errors.push("Folder expand arrows must be hidden when a folder graphic exists.");
     }
 
-    var toolbarConfigSource = fs.readFileSync(
-        path.join(root, "public", "shared-ui", "toolbar-config.js"),
-        "utf8"
-    );
-    if (!/manage:\s*\{[^}]*side:\s*"left"/.test(toolbarConfigSource)) {
-        errors.push("Manage must be in the left toolbar group.");
-    }
-    if (!/search:\s*\{[^}]*side:\s*"left"/.test(toolbarConfigSource)) {
-        errors.push("Search must be in the left toolbar group.");
+    var toolbarSource = read("public/shared-ui/toolbar.js");
+    if (toolbarSource.indexOf("root.hidden = Object.keys(context.buttons).length === 0") < 0) {
+        errors.push("Empty module toolbars must be hidden.");
     }
 
-    var myScriptsClientSource = fs.readFileSync(
-        path.join(root, "public", "myscripts.js"),
-        "utf8"
-    );
-    [
-        "refreshScripts",
-        "clearView",
-        "copySelectedLink",
-        "toggleManage",
-        "toggleFavorites"
-    ].forEach(function (functionName) {
-        if (myScriptsClientSource.indexOf("function " + functionName) < 0) {
-            errors.push("MyScripts toolbar handler is missing: " + functionName);
+    ["myscripts", "mycommands"].forEach(function (name) {
+        var source = read("public/" + name + ".js");
+        if (source.indexOf("window.SharedCatalogView.mount") < 0) {
+            errors.push(name + " must use the shared Results and folder catalog navigation.");
         }
+        if (source.indexOf("window.SharedResultsView.mountStatus") < 0 ||
+            source.indexOf("window.SharedResultsView.mountTable") < 0) {
+            errors.push(name + " must use shared status filters and result tables.");
+        }
+        if (source.indexOf("tabs: []") < 0) {
+            errors.push(name + " must not render top tabs.");
+        }
+        [
+            "collapse",
+            "favorites",
+            "link",
+            "manage",
+            "search",
+            "refresh",
+            "clear",
+            "settings"
+        ].forEach(function (button) {
+            if (source.indexOf(button + ": false") < 0) {
+                errors.push(name + " must disable top button: " + button);
+            }
+        });
     });
+
+    var catalogSource = read("public/shared-ui/catalog.js");
+    if (catalogSource.indexOf("mc-catalog-separator") < 0 ||
+        catalogSource.indexOf("▤ Results") < 0) {
+        errors.push("Shared catalog must place Results above folders with a separator.");
+    }
 
     if (errors.length) {
         errors.forEach(function (error) {
@@ -156,7 +170,6 @@ function validateSettingsWriter() {
         if (value.version !== 2 || value.enabled !== false) {
             throw new Error("Settings writer returned invalid data.");
         }
-
         var leftovers = fs.readdirSync(directory).filter(function (name) {
             return /\.(tmp|bak)$/.test(name);
         });
