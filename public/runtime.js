@@ -142,7 +142,13 @@
             return chain.then(function () {
                 var portal = bootstrap.modules && bootstrap.modules.portal;
                 if (!portal || !portal.enabled || portal.ready === false || window.top !== window.self) return null;
-                return core.loadScript("mycompany-portal-ui-fix", core.assetUrl("", "portal-ui-fix.js"));
+                return core.loadScript("mycompany-portal-ui-fix", core.assetUrl("", "portal-ui-fix.js"))
+                    .then(function () {
+                        return core.loadScript("mycompany-portal-subfolder-icons", core.assetUrl("", "portal-subfolder-icons.js"));
+                    })
+                    .then(function () {
+                        return core.loadScript("mycompany-portal-collapse-isolation", core.assetUrl("", "portal-collapse-isolation.js"));
+                    });
             });
         }).catch(function (error) {
             runtime.state.initializePromise = null;
