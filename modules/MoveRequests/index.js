@@ -25,6 +25,28 @@ module.exports.createModule = function (context) {
         });
     }
 
+    function normalizeMeshApprovalLevels(value, allowedMeshIds) {
+        value = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+        allowedMeshIds = Array.isArray(allowedMeshIds) ? allowedMeshIds.map(String) : [];
+        var result = {};
+        Object.keys(value).forEach(function (meshId) {
+            meshId = String(meshId || "");
+            var level = Number(value[meshId]);
+            if (!meshId || allowedMeshIds.indexOf(meshId) < 0) return;
+            if (level < 0 || level > 3 || Math.floor(level) !== level) return;
+            result[meshId] = level;
+        });
+        return result;
+    }
+
+    function configuredLevel(targetMeshId) {
+        var config = context.settings.read().modules.moverequests || {};
+        var levels = config.targetMeshApprovalLevels || {};
+        if (!Object.prototype.hasOwnProperty.call(levels, targetMeshId)) return 1;
+        var level = Number(levels[targetMeshId]);
+        return level >= 0 && level <= 3 ? level : 1;
+    }
+
     function moveNode(payload, request) {
         var web = context.device.getWebServer();
         if (!web || typeof web.MoveNodeToMesh !== "function") {
@@ -81,8 +103,9 @@ module.exports.createModule = function (context) {
                 " → " +
                 (payload.targetMeshName || payload.targetMeshId);
         },
-        getApprovalLevels: function () {
-            return [1];
+        getApprovalLevels: function (payload) {
+            var level = configuredLevel(String(payload && payload.targetMeshId || ""));
+            return level === 0 ? [] : [level];
         },
         canSubmit: function (user) {
             return !!user;
@@ -130,9 +153,12 @@ module.exports.createModule = function (context) {
                 });
             }
             if (asset === "settings") {
+                if (!shared.isSiteAdmin(user)) throw new Error("Permission denied.");
+                var current = context.settings.read().modules.moverequests || {};
                 return {
                     ok: true,
-                    settings: context.settings.read().modules.moverequests || {}
+                    settings: current,
+                    meshes: meshRows(user)
                 };
             }
             throw new Error("Unknown Move Requests action.");
@@ -147,9 +173,14 @@ module.exports.createModule = function (context) {
             }
             if (asset === "settings") {
                 if (!shared.isSiteAdmin(user)) throw new Error("Permission denied.");
+                var allowedMeshes = meshRows(user).map(function (mesh) { return mesh.id; });
                 return context.settings.update(function (current) {
                     current.modules.moverequests.hostButtonEnabled = value.hostButtonEnabled !== false;
                     current.modules.moverequests.menuEnabled = false;
+                    current.modules.moverequests.targetMeshApprovalLevels = normalizeMeshApprovalLevels(
+                        value.targetMeshApprovalLevels,
+                        allowedMeshes
+                    );
                     return current;
                 }).then(function () { return { ok: true }; });
             }
