@@ -7,6 +7,23 @@
     window.__myCompanyAdminUiEnhancements = true;
 
     var scheduled = false;
+    var providerDefinitions = [
+        {
+            type: "moverequests",
+            title: "Move Requests",
+            description: "Approval workflow for moving devices between MeshCentral groups."
+        },
+        {
+            type: "mycommands",
+            title: "My Commands",
+            description: "Approval workflow for commands and multi-device operations."
+        },
+        {
+            type: "myscripts",
+            title: "My Scripts",
+            description: "Provider visibility and approver groups. Required levels are selected separately in each script definition."
+        }
+    ];
 
     function element(tag, className, text) {
         var node = document.createElement(tag);
@@ -19,17 +36,25 @@
         return window.MyCompanyAdminData || {};
     }
 
-    function providerValue() {
+    function moduleAvailable(type) {
+        var modules = adminData().modules || [];
+        return modules.some(function (module) {
+            return module && module.key === type && module.ready !== false;
+        });
+    }
+
+    function providerValue(type) {
         var data = adminData();
         var settings = data.moduleSettings || {};
         var approval = settings.approvalcenter || {};
         var providers = approval.providers || {};
-        var value = providers.myscripts || {};
+        var value = providers[type] || {};
         var levels = value.levels || {};
         return {
             enabled: value.enabled !== false,
             showTab: value.showTab !== false,
             showOverview: value.showOverview !== false,
+            allowNoApproval: value.allowNoApproval === true,
             levels: {
                 1: Array.isArray(levels[1] || levels["1"]) ? (levels[1] || levels["1"]).map(String) : [],
                 2: Array.isArray(levels[2] || levels["2"]) ? (levels[2] || levels["2"]).map(String) : [],
@@ -50,6 +75,7 @@
         if (description) text.appendChild(element("small", "", description));
         label.appendChild(text);
         host.appendChild(label);
+        return input;
     }
 
     function groupField(host, labelText, selected, onChange) {
@@ -75,18 +101,18 @@
         host.appendChild(wrapper);
     }
 
-    function postProvider(value) {
+    function postProvider(type, value) {
         var url = new URL("pluginadmin.ashx", window.location.href);
         url.searchParams.set("pin", root.getAttribute("data-plugin") || "MyCompany");
         url.searchParams.set("module", "approvalcenter");
         url.searchParams.set("asset", "provider-settings");
         var body = new URLSearchParams();
         body.set("payload", JSON.stringify({
-            type: "myscripts",
+            type: type,
             enabled: value.enabled,
             showTab: value.showTab,
             showOverview: value.showOverview,
-            allowNoApproval: true,
+            allowNoApproval: type === "myscripts" ? true : value.allowNoApproval,
             levels: value.levels
         }));
         return fetch(url.href, {
@@ -105,19 +131,34 @@
         });
     }
 
-    function addMyScriptsProvider(panel) {
-        if (!panel || panel.querySelector(".mc-admin-myscripts-provider")) return;
-        var header = panel.querySelector(".mc-admin-section-header h3");
-        if (!header || header.textContent.trim() !== "Approval Center") return;
+    function panelIsApprovalCenter(panel) {
+        if (!panel) return false;
+        var heading = panel.querySelector(".mc-admin-section-header h3");
+        if (heading && /approval\s*center/i.test(heading.textContent || "")) return true;
+        return Array.prototype.some.call(panel.querySelectorAll("h2,h3,strong"), function (node) {
+            return /^approval\s*center$/i.test(String(node.textContent || "").trim());
+        });
+    }
 
-        var state = providerValue();
-        var card = element("section", "mc-admin-card mc-admin-myscripts-provider");
-        card.appendChild(element("h3", "", "My Scripts"));
-        card.appendChild(element(
-            "div",
-            "mc-admin-card-description",
-            "Visibility and approver groups for My Scripts. Approval levels are selected separately in each script definition."
-        ));
+    function existingProviderTitles(panel) {
+        var result = Object.create(null);
+        panel.querySelectorAll(".mc-admin-card").forEach(function (card) {
+            var title = card.querySelector(":scope > h3, :scope > .mc-admin-card-toggle .mc-admin-card-toggle-text strong");
+            if (title) result[String(title.textContent || "").trim().toLowerCase()] = true;
+        });
+        return result;
+    }
+
+    function addProviderCard(panel, definition) {
+        var state = providerValue(definition.type);
+        var card = element("section", "mc-admin-card mc-admin-provider-card mc-admin-provider-" + definition.type);
+        card.setAttribute("data-provider", definition.type);
+        card.appendChild(element("h3", "", definition.title));
+        card.appendChild(element("div", "mc-admin-card-description", definition.description));
+
+        if (!moduleAvailable(definition.type)) {
+            card.appendChild(element("div", "mc-admin-notice", "The module is unavailable or failed to initialize."));
+        }
 
         checkField(card, "Provider enabled", state.enabled, function (value) { state.enabled = value; });
         checkField(card, "Show in Requests", state.showTab, function (value) { state.showTab = value; });
@@ -127,20 +168,20 @@
         groupField(card, "Level 3 approvers", state.levels[3], function (value) { state.levels[3] = value; });
 
         var actions = element("div", "mc-admin-inline-actions");
-        var save = element("button", "mc-admin-primary", "Save My Scripts provider");
+        var save = element("button", "mc-admin-primary", "Save " + definition.title + " provider");
         save.type = "button";
         var status = element("span", "mc-admin-save-status");
         save.onclick = function () {
             save.disabled = true;
             status.className = "mc-admin-save-status";
             status.textContent = "Saving...";
-            postProvider(state).then(function () {
+            postProvider(definition.type, state).then(function () {
                 status.textContent = "Saved";
                 var data = adminData();
                 data.moduleSettings = data.moduleSettings || {};
                 data.moduleSettings.approvalcenter = data.moduleSettings.approvalcenter || {};
                 data.moduleSettings.approvalcenter.providers = data.moduleSettings.approvalcenter.providers || {};
-                data.moduleSettings.approvalcenter.providers.myscripts = JSON.parse(JSON.stringify(state));
+                data.moduleSettings.approvalcenter.providers[definition.type] = JSON.parse(JSON.stringify(state));
             }).catch(function (error) {
                 status.className = "mc-admin-save-status mc-admin-error";
                 status.textContent = error.message || String(error);
@@ -153,6 +194,17 @@
         var saveBar = panel.querySelector(".mc-admin-actions");
         if (saveBar) panel.insertBefore(card, saveBar);
         else panel.appendChild(card);
+        return card;
+    }
+
+    function addMissingProviders(panel) {
+        if (!panelIsApprovalCenter(panel)) return;
+        var titles = existingProviderTitles(panel);
+        providerDefinitions.forEach(function (definition) {
+            if (!titles[definition.title.toLowerCase()] && !panel.querySelector('[data-provider="' + definition.type + '"]')) {
+                addProviderCard(panel, definition);
+            }
+        });
     }
 
     function makeCollapsible(card) {
@@ -190,10 +242,12 @@
 
     function enhance() {
         scheduled = false;
-        var panel = content.querySelector(".mc-admin-settings-panel");
-        if (!panel) return;
-        addMyScriptsProvider(panel);
-        panel.querySelectorAll(".mc-admin-card").forEach(makeCollapsible);
+        var panels = content.querySelectorAll(".mc-admin-settings-panel");
+        if (!panels.length) panels = [content];
+        Array.prototype.forEach.call(panels, function (panel) {
+            addMissingProviders(panel);
+            panel.querySelectorAll(".mc-admin-card").forEach(makeCollapsible);
+        });
     }
 
     function schedule() {
@@ -203,5 +257,6 @@
     }
 
     new MutationObserver(schedule).observe(content, { childList: true, subtree: true });
+    root.addEventListener("click", function () { window.setTimeout(schedule, 0); });
     schedule();
 }());
