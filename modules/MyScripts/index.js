@@ -31,12 +31,42 @@ module.exports.createModule = function (context) {
         if (!shared.isSiteAdmin(user)) throw new Error("Permission denied.");
     }
 
-    function approvalLevels(payload) {
-        return Array.isArray(payload && payload.approvalLevels)
-            ? payload.approvalLevels.map(Number).filter(function (level, index, all) {
+    function normalizeApprovalLevels(value) {
+        return Array.isArray(value)
+            ? value.map(Number).filter(function (level, index, all) {
                 return level >= 1 && level <= 3 && all.indexOf(level) === index;
             }).sort()
             : [];
+    }
+
+    function approvalLevels(payload) {
+        return normalizeApprovalLevels(payload && payload.approvalLevels);
+    }
+
+    function directResult(script, user) {
+        var now = Date.now();
+        return {
+            id: shared.randomId(12),
+            type: "myscripts",
+            providerTitle: "My Scripts",
+            title: script.label || script.name || script.path,
+            summary: script.description || script.path || "My Scripts execution",
+            status: "completed",
+            requester: {
+                id: user && user._id || "",
+                name: shared.userName(user)
+            },
+            requesterNote: "",
+            requiredApprovalLevels: [],
+            approvalDecisions: [],
+            createdAt: now,
+            updatedAt: now,
+            result: {
+                message: "Script does not require approval.",
+                scriptPath: script.path,
+                label: script.label || script.name || "Script"
+            }
+        };
     }
 
     var provider = {
@@ -150,7 +180,20 @@ module.exports.createModule = function (context) {
                 return { ok: true, systemCredentials: admin.saveSystemCredentials(user, value.path, value.selected) };
             }
             if (asset === "request") {
-                return context.approval.submit("myscripts", user, value, value.note)
+                var requestedScript = library.getScript(value.scriptPath, false);
+                if (!requestedScript) throw new Error("Script not found.");
+                var levels = normalizeApprovalLevels(requestedScript.approvalLevels);
+                var payload = shared.copy(value || {});
+                payload.scriptPath = requestedScript.path;
+                payload.label = requestedScript.label || requestedScript.name;
+                payload.description = requestedScript.description || "";
+                payload.approvalLevels = levels;
+
+                if (!levels.length) {
+                    return { ok: true, request: directResult(requestedScript, user) };
+                }
+
+                return context.approval.submit("myscripts", user, payload, value.note)
                     .then(function (request) { return { ok: true, request: request }; });
             }
             if (asset === "settings") {
