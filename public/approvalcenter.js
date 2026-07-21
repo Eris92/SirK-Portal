@@ -24,60 +24,101 @@
         }).filter(Boolean);
     }
 
-    function renderPrimaryNavigation(shell) {
-        var items = [{
-            key: "overview",
-            title: "Overview",
-            icon: "▣"
-        }].concat(providers.map(function (provider) {
-            return {
-                key: provider.type,
-                title: providerTitles[provider.type] || provider.tabTitle || provider.title,
-                icon: provider.type === "moverequests"
-                    ? "⇄"
-                    : provider.type === "mycommands"
-                        ? ">_"
-                        : "▶"
-            };
-        }));
-
-        shell.nav(
-            shell.state.page.primary,
-            items,
-            selectedProvider || "overview",
-            function (item) {
-                selectedProvider = item.key === "overview" ? "" : item.key;
-                selectedStatus = "";
-                shell.render();
-            }
-        );
+    function createNavButton(host, options) {
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = options.className || "mc-shared-nav-item";
+        button.textContent = (options.icon ? options.icon + " " : "") + options.title;
+        button.classList.toggle("active", options.active === true);
+        button.onclick = options.onClick;
+        host.appendChild(button);
+        return button;
     }
 
-    function renderStatusNavigation(shell) {
-        shell.state.page.secondary.innerHTML = "";
+    function renderPrimaryNavigation(shell) {
+        shell.state.page.primary.innerHTML = "";
 
-        if (!selectedProvider) return;
-
-        window.SharedStatusNav.mount(shell.state.page.secondary, {
-            selected: selectedStatus,
-            onSelect: function (status) {
-                selectedStatus = status;
+        createNavButton(shell.state.page.primary, {
+            title: "Overview",
+            icon: "▣",
+            active: !selectedProvider,
+            onClick: function () {
+                selectedProvider = "";
+                selectedStatus = "";
                 shell.render();
             }
         });
     }
 
-    function renderRequests(shell) {
+    function renderSecondaryNavigation(shell) {
+        var host = shell.state.page.secondary;
+        host.innerHTML = "";
+
+        providers.forEach(function (provider) {
+            var group = document.createElement("div");
+            group.className = "mc-approval-provider-group";
+            host.appendChild(group);
+
+            createNavButton(group, {
+                title: providerTitles[provider.type] || provider.tabTitle || provider.title,
+                icon: provider.type === "moverequests"
+                    ? "⇄"
+                    : provider.type === "mycommands"
+                        ? ">_"
+                        : "▶",
+                className: "mc-shared-nav-item mc-approval-provider",
+                active: selectedProvider === provider.type,
+                onClick: function () {
+                    selectedProvider = provider.type;
+                    selectedStatus = "";
+                    shell.render();
+                }
+            });
+
+            if (selectedProvider !== provider.type) return;
+
+            var statuses = document.createElement("div");
+            statuses.className = "mc-approval-status-list";
+            group.appendChild(statuses);
+
+            window.SharedStatusNav.list().forEach(function (status) {
+                createNavButton(statuses, {
+                    title: status.title,
+                    icon: status.icon,
+                    className: "mc-shared-nav-item mc-approval-status",
+                    active: selectedStatus === status.key,
+                    onClick: function () {
+                        selectedStatus = status.key;
+                        shell.render();
+                    }
+                });
+            });
+        });
+    }
+
+    function renderRequestCards(shell, title, emptyText) {
         var host = shell.state.page.details;
         host.innerHTML = "";
+
+        if (title) {
+            host.appendChild(shell.element(
+                "h3",
+                "mc-approval-details-title",
+                title
+            ));
+        }
 
         if (!requests.length) {
             host.appendChild(shell.card(
                 "No requests",
-                "No requests match the selected provider and status."
+                emptyText || "No requests match the selected provider and status."
             ));
             return;
         }
+
+        var grid = document.createElement("div");
+        grid.className = "mc-approval-card-grid";
+        host.appendChild(grid);
 
         requests.forEach(function (request) {
             var card = shell.card(
@@ -86,6 +127,7 @@
                     " · " +
                     request.status
             );
+            card.classList.add("mc-approval-request-card");
 
             card.appendChild(shell.element(
                 "div",
@@ -96,12 +138,24 @@
             if (request.summary) {
                 card.appendChild(shell.element(
                     "div",
-                    "mc-shared-muted",
+                    "mc-approval-request-summary",
                     request.summary
                 ));
             }
 
+            var providerTitle = providerTitles[request.type] || request.type;
+            if (providerTitle) {
+                card.appendChild(shell.element(
+                    "div",
+                    "mc-approval-request-provider",
+                    providerTitle
+                ));
+            }
+
             if (request.canDecide) {
+                var actions = document.createElement("div");
+                actions.className = "mc-approval-request-actions";
+
                 var approve = shell.element(
                     "button",
                     "btn btn-primary btn-sm",
@@ -109,11 +163,15 @@
                 );
                 approve.type = "button";
                 approve.onclick = function () {
+                    approve.disabled = true;
                     shell.post("decide", {
                         id: request.id,
                         approved: true,
                         note: ""
-                    }).then(shell.render);
+                    }).then(shell.render).catch(function (error) {
+                        approve.disabled = false;
+                        shell.error(host, error);
+                    });
                 };
 
                 var reject = shell.element(
@@ -123,50 +181,38 @@
                 );
                 reject.type = "button";
                 reject.onclick = function () {
+                    reject.disabled = true;
                     shell.post("decide", {
                         id: request.id,
                         approved: false,
                         note: ""
-                    }).then(shell.render);
+                    }).then(shell.render).catch(function (error) {
+                        reject.disabled = false;
+                        shell.error(host, error);
+                    });
                 };
 
-                card.appendChild(approve);
-                card.appendChild(reject);
+                actions.appendChild(approve);
+                actions.appendChild(reject);
+                card.appendChild(actions);
             }
 
-            host.appendChild(card);
+            grid.appendChild(card);
         });
     }
 
-    function renderOverview(shell) {
-        shell.state.page.secondary.innerHTML = "";
+    function loadRequests(shell, options) {
+        options = options || {};
 
-        return shell.api("overview").then(function (result) {
-            var byType = Object.create(null);
-
-            (result.cards || []).forEach(function (card) {
-                byType[card.type] = card;
-            });
-
-            shell.state.page.details.innerHTML = "";
-
-            providers.forEach(function (provider) {
-                var card = byType[provider.type] || {
-                    title: providerTitles[provider.type] || provider.title,
-                    description: provider.description || "",
-                    pending: 0,
-                    total: 0
-                };
-
-                shell.state.page.details.appendChild(shell.card(
-                    providerTitles[provider.type] || card.title,
-                    (card.description || "") +
-                        " · Pending: " +
-                        Number(card.pending || 0) +
-                        " · Total: " +
-                        Number(card.total || 0)
-                ));
-            });
+        return shell.api("requests", {
+            type: options.type || "",
+            status: options.status || "",
+            q: shell.state.search,
+            page: 1,
+            perPage: 100
+        }).then(function (result) {
+            requests = result.rows || [];
+            renderRequestCards(shell, options.title, options.emptyText);
         });
     }
 
@@ -184,26 +230,24 @@
         tabs: [],
         defaultTab: "",
         render: function (shell) {
-            shell.state.page.layout.root.classList.remove("mc-approval-layout");
-
             return shell.api("providers").then(function (result) {
                 providers = orderedProviders(result.providers || []);
                 renderPrimaryNavigation(shell);
-                renderStatusNavigation(shell);
+                renderSecondaryNavigation(shell);
 
                 if (!selectedProvider) {
-                    return renderOverview(shell);
+                    return loadRequests(shell, {
+                        status: "pending",
+                        title: "Requests awaiting approval",
+                        emptyText: "There are no pending requests awaiting approval."
+                    });
                 }
 
-                return shell.api("requests", {
+                return loadRequests(shell, {
                     type: selectedProvider,
                     status: selectedStatus,
-                    q: shell.state.search,
-                    page: 1,
-                    perPage: 100
-                }).then(function (requestResult) {
-                    requests = requestResult.rows || [];
-                    renderRequests(shell);
+                    title: providerTitles[selectedProvider] || selectedProvider,
+                    emptyText: "No requests match the selected provider and status."
                 });
             });
         }
