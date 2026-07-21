@@ -6,7 +6,226 @@
     background: transparent;
 }
 
-#sirkPortalRoot [data-view="automation"] > .mc-shared-page,
 #sirkPortalRoot [data-view="approvals"] > .mc-shared-page {
     min-height: calc(100vh - 110px);
+}
+
+#sirkPortalRoot .mycompany-management-host {
+    padding: 14px;
+    overflow: auto;
+    background: var(--sirk-bg, #0b1220);
+}
+
+#sirkPortalRoot .mycompany-management-host > .mc-shared-page {
+    min-height: calc(100vh - 92px);
+    border: 1px solid var(--sirk-border, #263449);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--sirk-panel, #111827);
+    color: var(--sirk-text, #e7edf7);
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-tabs {
+    display: none !important;
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-toolbar {
+    align-items: center;
+    min-height: 48px;
+    margin: 0;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--sirk-border, #263449);
+    background: var(--sirk-panel, #111827);
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-toolbar-group {
+    gap: 5px;
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-toolbar-button,
+#sirkPortalRoot .mycompany-management-host .mc-tree-script-action,
+#sirkPortalRoot .mycompany-management-host .btn {
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--sirk-text, #e7edf7);
+    box-shadow: none;
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-toolbar-button {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0;
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-toolbar-button:hover,
+#sirkPortalRoot .mycompany-management-host .mc-shared-toolbar-button.is-active,
+#sirkPortalRoot .mycompany-management-host .mc-tree-script-action:hover,
+#sirkPortalRoot .mycompany-management-host .mc-tree-script-action.active,
+#sirkPortalRoot .mycompany-management-host .btn:hover {
+    border-color: rgba(96,165,250,.18);
+    background: rgba(96,165,250,.14);
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-toolbar-search input,
+#sirkPortalRoot .mycompany-management-host input[type="text"],
+#sirkPortalRoot .mycompany-management-host input[type="password"],
+#sirkPortalRoot .mycompany-management-host input[type="search"],
+#sirkPortalRoot .mycompany-management-host select,
+#sirkPortalRoot .mycompany-management-host textarea {
+    border: 1px solid var(--sirk-border, #334155);
+    border-radius: 7px;
+    background: var(--sirk-input, #0f172a);
+    color: var(--sirk-text, #e7edf7);
+    outline: none;
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-toolbar-search input:focus,
+#sirkPortalRoot .mycompany-management-host input:focus,
+#sirkPortalRoot .mycompany-management-host select:focus,
+#sirkPortalRoot .mycompany-management-host textarea:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 2px rgba(96,165,250,.14);
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-layout,
+#sirkPortalRoot .mycompany-management-host .mc-shared-layout:has(.mc-tree-script-actions:not(:empty)) {
+    grid-template-columns: 220px 280px minmax(0,1fr) !important;
+    min-height: calc(100vh - 142px);
+    border-top: 0;
+    resize: none;
+    overflow: hidden;
+    background: var(--sirk-panel, #111827);
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-layout.is-collapsed,
+#sirkPortalRoot .mycompany-management-host .mc-shared-layout.is-collapsed:has(.mc-tree-script-actions:not(:empty)) {
+    grid-template-columns: 64px 280px minmax(0,1fr) !important;
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-primary,
+#sirkPortalRoot .mycompany-management-host .mc-shared-secondary,
+#sirkPortalRoot .mycompany-management-host .mc-shared-details {
+    padding: 12px;
+    background: var(--sirk-panel, #111827);
+    color: var(--sirk-text, #e7edf7);
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-primary,
+#sirkPortalRoot .mycompany-management-host .mc-shared-secondary {
+    border-right: 1px solid var(--sirk-border, #263449);
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-catalog-navigation,
+#sirkPortalRoot .mycompany-management-host .mc-catalog-roots {
+    gap: 4px;
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-nav-item,
+#sirkPortalRoot .mycompany-management-host .mc-tree-folder-header,
+#sirkPortalRoot .mycompany-management-host .mc-tree-script {
+    min-height: 42px;
+    border-radius: 7px;
+    color: var(--sirk-text, #e7edf7);
+    font: 500 14px "Segoe UI", Arial, sans-serif;
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-nav-item:hover,
+#sirkPortalRoot .mycompany-management-host .mc-shared-nav-item.active,
+#sirkPortalRoot .mycompany-management-host .mc-tree-folder-header:hover,
+#sirkPortalRoot .mycompany-management-host .mc-tree-script:hover,
+#sirkPortalRoot .mycompany-management-host .mc-tree-script.active,
+#sirkPortalRoot .mycompany-management-host .mc-tree-script-row.is-active {
+    background: rgba(96,165,250,.15);
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-tree-script-row {
+    min-height: 42px;
+    border-radius: 7px;
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-tree-icon,
+#sirkPortalRoot .mycompany-management-host .mc-tree-folder-icon,
+#sirkPortalRoot .mycompany-management-host .mc-nav-icon {
+    color: #60a5fa;
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-card,
+#sirkPortalRoot .mycompany-management-host .mc-definition-section,
+#sirkPortalRoot .mycompany-management-host .mc-definition-source,
+#sirkPortalRoot .mycompany-management-host .mc-results-debug,
+#sirkPortalRoot .mycompany-management-host .mc-results-viewer {
+    border-color: var(--sirk-border, #263449);
+    border-radius: 8px;
+    background: var(--sirk-panel, #111827);
+    color: var(--sirk-text, #e7edf7);
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-shared-muted,
+#sirkPortalRoot .mycompany-management-host .mc-definition-field small,
+#sirkPortalRoot .mycompany-management-host .mc-results-debug,
+#sirkPortalRoot .mycompany-management-host .mc-script-metadata {
+    color: var(--sirk-muted, #94a3b8);
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-results-table th,
+#sirkPortalRoot .mycompany-management-host .mc-results-table td,
+#sirkPortalRoot .mycompany-management-host .mc-definition-table th,
+#sirkPortalRoot .mycompany-management-host .mc-definition-table td {
+    border-color: var(--sirk-border, #263449);
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-results-table th,
+#sirkPortalRoot .mycompany-management-host .mc-definition-table th {
+    color: var(--sirk-muted, #94a3b8);
+    font-weight: 700;
+}
+
+#sirkPortalRoot .mycompany-management-host .btn-primary,
+#sirkPortalRoot .mycompany-management-host button.mc-results-view-button {
+    border-color: #2563eb;
+    background: #2563eb;
+    color: #fff;
+}
+
+#sirkPortalRoot .mycompany-management-host .btn-primary:hover,
+#sirkPortalRoot .mycompany-management-host button.mc-results-view-button:hover {
+    background: #1d4ed8;
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-script-editor,
+#sirkPortalRoot .mycompany-management-host .mc-definition-source-editor,
+#sirkPortalRoot .mycompany-management-host .mc-shared-output,
+#sirkPortalRoot .mycompany-management-host pre {
+    background: #0b1220;
+    color: #dbeafe;
+    border-color: var(--sirk-border, #263449);
+}
+
+#sirkPortalRoot .mycompany-management-host .mc-results-viewer-overlay {
+    z-index: 2147483000;
+}
+
+@media (max-width: 1100px) {
+    #sirkPortalRoot .mycompany-management-host .mc-shared-layout,
+    #sirkPortalRoot .mycompany-management-host .mc-shared-layout:has(.mc-tree-script-actions:not(:empty)) {
+        grid-template-columns: 180px 240px minmax(0,1fr) !important;
+    }
+}
+
+@media (max-width: 800px) {
+    #sirkPortalRoot .mycompany-management-host {
+        padding: 8px;
+    }
+    #sirkPortalRoot .mycompany-management-host .mc-shared-layout,
+    #sirkPortalRoot .mycompany-management-host .mc-shared-layout.is-collapsed,
+    #sirkPortalRoot .mycompany-management-host .mc-shared-layout:has(.mc-tree-script-actions:not(:empty)),
+    #sirkPortalRoot .mycompany-management-host .mc-shared-layout.is-collapsed:has(.mc-tree-script-actions:not(:empty)) {
+        grid-template-columns: 1fr !important;
+        overflow: auto;
+    }
 }
