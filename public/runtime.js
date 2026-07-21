@@ -116,6 +116,12 @@
                 var state = bootstrap.modules[key];
                 if (!state || !state.enabled || state.ready === false) return;
                 if (key === "portal" && window.top !== window.self) return;
+                if (key === "portal" && state.config && state.config.standaloneConflict === true) {
+                    if (window.console) {
+                        console.error("MyCompany Portal was not loaded because standalone SirKPortal is active.");
+                    }
+                    return;
+                }
                 chain = chain.then(function () {
                     return core.loadScript("mycompany-module-" + key, core.assetUrl("", files[key]));
                 }).then(function () {
