@@ -11,11 +11,12 @@
     };
     var outputs = Object.create(null);
     var tools = window.SharedScriptTools.create({
-        storageKey: "mycompany.mycommands.favorites",
+        storageKey: "mycompany.mycommands.preferences",
         deepLinkParameter: "mycommand"
     });
+    tools.restoreTreeState(treeState);
 
-    function nodeId(shell) {
+    function currentNodeId(shell) {
         return shell.state.nodeId ||
             window.MyCompanyRuntime.state.nodeId ||
             window.selectedNode ||
@@ -29,23 +30,40 @@
         catch (error) { return String(value); }
     }
 
+    function canEdit(shell) {
+        return !!(
+            shell.state.bootstrap &&
+            shell.state.bootstrap.access &&
+            shell.state.bootstrap.access.siteAdmin
+        );
+    }
+
     function syncToolbar(shell) {
         tools.syncToolbar(
             shell.state.page && shell.state.page.toolbar,
             mode,
-            treeState.selectedScript
+            treeState.selectedScript,
+            { canEdit: canEdit(shell), enableMulti: true }
         );
     }
 
+    function showNotice(shell, title, message, error) {
+        var host = shell.state.page.details;
+        host.innerHTML = "";
+        var card = shell.card(title, message);
+        if (error) card.classList.add("mc-shared-error");
+        host.appendChild(card);
+        syncToolbar(shell);
+    }
+
     function placeholder(shell) {
-        shell.state.page.details.innerHTML = "";
-        shell.state.page.details.appendChild(shell.card(
+        showNotice(
+            shell,
             "Output",
             tools.state.favoritesOnly && !tools.state.favorites.length
-                ? "No favorite command scripts. Enable Edit on a script and add it to Favorites."
+                ? "No favorite command scripts. Enable Edit and add a script to Favorites."
                 : "Select a command script to see its result."
-        ));
-        syncToolbar(shell);
+        );
     }
 
     function output(shell, script, title, value, error) {
@@ -69,7 +87,7 @@
         button.disabled = true;
         output(shell, script, "Executing", "Submitting command...");
         shell.post("execute", {
-            nodeId: nodeId(shell),
+            nodeId: currentNodeId(shell),
             nodeName: window.currentNode && window.currentNode.name || "",
             scriptPath: script.path,
             label: script.label || script.name,
@@ -77,9 +95,7 @@
         }).then(function (result) {
             var request = result.request || {};
             var message = request.result &&
-                (request.result.output ||
-                    request.result.message ||
-                    request.result.status) ||
+                (request.result.output || request.result.message || request.result.status) ||
                 (request.status === "pending"
                     ? "Waiting for approval."
                     : request.status === "executing"
@@ -89,9 +105,7 @@
             output(
                 shell,
                 script,
-                request.status === "pending"
-                    ? "Waiting for approval"
-                    : "Result",
+                request.status === "pending" ? "Waiting for approval" : "Result",
                 outputs[script.path]
             );
         }).catch(function (error) {
@@ -99,6 +113,56 @@
             output(shell, script, "Error", outputs[script.path], true);
         }).then(function () {
             button.disabled = false;
+        });
+    }
+
+    function openEditor(shell, summary) {
+        treeState.selectedScript = summary.path;
+        shell.api("source", { path: summary.path }).then(function (result) {
+            var source = result.source || {};
+            var host = shell.state.page.details;
+            host.innerHTML = "";
+            var card = shell.card("Edit: " + (summary.label || summary.name), source.path);
+            card.classList.add("mc-script-editor-card");
+
+            var editor = document.createElement("textarea");
+            editor.className = "mc-script-editor";
+            editor.spellcheck = false;
+            editor.value = source.text || "";
+            card.appendChild(editor);
+
+            var actions = document.createElement("div");
+            actions.className = "mc-script-manage-actions";
+            var save = shell.element("button", "btn btn-primary btn-sm", "Save");
+            save.type = "button";
+            save.onclick = function () {
+                save.disabled = true;
+                shell.post("source", {
+                    path: source.path,
+                    text: editor.value
+                }).then(function (response) {
+                    tree = response.tree || tree;
+                    tools.state.editMode = false;
+                    shell.render();
+                }).catch(function (error) {
+                    save.disabled = false;
+                    showNotice(shell, "Save failed", error.message || String(error), true);
+                });
+            };
+            var cancel = shell.element("button", "btn btn-secondary btn-sm", "Cancel");
+            cancel.type = "button";
+            cancel.onclick = function () {
+                tools.state.editMode = false;
+                shell.render();
+            };
+            actions.appendChild(save);
+            actions.appendChild(cancel);
+            card.appendChild(actions);
+            host.appendChild(card);
+            window.setTimeout(function () { editor.focus(); }, 0);
+            syncToolbar(shell);
+        }).catch(function (error) {
+            showNotice(shell, "Editor error", error.message || String(error), true);
         });
     }
 
@@ -117,24 +181,104 @@
                 script.requiresApproval ? "Request" : "Run"
             );
             run.type = "button";
-            run.onclick = function () {
-                execute(shell, script, run);
-            };
+            run.onclick = function () { execute(shell, script, run); };
             card.appendChild(run);
-            tools.addEditActions(shell, card, script, function () {
-                treeState.selectedScript = "";
-                shell.render();
-            });
             card.appendChild(shell.element(
                 "pre",
                 "mc-shared-output",
-                outputs[script.path] ||
-                    "Select Run or Request to see the result."
+                outputs[script.path] || "Select Run or Request to see the result."
             ));
             host.appendChild(card);
             syncToolbar(shell);
         }).catch(function (error) {
             shell.error(shell.state.page.details, error);
+        });
+    }
+
+    function parseNodeIds(value) {
+        var seen = Object.create(null);
+        return String(value || "").split(/[\r\n,;]+/).map(function (item) {
+            return item.trim();
+        }).filter(function (item) {
+            if (!item || seen[item]) return false;
+            seen[item] = true;
+            return true;
+        });
+    }
+
+    function openMultiEditor(shell, script) {
+        treeState.selectedScript = script.path;
+        var host = shell.state.page.details;
+        host.innerHTML = "";
+        var card = shell.card(
+            "Multi-device: " + (script.label || script.name),
+            "Paste the selected MeshCentral device IDs, one per line."
+        );
+        card.classList.add("mc-multi-editor-card");
+
+        var nodes = document.createElement("textarea");
+        nodes.className = "mc-multi-node-list";
+        nodes.placeholder = "node/domain/device-id";
+        nodes.value = currentNodeId(shell);
+        card.appendChild(nodes);
+
+        var run = shell.element(
+            "button",
+            "btn btn-primary btn-sm",
+            "Run on selected devices"
+        );
+        run.type = "button";
+        run.onclick = function () {
+            var nodeIds = parseNodeIds(nodes.value);
+            if (!nodeIds.length) {
+                showNotice(shell, "Multi-device execution", "No devices were selected.", true);
+                return;
+            }
+            if (!window.confirm(
+                "Run '" + (script.label || script.name) + "' on " +
+                nodeIds.length + " selected device(s)?"
+            )) return;
+
+            run.disabled = true;
+            shell.post("multi-execute", {
+                nodeIds: nodeIds,
+                scriptPath: script.path,
+                label: script.label || script.name,
+                approvalLevels: script.approvalLevels || [],
+                note: ""
+            }).then(function (result) {
+                output(shell, script, "Multi-device result", {
+                    total: result.total,
+                    submitted: result.submitted,
+                    pending: result.pending,
+                    failed: result.failed,
+                    devices: result.rows || []
+                }, result.failed > 0);
+            }).catch(function (error) {
+                output(shell, script, "Multi-device error", error.message || String(error), true);
+            });
+        };
+        card.appendChild(run);
+        host.appendChild(card);
+        window.setTimeout(function () { nodes.focus(); }, 0);
+        syncToolbar(shell);
+    }
+
+    function scriptActions(shell, script) {
+        return tools.scriptActions(script, {
+            canEdit: canEdit(shell),
+            enableMulti: true,
+            onEdit: function (item) { openEditor(shell, item); },
+            onMulti: function (item) { openMultiEditor(shell, item); },
+            onFavoriteChanged: function (item) {
+                if (tools.state.favoritesOnly && !tools.isFavorite(item.path)) {
+                    treeState.selectedScript = "";
+                }
+                shell.render();
+            },
+            onLinkCopied: function () {
+                showNotice(shell, "Link copied", "The bookmarkable command link was copied.");
+            }
         });
     }
 
@@ -150,6 +294,9 @@
                 ? "No favorite command scripts found."
                 : "No command scripts found.",
             filterScript: tools.filterScript,
+            scriptActions: function (script) {
+                return scriptActions(shell, script);
+            },
             onResults: function () {
                 mode = "results";
                 treeState.selectedScript = "";
@@ -158,6 +305,7 @@
             onRootSelect: function () {
                 mode = "scripts";
                 treeState.selectedScript = "";
+                tools.saveTreeState(treeState);
                 window.setTimeout(shell.render, 0);
             },
             onScript: function (script) {
@@ -199,19 +347,29 @@
             placeholder(shell);
             return;
         }
-        var selected = window.SharedDirectoryTree.find(
-            tree,
-            treeState.selectedScript
-        );
-        if (
-            selected &&
-            tools.filterScript(selected)
-        ) {
-            scriptView(shell, selected);
-        } else {
+        var selected = window.SharedDirectoryTree.find(tree, treeState.selectedScript);
+        if (selected && tools.filterScript(selected)) scriptView(shell, selected);
+        else {
             treeState.selectedScript = "";
             placeholder(shell);
         }
+    }
+
+    function refresh(shell) {
+        var toolbar = shell.state.page && shell.state.page.toolbar;
+        if (toolbar) toolbar.setEnabled("refresh", false);
+        shell.post("refresh", {}).then(function (result) {
+            tree = result.tree || tree;
+            if (
+                treeState.selectedScript &&
+                !window.SharedDirectoryTree.find(tree, treeState.selectedScript)
+            ) treeState.selectedScript = "";
+            shell.render();
+        }).catch(function (error) {
+            showNotice(shell, "Refresh failed", error.message || String(error), true);
+        }).then(function () {
+            if (toolbar) toolbar.setEnabled("refresh", true);
+        });
     }
 
     var module = window.MyCompanyModuleShell.create({
@@ -242,9 +400,13 @@
                 side: "left",
                 order: 30,
                 onClick: function (toolbar) {
-                    tools.copySelectedLink(
+                    tools.toggleLink(
                         toolbar,
-                        treeState.selectedScript
+                        treeState.selectedScript,
+                        module.api.render,
+                        function () {
+                            showNotice(module.api, "Link copied", "The bookmarkable command link was copied.");
+                        }
                     );
                 }
             },
@@ -253,13 +415,24 @@
                 side: "left",
                 order: 40,
                 onClick: function (toolbar) {
-                    tools.toggleEdit(toolbar, function () {
-                        module.api.render();
-                    });
+                    tools.toggleEdit(toolbar, module.api.render);
                 }
             },
-            search: { side: "left", order: 50 },
-            refresh: false,
+            refresh: {
+                side: "left",
+                order: 50,
+                onClick: function () { refresh(module.api); }
+            },
+            multi: {
+                title: "Multi-device execution",
+                icon: "⟳",
+                side: "left",
+                order: 60,
+                onClick: function (toolbar) {
+                    tools.toggleMulti(toolbar, module.api.render);
+                }
+            },
+            search: { side: "left", order: 70 },
             clear: false,
             settings: false
         },
@@ -269,9 +442,7 @@
             return shell.api("scripts").then(function (result) {
                 tree = result.tree;
                 tools.applyDeepLink(tree, treeState);
-                return mode === "results"
-                    ? resultsView(shell)
-                    : scriptsView(shell);
+                return mode === "results" ? resultsView(shell) : scriptsView(shell);
             });
         }
     });
