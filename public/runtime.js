@@ -93,6 +93,11 @@
                     "mycompany-shared-script-edit-actions",
                     core.assetUrl("", "shared-ui/script-edit-actions.js")
                 );
+            }).then(function () {
+                return core.loadScript(
+                    "mycompany-shared-system-credentials-form",
+                    core.assetUrl("", "shared-ui/system-credentials-form.js")
+                );
             });
             order.forEach(function (key) {
                 var state = bootstrap.modules[key];
