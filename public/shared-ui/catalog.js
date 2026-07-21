@@ -6,6 +6,7 @@
         button.type = "button";
         button.className = "mc-shared-nav-item mc-catalog-results";
         button.title = "Results";
+        button.setAttribute("aria-label", "Results");
 
         var icon = document.createElement("span");
         icon.className = "mc-tree-fallback-icon";
@@ -30,7 +31,6 @@
             if (!host) throw new Error("Catalog primary container not found.");
 
             host.innerHTML = "";
-
             var navigation = document.createElement("div");
             navigation.className = "mc-catalog-navigation";
             host.appendChild(navigation);
@@ -55,6 +55,7 @@
                 emptyText: options.emptyText,
                 emptyFolderText: options.emptyFolderText,
                 filterScript: options.filterScript,
+                scriptActions: options.scriptActions,
                 onRootSelect: function (root) {
                     if (typeof options.onRootSelect === "function") {
                         options.onRootSelect(root);
@@ -72,7 +73,6 @@
                     button.classList.remove("active");
                 });
             }
-
             return state;
         }
     };
