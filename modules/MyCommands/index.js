@@ -1,7 +1,7 @@
 "use strict";
 
 var shared = require("../../core/shared.js");
-var libraryFactory = require("../../core/script-library.js");
+var libraryFactory = require("../../core/script-confirmation-library.js");
 var adminFactory = require("../../core/script-admin-service.js");
 
 module.exports.createModule = function (context) {
@@ -13,10 +13,7 @@ module.exports.createModule = function (context) {
 
     var catalog = {
         network: {
-            key: "network",
-            title: "Network",
-            icon: "🌐",
-            commands: [
+            key: "network", title: "Network", icon: "🌐", commands: [
                 { id: "flushdns", label: "Flush DNS", description: "Clear the DNS client cache.", type: 1, runAsUser: 0, cmd: "ipconfig /flushdns" },
                 { id: "dns", label: "Check DNS", description: "Resolve a DNS name.", type: 2, runAsUser: 0, variables: [{ name: "name", label: "DNS name", required: true, control: "text", defaultValue: "" }], cmd: "Resolve-DnsName -Name $name | Format-Table -AutoSize" },
                 { id: "port", label: "Check port", description: "Test a TCP or UDP port.", type: 2, runAsUser: 0, variables: [{ name: "hostName", label: "Host name or IP", required: true, control: "text", defaultValue: "" }, { name: "port", label: "Port", required: true, control: "text", defaultValue: "443" }, { name: "protocol", label: "Protocol", required: true, control: "select", defaultValue: "TCP", options: [{ value: "TCP", label: "TCP" }, { value: "UDP", label: "UDP" }] }], cmd: "if ($protocol -eq 'UDP') { $client=New-Object Net.Sockets.UdpClient; try { $client.Connect($hostName,[int]$port); $bytes=[Text.Encoding]::UTF8.GetBytes('MyCommands UDP probe'); [void]$client.Send($bytes,$bytes.Length); 'UDP datagram sent to {0}:{1}' -f $hostName,$port } finally { $client.Dispose() } } else { Test-NetConnection -ComputerName $hostName -Port ([int]$port) -InformationLevel Detailed }" },
@@ -25,10 +22,7 @@ module.exports.createModule = function (context) {
             ]
         },
         system: {
-            key: "system",
-            title: "System",
-            icon: "⚙",
-            commands: [
+            key: "system", title: "System", icon: "⚙", commands: [
                 { id: "powershell", label: "Open PowerShell", description: "Open a PowerShell window for the interactive user.", type: 1, runAsUser: 2, cmd: "start \"\" powershell.exe -NoExit" },
                 { id: "cmd", label: "Open CMD", description: "Open Command Prompt for the interactive user.", type: 1, runAsUser: 2, cmd: "start \"\" cmd.exe" },
                 { id: "regedit", label: "Registry Editor", description: "Open Registry Editor.", type: 1, runAsUser: 2, cmd: "start \"\" regedit.exe" },
@@ -42,10 +36,7 @@ module.exports.createModule = function (context) {
             ]
         },
         other: {
-            key: "other",
-            title: "Other",
-            icon: "◆",
-            commands: [
+            key: "other", title: "Other", icon: "◆", commands: [
                 { id: "printers", label: "Printer Management", description: "Open printer management.", type: 1, runAsUser: 2, cmd: "start \"\" printmanagement.msc" },
                 { id: "certlm", label: "Certificates (computer)", description: "Open local computer certificates.", type: 1, runAsUser: 2, cmd: "start \"\" certlm.msc" },
                 { id: "certcu", label: "Certificates (user)", description: "Open current user certificates.", type: 1, runAsUser: 2, cmd: "start \"\" certmgr.msc" },
@@ -61,41 +52,21 @@ module.exports.createModule = function (context) {
         groups = Array.isArray(groups) ? groups : [];
         return !groups.length || shared.isUserInAnyGroup(user, groups);
     }
-
-    function requireAdmin(user) {
-        if (!shared.isSiteAdmin(user)) throw new Error("Permission denied.");
-    }
-
+    function requireAdmin(user) { if (!shared.isSiteAdmin(user)) throw new Error("Permission denied."); }
     function allowNoApproval() {
         var current = context.settings.read();
-        var provider = current.modules && current.modules.approvalcenter &&
-            current.modules.approvalcenter.providers &&
-            current.modules.approvalcenter.providers.mycommands || {};
+        var provider = current.modules && current.modules.approvalcenter && current.modules.approvalcenter.providers && current.modules.approvalcenter.providers.mycommands || {};
         return provider.allowNoApproval === true;
     }
-
     function approvalLevels(levels) {
         levels = Array.isArray(levels) ? levels.map(Number) : [];
         levels = [1, 2, 3].filter(function (level) { return levels.indexOf(level) >= 0; });
         if (!levels.length && !allowNoApproval()) levels = [1];
         return levels;
     }
-
-    function executionRows() {
-        var value = shared.readJson(context.fs, resultsPath, { rows: [] });
-        return Array.isArray(value.rows) ? value.rows : [];
-    }
-
-    function writeRows(rows) {
-        shared.writeJsonAtomic(context.fs, context.path, resultsPath, { schemaVersion: 1, rows: rows });
-    }
-
-    function saveExecution(row) {
-        var rows = executionRows();
-        rows.unshift(row);
-        if (rows.length > 2000) rows.length = 2000;
-        writeRows(rows);
-    }
+    function executionRows() { var value = shared.readJson(context.fs, resultsPath, { rows: [] }); return Array.isArray(value.rows) ? value.rows : []; }
+    function writeRows(rows) { shared.writeJsonAtomic(context.fs, context.path, resultsPath, { schemaVersion: 1, rows: rows }); }
+    function saveExecution(row) { var rows = executionRows(); rows.unshift(row); if (rows.length > 2000) rows.length = 2000; writeRows(rows); }
 
     function findCatalogCommand(commandId) {
         commandId = String(commandId || "");
@@ -132,36 +103,20 @@ module.exports.createModule = function (context) {
                 icon: category.icon,
                 commands: category.commands.map(function (command) {
                     var levels = approvalLevels([]);
-                    return {
-                        id: command.id,
-                        label: command.label,
-                        description: command.description,
-                        variables: publicVariables(command.variables),
-                        approvalLevels: levels,
-                        requiresApproval: levels.length > 0,
-                        runAsUser: command.runAsUser
-                    };
+                    return { id: command.id, label: command.label, description: command.description, variables: publicVariables(command.variables), approvalLevels: levels, requiresApproval: levels.length > 0, runAsUser: command.runAsUser };
                 })
             };
         });
     }
 
-    function cleanValue(value, limit) {
-        return shared.cleanText(value == null ? "" : value, limit || 4000);
-    }
-
+    function cleanValue(value, limit) { return shared.cleanText(value == null ? "" : value, limit || 4000); }
     function validateVariables(definitions, supplied) {
         supplied = supplied && typeof supplied === "object" && !Array.isArray(supplied) ? supplied : {};
         var result = {};
         (definitions || []).forEach(function (definition) {
-            var value = Object.prototype.hasOwnProperty.call(supplied, definition.name)
-                ? supplied[definition.name]
-                : definition.defaultValue;
-            if (definition.control === "switch") {
-                value = /^(1|true|yes|tak|on)$/i.test(String(value || "")) ? "true" : "false";
-            } else {
-                value = cleanValue(value, 4000);
-            }
+            var value = Object.prototype.hasOwnProperty.call(supplied, definition.name) ? supplied[definition.name] : definition.defaultValue;
+            if (definition.control === "switch") value = /^(1|true|yes|tak|on)$/i.test(String(value || "")) ? "true" : "false";
+            else value = cleanValue(value, 4000);
             if (definition.control === "select") {
                 var options = (definition.options || []).map(function (option) { return String(option.value == null ? option : option.value); });
                 if (options.length && options.indexOf(String(value)) < 0) throw new Error("Invalid value for " + (definition.label || definition.name) + ".");
@@ -171,27 +126,13 @@ module.exports.createModule = function (context) {
         });
         return result;
     }
-
-    function psQuote(value) {
-        return String(value == null ? "" : value).replace(/'/g, "''");
-    }
-
-    function cmdQuote(value) {
-        return String(value == null ? "" : value)
-            .replace(/[\r\n]/g, " ")
-            .replace(/%/g, "%%")
-            .replace(/\^/g, "^^")
-            .replace(/!/g, "^^!")
-            .replace(/"/g, "^\"");
-    }
-
+    function psQuote(value) { return String(value == null ? "" : value).replace(/'/g, "''"); }
+    function cmdQuote(value) { return String(value == null ? "" : value).replace(/[\r\n]/g, " ").replace(/%/g, "%%").replace(/\^/g, "^^").replace(/!/g, "^^!").replace(/"/g, "^\""); }
     function injectVariables(commandText, type, definitions, supplied, secretValues) {
         var values = validateVariables(definitions, supplied);
         Object.keys(secretValues || {}).forEach(function (name) { values[name] = String(secretValues[name] == null ? "" : secretValues[name]); });
         var names = Object.keys(values).filter(function (name) { return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name); });
-        if (Number(type) === 2) {
-            return names.map(function (name) { return "$" + name + "='" + psQuote(values[name]) + "'"; }).join(";") + (names.length ? ";" : "") + commandText;
-        }
+        if (Number(type) === 2) return names.map(function (name) { return "$" + name + "='" + psQuote(values[name]) + "'"; }).join(";") + (names.length ? ";" : "") + commandText;
         return (names.length ? "@echo off\r\n" + names.map(function (name) { return "set \"" + name + "=" + cmdQuote(values[name]) + "\""; }).join("\r\n") + "\r\n" : "") + commandText;
     }
 
@@ -201,54 +142,35 @@ module.exports.createModule = function (context) {
             if (!script) throw new Error("Script not found.");
             if (payload.scriptHash && String(payload.scriptHash) !== String(script.hash)) throw new Error("The script changed after submission and was not executed.");
             var type = script.shell === "cmd" ? 1 : 2;
-            return {
-                label: script.label || script.name,
-                cmd: injectVariables(script.body, type, script.variables || [], payload.variableValues, admin.secretValues(script.path)),
-                type: type,
-                runAsUser: Number(script.runAsUser) || 0
-            };
+            return { label: script.label || script.name, cmd: injectVariables(script.body, type, script.variables || [], payload.variableValues, admin.secretValues(script.path)), type: type, runAsUser: Number(script.runAsUser) || 0 };
         }
-
         if (payload.commandId) {
             var found = findCatalogCommand(payload.commandId);
             if (!found) throw new Error("Command preset not found.");
-            return {
-                label: found.command.label,
-                cmd: injectVariables(found.command.cmd, found.command.type, found.command.variables || [], payload.variableValues, null),
-                type: Number(found.command.type) || 1,
-                runAsUser: Number(found.command.runAsUser) || 0
-            };
+            return { label: found.command.label, cmd: injectVariables(found.command.cmd, found.command.type, found.command.variables || [], payload.variableValues, null), type: Number(found.command.type) || 1, runAsUser: Number(found.command.runAsUser) || 0 };
         }
-
         var custom = String(payload.command || "");
         if (!custom) throw new Error("Command is empty.");
-        return {
-            label: payload.label || "Custom command",
-            cmd: custom,
-            type: Number(payload.type) || 2,
-            runAsUser: Number(payload.runAsUser) || 0
-        };
+        return { label: payload.label || "Custom command", cmd: custom, type: Number(payload.type) || 2, runAsUser: Number(payload.runAsUser) || 0 };
     }
 
     function normalizePayload(payload) {
         payload = shared.copy(payload || {});
-        payload.variableValues = payload.variableValues && typeof payload.variableValues === "object" && !Array.isArray(payload.variableValues)
-            ? payload.variableValues
-            : {};
-
+        payload.variableValues = payload.variableValues && typeof payload.variableValues === "object" && !Array.isArray(payload.variableValues) ? payload.variableValues : {};
         if (payload.scriptPath) {
             var script = library.getScript(payload.scriptPath, true);
             if (!script) throw new Error("Script not found.");
+            if (script.confirmExecution === true && payload.confirmedExecution !== true) throw new Error("Execution confirmation is required for this script.");
             payload.scriptPath = script.path;
             payload.scriptHash = script.hash;
             payload.label = script.label || script.name;
             payload.description = script.description || "";
             payload.approvalLevels = approvalLevels(script.approvalLevels || []);
+            payload.confirmedExecution = script.confirmExecution === true;
             delete payload.command;
             delete payload.commandId;
             return payload;
         }
-
         if (payload.commandId) {
             var found = findCatalogCommand(payload.commandId);
             if (!found) throw new Error("Command preset not found.");
@@ -256,11 +178,11 @@ module.exports.createModule = function (context) {
             payload.label = found.command.label;
             payload.description = found.command.description;
             payload.approvalLevels = approvalLevels([]);
+            payload.confirmedExecution = false;
             delete payload.command;
             delete payload.scriptPath;
             return payload;
         }
-
         payload.approvalLevels = approvalLevels(payload.approvalLevels || []);
         return payload;
     }
@@ -268,24 +190,11 @@ module.exports.createModule = function (context) {
     function execute(payload, request) {
         var user = shared.findUser(context.parent, request.requester && request.requester.id) || { _id: request.requester && request.requester.id, name: request.requester && request.requester.name };
         var command;
-        try { command = buildCommand(payload); }
-        catch (error) { return Promise.reject(error); }
-
+        try { command = buildCommand(payload); } catch (error) { return Promise.reject(error); }
         return context.device.resolveNode(user, payload.nodeId, { requireCommandRights: true }).then(function (node) {
             var id = "mycompany-" + shared.randomId(10);
             return context.device.sendRunCommands(node, command, id, null).then(function (state) {
-                var row = {
-                    id: id,
-                    requestId: request.id || "",
-                    nodeId: node.nodeId,
-                    nodeName: node.node && node.node.name || payload.nodeName || payload.nodeId,
-                    command: command.label,
-                    status: state.state,
-                    requester: request.requester,
-                    createdAt: Date.now(),
-                    updatedAt: Date.now(),
-                    output: ""
-                };
+                var row = { id: id, requestId: request.id || "", nodeId: node.nodeId, nodeName: node.node && node.node.name || payload.nodeName || payload.nodeId, command: command.label, status: state.state, requester: request.requester, createdAt: Date.now(), updatedAt: Date.now(), output: "" };
                 saveExecution(row);
                 context.device.auditCommand(node, user, command);
                 return row;
@@ -306,11 +215,7 @@ module.exports.createModule = function (context) {
         return context.approval.list(user, { type: "mycommands", status: query.status || "", q: query.q || "", page: Number(query.page) || 1, perPage: Math.min(200, Number(query.perPage) || 100) }).then(function (value) {
             var byId = Object.create(null);
             executionRows().forEach(function (row) { byId[String(row.id || "")] = row; });
-            value.rows = (value.rows || []).map(function (request) {
-                var id = request.result && request.result.id;
-                if (id && byId[String(id)]) request.result = shared.copy(byId[String(id)]);
-                return request;
-            });
+            value.rows = (value.rows || []).map(function (request) { var id = request.result && request.result.id; if (id && byId[String(id)]) request.result = shared.copy(byId[String(id)]); return request; });
             value.ok = true;
             return value;
         });
@@ -333,24 +238,17 @@ module.exports.createModule = function (context) {
         var script = library.getScript(value.scriptPath, true);
         if (!script) throw new Error("Script not found.");
         if (script.multiHost !== true) throw new Error("This script does not allow multi-device execution.");
+        if (script.confirmExecution === true && value.confirmedExecution !== true) throw new Error("Execution confirmation is required for this script.");
         var cursor = 0, rows = [];
-
         function worker() {
             if (cursor >= ids.length) return Promise.resolve();
             var id = ids[cursor++];
-            return context.approval.submit("mycommands", user, {
-                nodeId: id,
-                scriptPath: script.path,
-                nodeName: id,
-                variableValues: value.variableValues || {},
-                multiHost: true
-            }, value.note).then(function (request) {
+            return context.approval.submit("mycommands", user, { nodeId: id, scriptPath: script.path, nodeName: id, variableValues: value.variableValues || {}, multiHost: true, confirmedExecution: script.confirmExecution === true }, value.note).then(function (request) {
                 rows.push({ nodeId: id, ok: true, request: request });
             }).catch(function (error) {
                 rows.push({ nodeId: id, ok: false, error: String(error && error.message || error) });
             }).then(worker);
         }
-
         var workers = [];
         for (var index = 0; index < Math.min(multiHostConcurrency, ids.length); index++) workers.push(worker());
         return Promise.all(workers).then(function () {
@@ -361,37 +259,17 @@ module.exports.createModule = function (context) {
     }
 
     var provider = {
-        type: "mycommands",
-        moduleKey: "mycommands",
-        title: "My Commands",
-        tabTitle: "Commands",
-        description: "Direct and multi-device command execution.",
-        columns: ["createdAt", "title", "requester", "status"],
-        normalizePayload: normalizePayload,
+        type: "mycommands", moduleKey: "mycommands", title: "My Commands", tabTitle: "Commands", description: "Direct and multi-device command execution.", columns: ["createdAt", "title", "requester", "status"], normalizePayload: normalizePayload,
         getTitle: function (payload) { return payload.label || payload.scriptPath || payload.commandId || "Command"; },
         getSummary: function (payload) { return "Device: " + (payload.nodeName || payload.nodeId || "unknown"); },
-        getApprovalLevels: function (payload) { return payload.approvalLevels || []; },
-        canSubmit: allowed,
-        execute: execute
+        getApprovalLevels: function (payload) { return payload.approvalLevels || []; }, canSubmit: allowed, execute: execute
     };
 
     return {
         key: "mycommands",
         clientConfig: function () {
             var value = context.settings.read().modules.mycommands || {};
-            return {
-                key: "mycommands",
-                name: "My Commands",
-                menuTitle: "My Commands",
-                script: "mycommands.js",
-                style: "myscripts.css",
-                showInMenu: false,
-                showOnDevice: value.showOnDevice !== false,
-                scriptsRoot: root,
-                maxMultiHostNodes: Number(value.maxMultiHostNodes) || 200,
-                multiHostConcurrency: Number(value.multiHostConcurrency) || 8,
-                toolbar: { refresh: true, clear: false, favorites: true, search: true, manage: true, multiHost: true, settings: false }
-            };
+            return { key: "mycommands", name: "My Commands", menuTitle: "My Commands", script: "mycommands.js", style: "myscripts.css", showInMenu: false, showOnDevice: value.showOnDevice !== false, scriptsRoot: root, maxMultiHostNodes: Number(value.maxMultiHostNodes) || 200, multiHostConcurrency: Number(value.multiHostConcurrency) || 8, toolbar: { refresh: true, clear: false, favorites: true, search: true, manage: true, multiHost: true, settings: false } };
         },
         getAccess: function (user) { return { allowed: allowed(user), siteAdmin: shared.isSiteAdmin(user) }; },
         initialize: function () { library.ensure(); if (!unregister) unregister = context.approval.registerProvider(provider); return Promise.resolve(); },
