@@ -3,6 +3,7 @@
 var shared = require("../../core/shared.js");
 var libraryFactory = require("../../core/script-library.js");
 var adminFactory = require("../../core/script-admin-service.js");
+var executorFactory = require("../../core/server-script-executor.js");
 
 module.exports.createModule = function (context) {
     var root = context.path.join(context.pluginRoot, "seed", "MyScripts");
@@ -17,6 +18,12 @@ module.exports.createModule = function (context) {
         context: context,
         library: library,
         namespace: "script-secrets.myscripts"
+    });
+    var executor = executorFactory.createServerScriptExecutor({
+        context: context,
+        library: library,
+        admin: admin,
+        assignmentNamespace: "script-secrets.myscripts.system-credentials"
     });
     var unregister = null;
 
@@ -51,52 +58,26 @@ module.exports.createModule = function (context) {
         return provider.allowNoApproval === true;
     }
 
-    function directResult(script, user) {
-        var now = Date.now();
-        return {
-            id: shared.randomId(12),
-            type: "myscripts",
-            providerTitle: "My Scripts",
-            title: script.label || script.name || script.path,
-            summary: script.description || script.path || "My Scripts execution",
-            status: "completed",
-            requester: {
-                id: user && user._id || "",
-                name: shared.userName(user)
-            },
-            requesterNote: "",
-            requiredApprovalLevels: [],
-            approvalDecisions: [],
-            createdAt: now,
-            updatedAt: now,
-            result: {
-                message: "Script does not require approval.",
-                scriptPath: script.path,
-                label: script.label || script.name || "Script"
-            }
-        };
-    }
-
     var provider = {
         type: "myscripts",
         moduleKey: "myscripts",
         title: "My Scripts",
         tabTitle: "My Scripts",
         settingsTitle: "My Scripts approvers",
-        description: "Approval workflow for My Scripts executions. Approval levels are defined per script.",
+        description: "Approval workflow and server-side execution for My Scripts.",
         columns: ["createdAt", "title", "requester", "status"],
-        normalizePayload: function (payload) { return shared.copy(payload || {}); },
+        normalizePayload: function (payload) {
+            payload = shared.copy(payload || {});
+            payload.variableValues = payload.variableValues && typeof payload.variableValues === "object" && !Array.isArray(payload.variableValues)
+                ? payload.variableValues
+                : {};
+            return payload;
+        },
         getTitle: function (payload) { return payload.label || payload.scriptPath || "Script"; },
         getSummary: function (payload) { return payload.description || payload.scriptPath || "My Scripts request"; },
         getApprovalLevels: approvalLevels,
         canSubmit: allowed,
-        execute: function (payload) {
-            return Promise.resolve({
-                message: "Script request approved.",
-                scriptPath: payload.scriptPath || "",
-                label: payload.label || "Script"
-            });
-        }
+        execute: executor.execute
     };
 
     return {
@@ -149,7 +130,7 @@ module.exports.createModule = function (context) {
             }
             if (asset === "definition") return { ok: true, definition: admin.getDefinition(user, q.path) };
             if (asset === "script-secrets") return { ok: true, secrets: admin.getSecretState(user, q.path) };
-            if (asset === "system-credentials") return { ok: true, systemCredentials: admin.getSystemCredentials(user, q.path) };
+            if (asset === "system-credentials") return { ok: true, systemCredentials: admin.getSystemCredentialState(user, q.path) };
             if (asset === "results") {
                 return context.approval.list(user, {
                     type: "myscripts",
@@ -191,16 +172,18 @@ module.exports.createModule = function (context) {
                 var requestedScript = library.getScript(value.scriptPath, false);
                 if (!requestedScript) throw new Error("Script not found.");
                 var levels = normalizeApprovalLevels(requestedScript.approvalLevels);
-                var payload = shared.copy(value || {});
-                payload.scriptPath = requestedScript.path;
-                payload.label = requestedScript.label || requestedScript.name;
-                payload.description = requestedScript.description || "";
-                payload.approvalLevels = levels;
+                if (!levels.length && !allowNoApproval()) levels = [1];
 
-                if (!levels.length && allowNoApproval()) {
-                    return { ok: true, request: directResult(requestedScript, user) };
-                }
-                if (!levels.length) payload.approvalLevels = [1];
+                var payload = {
+                    scriptPath: requestedScript.path,
+                    scriptHash: requestedScript.hash,
+                    label: requestedScript.label || requestedScript.name,
+                    description: requestedScript.description || "",
+                    approvalLevels: levels,
+                    variableValues: value.variableValues && typeof value.variableValues === "object" && !Array.isArray(value.variableValues)
+                        ? shared.copy(value.variableValues)
+                        : {}
+                };
 
                 return context.approval.submit("myscripts", user, payload, value.note)
                     .then(function (request) { return { ok: true, request: request }; });
@@ -211,6 +194,7 @@ module.exports.createModule = function (context) {
                     current.modules.myscripts.accessGroupIds = Array.isArray(value.accessGroupIds)
                         ? value.accessGroupIds.map(String)
                         : [];
+                    current.modules.myscripts.runTimeoutSeconds = Math.max(30, Math.min(3600, Number(value.runTimeoutSeconds) || 600));
                     return current;
                 }).then(function () { return { ok: true }; });
             }
