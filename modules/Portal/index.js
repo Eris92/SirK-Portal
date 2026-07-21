@@ -56,13 +56,14 @@ module.exports.createModule = function (context) {
             if (asset !== "settings") throw new Error("Unknown Portal action.");
             return context.settings.update(function (current) {
                 current.modules.portal = current.modules.portal || {};
+                if (typeof value.enabled === "boolean") current.modules.portal.enabled = value.enabled;
                 current.modules.portal.defaultView = ["overview", "devices", "management", "approvals", "settings"].indexOf(String(value.defaultView || "")) >= 0
                     ? String(value.defaultView)
                     : "overview";
                 current.modules.portal.showLauncher = value.showLauncher !== false;
                 return current;
             }).then(function () {
-                return { ok: true, module: settings() };
+                return { ok: true, module: settings(), reloadRequired: true };
             });
         }
     };
