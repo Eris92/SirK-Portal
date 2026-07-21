@@ -174,6 +174,11 @@
             activateManagement();
             return;
         }
+
+        // The native Management renderer owns every click inside its shell.
+        // Do not treat its Collapse button as the global SirK Portal sidebar toggle.
+        if (event.target.closest && event.target.closest(".sirk-management-shell")) return;
+
         var toggle = collapseButton(event.target, portalRoot);
         if (toggle) {
             event.preventDefault();
