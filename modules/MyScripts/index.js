@@ -9,7 +9,8 @@ module.exports.createModule = function (context) {
         fs: context.fs,
         path: context.path,
         root: root,
-        readOnly: true
+        readOnly: true,
+        allowWrite: true
     });
     var unregister = null;
 
@@ -18,6 +19,10 @@ module.exports.createModule = function (context) {
         var config = context.settings.read().modules.myscripts || {};
         var groups = Array.isArray(config.accessGroupIds) ? config.accessGroupIds : [];
         return !groups.length || shared.isUserInAnyGroup(user, groups);
+    }
+
+    function requireAdmin(user) {
+        if (!shared.isSiteAdmin(user)) throw new Error("Permission denied.");
     }
 
     var provider = {
@@ -61,7 +66,7 @@ module.exports.createModule = function (context) {
                 scriptsRoot: root,
                 toolbar: {
                     refresh: true,
-                    clear: true,
+                    clear: false,
                     favorites: true,
                     search: true,
                     manage: true,
@@ -99,6 +104,12 @@ module.exports.createModule = function (context) {
                 if (!script) throw new Error("Script not found.");
                 return { ok: true, script: script };
             }
+            if (asset === "source") {
+                requireAdmin(user);
+                var source = library.getSource(q.path);
+                if (!source) throw new Error("Script not found.");
+                return { ok: true, source: source };
+            }
             if (asset === "results") {
                 return context.approval.list(user, {
                     type: "myscripts",
@@ -128,6 +139,14 @@ module.exports.createModule = function (context) {
                 library.invalidate();
                 return { ok: true, tree: library.getTree() };
             }
+            if (asset === "source") {
+                requireAdmin(user);
+                return {
+                    ok: true,
+                    script: library.saveSource(value.path, value.text),
+                    tree: library.getTree()
+                };
+            }
             if (asset === "request") {
                 return context.approval.submit("myscripts", user, value, value.note)
                     .then(function (request) {
@@ -135,7 +154,7 @@ module.exports.createModule = function (context) {
                     });
             }
             if (asset === "settings") {
-                if (!shared.isSiteAdmin(user)) throw new Error("Permission denied.");
+                requireAdmin(user);
                 return context.settings.update(function (current) {
                     current.modules.myscripts.accessGroupIds = Array.isArray(value.accessGroupIds)
                         ? value.accessGroupIds.map(String)
