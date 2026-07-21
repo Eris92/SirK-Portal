@@ -35,6 +35,7 @@ module.exports.admin = function (plugin) {
         "shared-ui/catalog.js": ["public/shared-ui/catalog.js", "text/javascript; charset=utf-8"],
         "shared-ui/results.js": ["public/shared-ui/results.js", "text/javascript; charset=utf-8"],
         "shared-ui/script-tools.js": ["public/shared-ui/script-tools.js", "text/javascript; charset=utf-8"],
+        "shared-ui/script-definition-form.js": ["public/shared-ui/script-definition-form.js", "text/javascript; charset=utf-8"],
         "shared-ui/page.js": ["public/shared-ui/page.js", "text/javascript; charset=utf-8"],
         "shared-ui/shared-ui.css": ["public/shared-ui/shared-ui.css", "text/css; charset=utf-8"],
         "shared-ui/toolbar.css": ["public/shared-ui/toolbar.css", "text/css; charset=utf-8"]
@@ -42,10 +43,7 @@ module.exports.admin = function (plugin) {
 
     function serve(res, name) {
         var def = assets[name];
-        if (!def) {
-            shared.send(res, 404, "text/plain; charset=utf-8", "Not found");
-            return;
-        }
+        if (!def) { shared.send(res, 404, "text/plain; charset=utf-8", "Not found"); return; }
         fs.readFile(path.join(root, def[0]), function (error, data) {
             if (error) shared.send(res, 404, "text/plain; charset=utf-8", "Not found");
             else shared.send(res, 200, def[1], data);
@@ -53,49 +51,28 @@ module.exports.admin = function (plugin) {
     }
 
     function moduleObject(moduleName) {
-        return plugin.runtime && plugin.runtime.modules &&
-            plugin.runtime.modules[String(moduleName || "").toLowerCase()];
+        return plugin.runtime && plugin.runtime.modules && plugin.runtime.modules[String(moduleName || "").toLowerCase()];
     }
 
     obj.req = function (req, res, user) {
         var asset = String(req && req.query && req.query.asset || "");
         var moduleName = String(req && req.query && req.query.module || "");
-
-        if (assets[asset]) {
-            serve(res, asset);
-            return;
-        }
-        if (asset === "bootstrap") {
-            plugin.runtime.request("GET", "_runtime", "bootstrap", req, res, user);
-            return;
-        }
+        if (assets[asset]) { serve(res, asset); return; }
+        if (asset === "bootstrap") { plugin.runtime.request("GET", "_runtime", "bootstrap", req, res, user); return; }
         if (moduleName === "myscripts" && asset === "folder-icon") {
-            if (plugin.runtime.modules && plugin.runtime.modules.myscripts &&
-                typeof plugin.runtime.modules.myscripts.serveIcon === "function") {
+            if (plugin.runtime.modules && plugin.runtime.modules.myscripts && typeof plugin.runtime.modules.myscripts.serveIcon === "function") {
                 plugin.runtime.modules.myscripts.serveIcon(req, res, user);
-            } else {
-                shared.send(res, 404, "text/plain; charset=utf-8", "Folder icon unavailable");
-            }
+            } else shared.send(res, 404, "text/plain; charset=utf-8", "Folder icon unavailable");
             return;
         }
-        if (moduleName) {
-            plugin.runtime.request("GET", moduleName, asset, req, res, user);
-            return;
-        }
-        if (!shared.isSiteAdmin(user)) {
-            shared.send(res, 403, "text/plain; charset=utf-8", "Forbidden");
-            return;
-        }
-
+        if (moduleName) { plugin.runtime.request("GET", moduleName, asset, req, res, user); return; }
+        if (!shared.isSiteAdmin(user)) { shared.send(res, 403, "text/plain; charset=utf-8", "Forbidden"); return; }
         var data = plugin.runtime.adminSnapshot(user);
         try {
             res.render("MyCompany", {
                 title: "My Company",
                 pluginShortName: String(req && req.query && req.query.pin || plugin.shortName || "MyCompany"),
-                adminDataJson: JSON.stringify(data)
-                    .replace(/</g, "\\u003c")
-                    .replace(/>/g, "\\u003e")
-                    .replace(/&/g, "\\u0026")
+                adminDataJson: JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026")
             });
         } catch (error) {
             console.error("MyCompany admin render failed", error);
@@ -107,15 +84,10 @@ module.exports.admin = function (plugin) {
         var moduleName = String(req && req.query && req.query.module || "");
         var asset = String(req && req.query && req.query.asset || "");
         var action = String(req && req.query && req.query.action || "");
-
         if (moduleName) {
-            if (req && req.body && typeof req.body.payload === "string") {
-                req.body = shared.parseJsonObject(req.body.payload, {});
-            }
-
+            if (req && req.body && typeof req.body.payload === "string") req.body = shared.parseJsonObject(req.body.payload, {});
             var module = moduleObject(moduleName);
-            if (asset === "settings" && shared.isSiteAdmin(user) && module &&
-                !module.__loadError && typeof module.apiPost === "function") {
+            if (asset === "settings" && shared.isSiteAdmin(user) && module && !module.__loadError && typeof module.apiPost === "function") {
                 try {
                     Promise.resolve(module.apiPost(asset, req, user)).then(function (value) {
                         shared.sendJson(res, 200, value || { ok: true });
@@ -127,11 +99,9 @@ module.exports.admin = function (plugin) {
                 }
                 return;
             }
-
             plugin.runtime.request("POST", moduleName, asset, req, res, user);
             return;
         }
-
         if (action === "save-settings" || action === "save-modules") {
             var payload = {
                 modules: shared.parseJsonObject(req && req.body && req.body.modules, {}),
@@ -146,7 +116,6 @@ module.exports.admin = function (plugin) {
             });
             return;
         }
-
         shared.sendJson(res, 400, { ok: false, error: "Unknown MyCompany action." });
     };
 
