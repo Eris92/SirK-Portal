@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.9
+
+- Skrypt bez zmiennych po kliknięciu przechodzi bezpośrednio do statusu wykonania i wyniku, bez górnej karty z nazwą, opisem oraz przyciskiem `Run`.
+- Formularz skryptu ze zmiennymi jest widoczny tylko przed wywołaniem i znika po kliknięciu `Run` albo `Request`.
+- Po wykonaniu w panelu szczegółów pozostaje wyłącznie wynik, status oczekiwania na approval albo błąd wykonania.
+- Przycisk `Copy` został przeniesiony pod wynik lub tabelę, bezpośrednio nad `Debug / raw output`.
+- Ten sam mechanizm usuwa formularz wykonania po uruchomieniu skryptów i presetów w My Commands.
+- Ponowne kliknięcie tego samego skryptu uruchamia nowe wykonanie zamiast wyświetlać wyłącznie poprzedni wynik.
+
 ## 1.3.8
 
 - Skrypty bez zadeklarowanych zmiennych są wykonywane automatycznie po kliknięciu w My Commands i My Scripts.
