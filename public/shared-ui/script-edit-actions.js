@@ -7,15 +7,33 @@
     var originalCreate = window.SharedScriptTools.create;
 
     window.SharedScriptTools.create = function (options) {
+        options = options || {};
         var tools = originalCreate.call(window.SharedScriptTools, options);
         var originalSyncToolbar = tools.syncToolbar;
         var originalToggleEdit = tools.toggleEdit;
+        var originalScriptActions = tools.scriptActions;
+        var deepLinkParameter = options.deepLinkParameter || "script";
 
         function hasCredentials(script) {
             return !!(script && (
                 (Array.isArray(script.secretVariables) && script.secretVariables.length) ||
                 (Array.isArray(script.secretDefinitions) && script.secretDefinitions.length)
             ));
+        }
+
+        function copyLink(script) {
+            var url = new URL(window.location.href);
+            if (typeof window.xxcurrentView !== "undefined") {
+                url.searchParams.set("viewmode", String(window.xxcurrentView));
+            }
+            url.searchParams.set(deepLinkParameter, String(script.path || ""));
+            try {
+                window.history.replaceState(window.history.state, document.title, url.href);
+            } catch (error) {}
+
+            return tools.copyText(url.href).catch(function () {
+                window.prompt("Copy the script link:", url.href);
+            });
         }
 
         tools.syncToolbar = function (toolbar, mode, selectedScript, config) {
@@ -41,6 +59,10 @@
 
             if (tools.state.editMode) {
                 var credentialsAvailable = hasCredentials(script) && config.canEdit === true;
+                var originals = originalScriptActions.call(tools, script, config) || [];
+                var favoriteAction = originals.find(function (action) {
+                    return action && action.key === "favorite";
+                });
 
                 actions.push({
                     key: "credentials",
@@ -68,11 +90,8 @@
                         ? "Remove from favorites"
                         : "Add to favorites",
                     onClick: function () {
-                        var index = tools.state.favorites.indexOf(String(script.path || ""));
-                        if (index >= 0) tools.state.favorites.splice(index, 1);
-                        else tools.state.favorites.push(String(script.path || ""));
-                        if (typeof config.onFavoriteChanged === "function") {
-                            config.onFavoriteChanged(script);
+                        if (favoriteAction && typeof favoriteAction.onClick === "function") {
+                            favoriteAction.onClick(script);
                         }
                     }
                 });
@@ -82,7 +101,7 @@
                     icon: "🔗",
                     title: "Copy bookmarkable link for this script",
                     onClick: function () {
-                        tools.copyScriptLink(null, script, function () {
+                        copyLink(script).then(function () {
                             if (typeof config.onLinkCopied === "function") {
                                 config.onLinkCopied(script);
                             }
