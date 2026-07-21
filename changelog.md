@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.8
+
+- Skrypty bez zadeklarowanych zmiennych są wykonywane automatycznie po kliknięciu w My Commands i My Scripts.
+- Skrypty wymagające zmiennych nadal otwierają formularz, aby użytkownik mógł podać wartości przed wykonaniem.
+- W Edit Mode dodano opcję `Confirm execution before running`.
+- Włączenie opcji zapisuje w nagłówku skryptu dyrektywę `# ConfirmExecution: true`.
+- Skrypt z włączonym potwierdzeniem wyświetla użytkownikowi dodatkowe okno potwierdzenia przed utworzeniem requestu lub wysłaniem polecenia.
+- Anulowanie potwierdzenia nie tworzy requestu i nie wykonuje skryptu.
+- Backend My Scripts i My Commands odrzuca wywołania skryptów wymagających potwierdzenia, jeżeli request nie zawiera potwierdzonej flagi.
+- Potwierdzenie działa również przy multi-device execution.
+
 ## 1.3.7
 
 - `Results` jest ponownie pierwszą pozycją lewego menu My Commands.
@@ -89,6 +100,6 @@
 ## 1.2.3
 
 - Replaced `MyCompany.js` with a minimal deterministic bootstrap.
-- Moved the implementation to `plugin-main.js`.
-- Added verified exports for `MyCompany` and `mycompany`.
+- Moved the implementation to plugin-main.js.
+- Added verified exports for MyCompany and mycompany.
 - Added deployment preflight validation.
