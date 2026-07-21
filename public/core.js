@@ -2,11 +2,13 @@
     "use strict";
     window.MyCompanyCore = window.MyCompanyCore || {};
     var core = window.MyCompanyCore;
+    core.assetVersion = "1.3.3";
     core.assetUrl = function (moduleName, assetName, parameters) {
         var endpoint = new URL("pluginadmin.ashx", window.location.href);
         endpoint.searchParams.set("pin", "MyCompany");
         if (moduleName) endpoint.searchParams.set("module", moduleName);
         if (assetName) endpoint.searchParams.set("asset", assetName);
+        endpoint.searchParams.set("v", core.assetVersion);
         Object.keys(parameters || {}).forEach(function (key) {
             if (parameters[key] != null) endpoint.searchParams.set(key, parameters[key]);
         });
