@@ -2,7 +2,8 @@
     "use strict";
 
     var selectedStatus = "";
-    var hostButtonId = "MainDevMyCompany-MoveRequest";
+    var hostButtonId = "MoveRequestHostButton";
+    var legacyTopButtonId = "MainDevMyCompany-MoveRequest";
 
     function renderRows(shell) {
         return shell.api("requests", {
@@ -23,6 +24,60 @@
         });
     }
 
+    function normalizeNodeId(value) {
+        if (value && typeof value === "object") {
+            value = value._id ||
+                value.nodeid ||
+                value.nodeId ||
+                value.dbNodeKey ||
+                value.id;
+        }
+        return String(value || "").trim();
+    }
+
+    function resolveHostNodeId(host) {
+        var values = [];
+
+        function add(value) {
+            value = normalizeNodeId(value);
+            if (value && values.indexOf(value) < 0) values.push(value);
+        }
+
+        add(module.api.state.nodeId);
+        add(window.MyCompanyRuntime &&
+            window.MyCompanyRuntime.state &&
+            window.MyCompanyRuntime.state.nodeId);
+        add(window.currentNodeId);
+        add(window.xxcurrentNodeId);
+        add(window.nodeid);
+        add(window.xxnodeid);
+        add(window.currentNode);
+        add(window.currentDevice);
+        add(window.selectedNode);
+
+        var buttons = host
+            ? host.querySelectorAll('input[type="button"],button')
+            : [];
+
+        for (var index = 0; index < buttons.length; index++) {
+            var onclick = buttons[index].getAttribute("onclick") || "";
+            var match = onclick.match(/runDeviceCmd\(["']([^"']+)["']/);
+            if (match) add(match[1]);
+        }
+
+        try {
+            var params = new URL(window.location.href).searchParams;
+            add(params.get("gotonode"));
+            add(params.get("nodeid"));
+        } catch (error) {}
+
+        try {
+            return values.length ? decodeURIComponent(values[0]) : "";
+        } catch (error) {
+            return values[0] || "";
+        }
+    }
+
     function nodeName(nodeId) {
         if (window.currentNode && window.currentNode.name) {
             return String(window.currentNode.name);
@@ -31,6 +86,16 @@
             return String(window.nodes[nodeId].name);
         }
         return String(nodeId || "Device");
+    }
+
+    function currentMeshId(nodeId) {
+        if (window.currentNode && window.currentNode.meshid) {
+            return String(window.currentNode.meshid);
+        }
+        if (window.nodes && window.nodes[nodeId] && window.nodes[nodeId].meshid) {
+            return String(window.nodes[nodeId].meshid);
+        }
+        return "";
     }
 
     function closeDialog(dialog) {
@@ -44,7 +109,7 @@
             return;
         }
 
-        module.api.api("meshes").then(function (result) {
+        module.api.api("meshes", { nodeId: nodeId }).then(function (result) {
             var overlay = document.createElement("div");
             overlay.className = "mc-move-dialog-overlay";
 
@@ -67,12 +132,19 @@
 
             var select = document.createElement("select");
             select.className = "mc-move-dialog-input";
-            (result.meshes || []).forEach(function (mesh) {
-                var option = document.createElement("option");
-                option.value = mesh.id;
-                option.textContent = mesh.name;
-                select.appendChild(option);
-            });
+            var sourceMeshId = currentMeshId(nodeId);
+
+            (result.meshes || [])
+                .filter(function (mesh) {
+                    return !sourceMeshId || String(mesh.id) !== sourceMeshId;
+                })
+                .forEach(function (mesh) {
+                    var option = document.createElement("option");
+                    option.value = mesh.id;
+                    option.textContent = mesh.name;
+                    select.appendChild(option);
+                });
+
             dialog.appendChild(select);
 
             var noteLabel = document.createElement("label");
@@ -88,6 +160,11 @@
             status.className = "mc-move-dialog-status";
             dialog.appendChild(status);
 
+            if (!select.options.length) {
+                select.disabled = true;
+                status.textContent = "No target group is available.";
+            }
+
             var actions = document.createElement("div");
             actions.className = "mc-move-dialog-actions";
             dialog.appendChild(actions);
@@ -102,17 +179,21 @@
             submit.type = "button";
             submit.className = "btn btn-primary";
             submit.textContent = "Submit request";
+            submit.disabled = !select.options.length;
             submit.onclick = function () {
                 var option = select.options[select.selectedIndex];
                 if (!option) {
                     status.textContent = "Select a target group.";
                     return;
                 }
+
                 submit.disabled = true;
                 status.textContent = "Submitting...";
+
                 module.api.post("submit", {
                     nodeId: nodeId,
                     nodeName: nodeName(nodeId),
+                    sourceMeshId: sourceMeshId,
                     targetMeshId: option.value,
                     targetMeshName: option.textContent,
                     note: note.value || ""
@@ -142,42 +223,116 @@
         return config.hostButtonEnabled !== false;
     }
 
-    function removeHostButton() {
-        var button = document.getElementById(hostButtonId);
-        if (button && button.parentNode) button.parentNode.removeChild(button);
+    function removeElement(id) {
+        var element = document.getElementById(id);
+        if (element && element.parentNode) element.parentNode.removeChild(element);
     }
 
-    function syncHostButton() {
+    function removeHostButton() {
+        removeElement(hostButtonId);
+        removeElement(legacyTopButtonId);
+    }
+
+    function buttonText(button) {
+        return String(button.value || button.textContent || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .toLowerCase();
+    }
+
+    function handleHostButtonClick(event) {
+        if (event && event.preventDefault) event.preventDefault();
+        if (event && event.stopPropagation) event.stopPropagation();
+
+        var host = document.getElementById("p10html") ||
+            document.getElementById("p10");
+
+        openMoveDialog(resolveHostNodeId(host));
+        return false;
+    }
+
+    function installHostButton() {
+        removeElement(legacyTopButtonId);
+
         if (!hostButtonEnabled()) {
-            removeHostButton();
-            return;
+            removeElement(hostButtonId);
+            return false;
         }
 
-        var anchor = document.getElementById("MainDevMyCompany-Commands") ||
-            document.getElementById("MainDevTerminal");
-        if (!anchor || !anchor.parentNode) return;
+        var host = document.getElementById("p10html") ||
+            document.getElementById("p10");
 
-        var button = document.getElementById(hostButtonId);
-        if (!button) {
-            button = document.createElement("td");
-            button.id = hostButtonId;
-            button.tabIndex = 0;
-            button.className = "topbar_td style3x";
+        if (!host) return false;
+
+        var existing = document.getElementById(hostButtonId);
+        if (existing && host.contains(existing)) {
+            if (String(existing.tagName).toLowerCase() === "input") {
+                existing.value = "Move Request";
+            } else {
+                existing.textContent = "Move Request";
+            }
+            existing.disabled = false;
+            existing.removeAttribute("onclick");
+            existing.removeAttribute("onmouseup");
+            existing.onclick = handleHostButtonClick;
+            return true;
+        }
+
+        if (existing && existing.parentNode) {
+            existing.parentNode.removeChild(existing);
+        }
+
+        var buttons = host.querySelectorAll('input[type="button"],button');
+        var anchor = null;
+        var fallback = null;
+
+        for (var index = 0; index < buttons.length; index++) {
+            var value = buttonText(buttons[index]);
+            fallback = buttons[index];
+
+            if (
+                value === "share" ||
+                value === "udostępnij" ||
+                value === "udostepnij"
+            ) {
+                anchor = buttons[index];
+                break;
+            }
+
+            if (!anchor && (value === "chat" || value === "czat")) {
+                anchor = buttons[index];
+            }
+        }
+
+        anchor = anchor || fallback;
+        if (!anchor || !anchor.parentNode) return false;
+
+        var button = anchor.cloneNode(false);
+        button.id = hostButtonId;
+        button.type = "button";
+
+        if (String(button.tagName).toLowerCase() === "input") {
+            button.value = "Move Request";
+        } else {
             button.textContent = "Move Request";
-            button.title = "Create a device move request";
-            button.onmouseup = function (event) {
-                if (event && ((event.which === 3) || (event.button === 2))) return false;
-                openMoveDialog(module.api.state.nodeId);
-                return false;
-            };
-            button.onkeypress = function (event) {
-                if (event && event.key === "Enter") {
-                    openMoveDialog(module.api.state.nodeId);
-                }
-            };
-            anchor.parentNode.insertBefore(button, anchor.nextSibling);
         }
-        button.style.display = "";
+
+        button.title = "Submit a device move request";
+        button.disabled = false;
+        button.setAttribute("data-meshcentral-plugin-pin", "MyCompany");
+        button.setAttribute("data-meshcentral-plugin-click", "Move Request host action");
+        button.removeAttribute("onclick");
+        button.removeAttribute("onmouseup");
+        button.onclick = handleHostButtonClick;
+
+        anchor.parentNode.insertBefore(button, anchor.nextSibling);
+        return true;
+    }
+
+    function scheduleHostButton() {
+        [0, 100, 400, 1000, 2000, 4000].forEach(function (delay) {
+            window.setTimeout(installHostButton, delay);
+        });
     }
 
     var module = window.MyCompanyModuleShell.create({
@@ -217,13 +372,13 @@
     var baseDeviceRefresh = module.onDeviceRefreshEnd;
     module.onDeviceRefreshEnd = function (nodeId) {
         baseDeviceRefresh(nodeId);
-        syncHostButton();
+        scheduleHostButton();
     };
 
     var basePageEnd = module.onNativePageEnd;
     module.onNativePageEnd = function (view) {
         basePageEnd(view);
-        syncHostButton();
+        scheduleHostButton();
     };
 
     window.MyCompanyModules.moverequests = module;
