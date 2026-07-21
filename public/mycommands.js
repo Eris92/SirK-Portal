@@ -12,25 +12,14 @@
     var tools = window.SharedScriptTools.create({ storageKey: "mycompany.mycommands.preferences", deepLinkParameter: "mycommand" });
     tools.restoreTreeState(treeState);
 
-    function node(shell) {
-        return shell.state.nodeId || window.MyCompanyRuntime.state.nodeId || window.selectedNode || "";
-    }
-
+    function node(shell) { return shell.state.nodeId || window.MyCompanyRuntime.state.nodeId || window.selectedNode || ""; }
     function stringValue(value) {
         if (value == null) return "";
         if (typeof value === "string") return value;
-        try { return JSON.stringify(value, null, 2); }
-        catch (error) { return String(value); }
+        try { return JSON.stringify(value, null, 2); } catch (error) { return String(value); }
     }
-
-    function isAdmin(shell) {
-        return !!(shell.state.bootstrap && shell.state.bootstrap.access && shell.state.bootstrap.access.siteAdmin);
-    }
-
-    function sync(shell) {
-        tools.syncToolbar(shell.state.page && shell.state.page.toolbar, mode, treeState.selectedScript, { canEdit: isAdmin(shell), enableMulti: true });
-    }
-
+    function isAdmin(shell) { return !!(shell.state.bootstrap && shell.state.bootstrap.access && shell.state.bootstrap.access.siteAdmin); }
+    function sync(shell) { tools.syncToolbar(shell.state.page && shell.state.page.toolbar, mode, treeState.selectedScript, { canEdit: isAdmin(shell), enableMulti: true }); }
     function note(shell, title, message, error) {
         var host = shell.state.page.details;
         host.innerHTML = "";
@@ -39,66 +28,48 @@
         host.appendChild(card);
         sync(shell);
     }
-
     function empty(shell) {
         note(shell, "Output", tools.state.favoritesOnly && !tools.state.favorites.length
             ? "No favorite command scripts. Enable Edit and add a script to Favorites."
-            : "Select a command or script to see its result.");
+            : "Select a command or script to run it.");
     }
-
-    function commandPath(category, command) {
-        return "@command/" + category.key + "/" + command.id;
+    function confirmExecution(item) {
+        if (!item || item.confirmExecution !== true) return true;
+        return window.confirm("Run \"" + (item.label || item.name || item.path || "this script") + "\" now?");
     }
+    function commandPath(category, command) { return "@command/" + category.key + "/" + command.id; }
 
     function buildTree() {
-        var children = [];
-        children.push({
-            type: "directory",
-            name: "Scripts",
-            path: "@menu/scripts",
-            icon: "📁",
+        var children = [{
+            type: "directory", name: "Scripts", path: "@menu/scripts", icon: "📁",
             children: sourceTree && Array.isArray(sourceTree.children) ? sourceTree.children : []
-        });
-
+        }];
         (catalog || []).forEach(function (category) {
             children.push({
-                type: "directory",
-                name: category.title,
-                path: "@menu/" + category.key,
-                icon: category.icon || "▣",
+                type: "directory", name: category.title, path: "@menu/" + category.key, icon: category.icon || "▣",
                 children: (category.commands || []).map(function (command) {
                     return {
-                        type: "script",
-                        kind: "command",
-                        name: command.label,
-                        label: command.label,
-                        description: command.description || "",
-                        path: commandPath(category, command),
-                        commandId: command.id,
-                        variables: command.variables || [],
-                        approvalLevels: command.approvalLevels || [],
-                        requiresApproval: command.requiresApproval === true,
-                        runAsUser: command.runAsUser,
-                        icon: "▶"
+                        type: "script", kind: "command", name: command.label, label: command.label,
+                        description: command.description || "", path: commandPath(category, command),
+                        commandId: command.id, variables: command.variables || [],
+                        approvalLevels: command.approvalLevels || [], requiresApproval: command.requiresApproval === true,
+                        runAsUser: command.runAsUser, confirmExecution: command.confirmExecution === true, icon: "▶"
                     };
                 })
             });
         });
-
         return { type: "directory", name: "Commands", path: "", children: children };
     }
 
-    function valueControls(shell, item, card) {
+    function valueControls(item, card) {
         var variables = Array.isArray(item.variables) ? item.variables : [];
         var controls = [];
         if (!variables.length) return function () { return {}; };
-
         var section = document.createElement("div");
         section.className = "mc-script-runtime-variables";
         var heading = document.createElement("h3");
         heading.textContent = "Variables";
         section.appendChild(heading);
-
         variables.forEach(function (variable) {
             var row = document.createElement("label");
             row.className = "mc-script-form-row";
@@ -106,7 +77,6 @@
             label.className = "mc-script-form-label";
             label.textContent = (variable.label || variable.name) + (variable.required ? " *" : "");
             row.appendChild(label);
-
             var input;
             if (variable.control === "switch") {
                 input = document.createElement("input");
@@ -131,14 +101,11 @@
             section.appendChild(row);
             controls.push({ variable: variable, input: input });
         });
-
         card.appendChild(section);
         return function () {
             var values = {};
             controls.forEach(function (item) {
-                values[item.variable.name] = item.variable.control === "switch"
-                    ? item.input.checked
-                    : item.input.value;
+                values[item.variable.name] = item.variable.control === "switch" ? item.input.checked : item.input.value;
             });
             return values;
         };
@@ -155,7 +122,6 @@
         pre.textContent = stringValue(value) || "No output.";
         host.appendChild(pre);
     }
-
     function renderWaiting(host, value) {
         host.innerHTML = "";
         var pre = document.createElement("pre");
@@ -187,6 +153,10 @@
     }
 
     function execute(shell, item, button, values, outputHost) {
+        if (!confirmExecution(item)) {
+            renderWaiting(outputHost, "Execution cancelled.");
+            return;
+        }
         if (button) button.disabled = true;
         outputHost.classList.remove("mc-shared-error");
         renderWaiting(outputHost, "Submitting command...");
@@ -194,11 +164,11 @@
             nodeId: node(shell),
             nodeName: window.currentNode && window.currentNode.name || "",
             variableValues: values || {},
+            confirmedExecution: item.confirmExecution === true,
             note: ""
         };
         if (item.kind === "command") payload.commandId = item.commandId;
         else payload.scriptPath = item.path;
-
         shell.post("execute", payload).then(function (response) {
             var request = response.request || {};
             if (request.status === "pending") {
@@ -206,7 +176,6 @@
                 renderWaiting(outputHost, outputs[item.path]);
                 return;
             }
-
             var result = request.result || {};
             if (result.id) {
                 var immediate = result.output || result.message || "Waiting for agent output...";
@@ -216,7 +185,6 @@
                 pollOutput(shell, item, result.id, outputHost, pollSequence, 0);
                 return;
             }
-
             var value = result.output || result.message || request.status || "Command submitted.";
             outputs[item.path] = stringValue(value);
             renderOutput(outputHost, outputs[item.path]);
@@ -229,54 +197,41 @@
         });
     }
 
-    function showDefinition(shell, item) {
+    function showDefinition(shell, item, autoExecute) {
         var host = shell.state.page.details;
         host.innerHTML = "";
         var card = shell.card(item.label || item.name, item.description || item.path);
-        var collectValues = valueControls(shell, item, card);
+        var collectValues = valueControls(item, card);
         var button = shell.element("button", "btn btn-primary", item.requiresApproval ? "Request" : "Run");
         button.type = "button";
         card.appendChild(button);
         var outputHost = document.createElement("div");
         outputHost.className = "mc-command-inline-result";
         if (outputs[item.path]) renderOutput(outputHost, outputs[item.path]);
-        else renderWaiting(outputHost, "Select Run or Request to see the result.");
+        else renderWaiting(outputHost, autoExecute ? "Starting..." : "Select Run or Request to see the result.");
         card.appendChild(outputHost);
         button.onclick = function () { execute(shell, item, button, collectValues(), outputHost); };
         host.appendChild(card);
         sync(shell);
-    }
-
-    function executeFromMenu(shell, item) {
-        var host = shell.state.page.details;
-        host.innerHTML = "";
-        var card = shell.card(item.label || item.name, item.description || item.path);
-        var outputHost = document.createElement("div");
-        outputHost.className = "mc-command-inline-result";
-        card.appendChild(outputHost);
-        host.appendChild(card);
-        sync(shell);
-        execute(shell, item, null, {}, outputHost);
+        if (autoExecute === true && (!Array.isArray(item.variables) || item.variables.length === 0)) {
+            window.setTimeout(function () { button.click(); }, 0);
+        }
     }
 
     function show(shell, item, executeOnSelect) {
         pollSequence++;
         if (item.kind === "command") {
-            if (executeOnSelect === true && (!Array.isArray(item.variables) || item.variables.length === 0)) {
-                executeFromMenu(shell, item);
-            } else {
-                showDefinition(shell, item);
-            }
+            showDefinition(shell, item, executeOnSelect === true);
             return;
         }
         shell.api("script", { path: item.path }).then(function (response) {
-            showDefinition(shell, response.script);
-        }).catch(function (error) {
-            shell.error(shell.state.page.details, error);
-        });
+            var script = response.script;
+            showDefinition(shell, script, executeOnSelect === true && (!Array.isArray(script.variables) || script.variables.length === 0));
+        }).catch(function (error) { shell.error(shell.state.page.details, error); });
     }
 
     function multi(shell, script) {
+        if (!confirmExecution(script)) return;
         treeState.selectedScript = script.path;
         tools.openMultiExecution(shell, script, node(shell), function (ids) {
             return shell.post("multi-execute", {
@@ -284,6 +239,7 @@
                 scriptPath: script.path,
                 label: script.label || script.name,
                 variableValues: {},
+                confirmedExecution: script.confirmExecution === true,
                 note: ""
             }).then(function (response) {
                 note(shell, "Multi-device result", JSON.stringify({ total: response.total, submitted: response.submitted, pending: response.pending, failed: response.failed }, null, 2), response.failed > 0);
@@ -295,8 +251,7 @@
     function actions(shell, item) {
         if (item.kind === "command") return [];
         return tools.scriptActions(item, {
-            canEdit: isAdmin(shell),
-            enableMulti: item.multiHost === true,
+            canEdit: isAdmin(shell), enableMulti: item.multiHost === true,
             onEdit: function (script) {
                 treeState.selectedScript = script.path;
                 tools.openDefinitionEditor(shell, script, function (result) {
@@ -308,9 +263,7 @@
             },
             onCredentials: function (script) {
                 treeState.selectedScript = script.path;
-                tools.openCredentialsEditor(shell, script, function () {
-                    note(shell, "Credentials saved", "Encrypted credentials for this command script were updated.");
-                });
+                tools.openCredentialsEditor(shell, script, function () { note(shell, "Credentials saved", "Encrypted credentials for this command script were updated."); });
             },
             onMulti: function (script) { multi(shell, script); },
             onFavoriteChanged: function (script) {
@@ -321,11 +274,7 @@
         });
     }
 
-    function filterItem(item) {
-        if (item.kind === "command") return tools.state.favoritesOnly !== true;
-        return tools.filterScript(item);
-    }
-
+    function filterItem(item) { return item.kind === "command" ? tools.state.favoritesOnly !== true : tools.filterScript(item); }
     function primary(shell, treeHost) {
         window.SharedCatalogView.mount({
             primaryContainer: shell.state.page.primary,
@@ -337,56 +286,33 @@
             emptyText: tools.state.favoritesOnly ? "No favorite command scripts found." : "No commands found.",
             filterScript: filterItem,
             scriptActions: function (item) { return actions(shell, item); },
-            onResults: function () {
-                mode = "results";
-                treeState.selectedScript = "";
-                shell.render();
-            },
+            onResults: function () { mode = "results"; treeState.selectedScript = ""; shell.render(); },
             onRootSelect: function () {
                 mode = "commands";
                 treeState.selectedScript = "";
                 tools.saveTreeState(treeState);
                 window.setTimeout(shell.render, 0);
             },
-            onScript: function (item) {
-                mode = "commands";
-                show(shell, item, true);
-            }
+            onScript: function (item) { mode = "commands"; show(shell, item, true); }
         });
     }
 
     function results(shell) {
         primary(shell, document.createElement("div"));
-        window.SharedResultsView.mountStatus(shell.state.page.secondary, {
-            selected: status,
-            onSelect: function (value) { status = value; shell.render(); }
-        });
+        window.SharedResultsView.mountStatus(shell.state.page.secondary, { selected: status, onSelect: function (value) { status = value; shell.render(); } });
         sync(shell);
         return shell.api("results", { status: status, q: shell.state.search, page: 1, perPage: 200 }).then(function (response) {
-            window.SharedResultsView.mountTable(shell.state.page.details, {
-                title: "Command results",
-                kind: "commands",
-                rows: response.rows || [],
-                emptyText: "No command results match the selected status."
-            });
+            window.SharedResultsView.mountTable(shell.state.page.details, { title: "Command results", kind: "commands", rows: response.rows || [], emptyText: "No command results match the selected status." });
             sync(shell);
         });
     }
-
     function commands(shell) {
         primary(shell, shell.state.page.secondary);
-        if (!treeState.selectedScript) {
-            empty(shell);
-            return;
-        }
+        if (!treeState.selectedScript) { empty(shell); return; }
         var item = window.SharedDirectoryTree.find(tree, treeState.selectedScript);
         if (item && filterItem(item)) show(shell, item, false);
-        else {
-            treeState.selectedScript = "";
-            empty(shell);
-        }
+        else { treeState.selectedScript = ""; empty(shell); }
     }
-
     function refresh(shell) {
         var toolbar = shell.state.page && shell.state.page.toolbar;
         if (toolbar) toolbar.setEnabled("refresh", false);
@@ -396,20 +322,13 @@
             tree = buildTree();
             if (treeState.selectedScript && !window.SharedDirectoryTree.find(tree, treeState.selectedScript)) treeState.selectedScript = "";
             shell.render();
-        }).catch(function (error) {
-            note(shell, "Refresh failed", error.message || String(error), true);
-        }).then(function () {
+        }).catch(function (error) { note(shell, "Refresh failed", error.message || String(error), true); }).then(function () {
             if (toolbar) toolbar.setEnabled("refresh", true);
         });
     }
 
     var module = window.MyCompanyModuleShell.create({
-        key: "mycommands",
-        title: "My Commands",
-        menuTitle: "My Commands",
-        showInMenu: false,
-        order: 150,
-        preset: "mycommands",
+        key: "mycommands", title: "My Commands", menuTitle: "My Commands", showInMenu: false, order: 150, preset: "mycommands",
         deviceTab: { title: "Commands", pageId: "mycompany-mycommands-device-page", topTabId: "MainDevMyCompany-Commands" },
         buttons: {
             collapse: { side: "left", order: 10 },
@@ -418,12 +337,9 @@
             manage: { title: "Edit", side: "left", order: 40, onClick: function (toolbar) { tools.toggleEdit(toolbar, module.api.render); } },
             refresh: { side: "left", order: 50, onClick: function () { refresh(module.api); } },
             multi: { title: "Multi-device execution", side: "left", order: 60, onClick: function (toolbar) { tools.toggleMulti(toolbar, module.api.render); } },
-            search: { side: "left", order: 70 },
-            clear: false,
-            settings: false
+            search: { side: "left", order: 70 }, clear: false, settings: false
         },
-        tabs: [],
-        defaultTab: "commands",
+        tabs: [], defaultTab: "commands",
         render: function (shell) {
             return shell.api("scripts").then(function (response) {
                 sourceTree = response.tree;
