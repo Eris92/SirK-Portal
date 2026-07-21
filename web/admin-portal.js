@@ -92,6 +92,17 @@
         });
     }
 
+    function reloadMeshCentral() {
+        window.setTimeout(function () {
+            try {
+                if (window.top && window.top.location) window.top.location.reload();
+                else window.location.reload();
+            } catch (error) {
+                window.location.reload();
+            }
+        }, 700);
+    }
+
     function renderPanel(panel, button) {
         var record = moduleRecord();
         var current = moduleSettings();
@@ -110,7 +121,7 @@
             card,
             "Enable SirK Portal",
             current.enabled === true || record.enabled === true,
-            "Po zmianie wymagane jest przeładowanie karty przeglądarki. Dane MyCompany nie są usuwane."
+            "Po zapisaniu karta MeshCentral zostanie przeładowana automatycznie. Dane MyCompany nie są usuwane."
         );
         var defaultView = select(card, "Default start view", current.defaultView || "overview");
         var showLauncher = checkbox(
@@ -142,11 +153,11 @@
                 data().moduleSettings.portal = state;
                 var module = moduleRecord();
                 module.enabled = state.enabled === true;
-                status.textContent = "Saved — reload the MeshCentral tab";
+                status.textContent = "Saved — reloading MeshCentral...";
+                reloadMeshCentral();
             }).catch(function (error) {
                 status.className = "mc-admin-save-status mc-admin-error";
                 status.textContent = error.message || String(error);
-            }).then(function () {
                 save.disabled = false;
             });
         };
