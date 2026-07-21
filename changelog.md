@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.3.7
+
+- `Results` jest ponownie pierwszą pozycją lewego menu My Commands.
+- Kliknięcie presetu bez zmiennych wykonuje go bezpośrednio lub wysyła do akceptacji zgodnie z polityką providera.
+- Presety wymagające zmiennych nadal otwierają formularz z przyciskiem `Run` albo `Request`.
+- Przycisk `Save General` znajduje się wewnątrz rozwijanej sekcji General w Approval Center.
+- Sekcja providera My Commands ma własny przycisk `Save My Commands`.
+- Ustawienia host integration i execution limits My Commands mają lokalny przycisk zapisu.
+- Dolny, odłączony pasek zapisu jest ukrywany tam, gdzie dostępny jest zapis wewnątrz sekcji.
+
+## 1.3.6
+
+- Przywrócono pełny katalog presetów Network, System i Other z oryginalnego MyCommands.
+- Kategorie Commands są dostępne w lewym menu, bez dodatkowych zakładek u góry.
+- Przywrócono otwieranie PowerShell, CMD, Registry Editor, Local Security Policy, Windows Firewall, MMC, Services, Device Manager, Event Viewer i Task Manager.
+- Przywrócono Printer Management, certyfikaty komputera i użytkownika, Indexing Options oraz Disk Cleanup.
+- Przywrócono Flush DNS, DNS lookup, test portu TCP/UDP, netstat i filtrowanie portu.
+- Wyniki obsługują `__MYCOMMANDS_TABLE_B64__`, JSON, CSV/TSV, Copy i `Debug / raw output`.
+
+## 1.3.5
+
+- MyScripts wykonuje rzeczywiste pliki PowerShell i CMD zamiast zwracać sztuczny status zakończenia.
+- Wyniki przechowują realne stdout, stderr, raw output i exit status.
+- Wspólny transport POST używa jednego JSON `payload`.
+- Zmienne, sekrety skryptów i profile systemowe są przekazywane do wykonania.
+
 ## 1.3.1
 
 - Naprawiono zapis `settings.json` na Windows bez operacji `rename`, `copy` i `unlink` na plikach tymczasowych.
