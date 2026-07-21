@@ -5,14 +5,15 @@ var os = require("os");
 var path = require("path");
 var root = path.resolve(__dirname, "..");
 var required = [
-    "MyCompany.js", "plugin-main.js", "MyCompanyAdmin.js", "config.json",
-    "core/runtime.js", "core/approval-service.js", "core/atomic-json.js",
+    "MyCompany.js", "plugin-main.js", "plugin-main-1.4.0.js", "MyCompanyAdmin.js", "config.json",
+    "core/runtime.js", "core/runtime-portal.js", "core/approval-service.js", "core/atomic-json.js",
     "core/settings-store.js", "core/script-library.js", "core/script-confirmation-library.js",
     "core/script-admin-service.js", "core/server-script-executor.js",
     "modules/ApprovalCenter/index.js", "modules/MoveRequests/index.js",
     "modules/MyCommands/index.js", "modules/MyScripts/index.js",
-    "modules/MyJira/index.js", "modules/DefenderTools/index.js",
+    "modules/MyJira/index.js", "modules/DefenderTools/index.js", "modules/Portal/index.js",
     "public/approvalcenter.js", "public/myscripts.js", "public/mycommands.js",
+    "public/portal.js", "public/portal.css", "public/runtime.js", "public/module-shell.js",
     "public/shared-ui/toolbar.js", "public/shared-ui/toolbar-api.js",
     "public/shared-ui/toolbar-config.js", "public/shared-ui/tabs.js",
     "public/shared-ui/layout.js", "public/shared-ui/settings.js",
@@ -21,6 +22,7 @@ var required = [
     "public/shared-ui/result-layout.js", "public/shared-ui/script-tools.js",
     "public/shared-ui/script-definition-form.js",
     "public/shared-ui/confirm-execution-form.js", "public/shared-ui/page.js",
+    "web/admin-portal.js", "views/MyCompany.handlebars",
     "seed/MyScripts", "seed/MyCommands"
 ];
 
@@ -51,14 +53,76 @@ function validateArchitecture() {
     var packageConfig = JSON.parse(read("package.json").replace(/^\uFEFF/, ""));
     if (config.shortName !== "MyCompany") errors.push("config.shortName must be MyCompany.");
     if (config.version !== packageConfig.version) errors.push("config.json and package.json versions must match.");
+    if (config.version !== "1.4.0") errors.push("Portal release must publish version 1.4.0.");
     var entrypoints = fs.readdirSync(root).filter(function (name) { return name.toLowerCase() === "mycompany.js"; });
     if (entrypoints.length !== 1 || entrypoints[0] !== "MyCompany.js") errors.push("Exactly one case-insensitive MyCompany.js entrypoint is required.");
     if (fs.existsSync(path.join(root, ".gitmodules"))) errors.push(".gitmodules is not allowed.");
     if (fs.existsSync(path.join(root, "legacy"))) errors.push("legacy source directory is not allowed.");
 
+    var pluginMain = read("plugin-main.js");
+    need(pluginMain, 'require("./core/runtime-portal.js")', "Plugin entry must use the Portal-decorated runtime.", errors);
+    need(pluginMain, 'url.searchParams.set("v", "1.4.0")', "Plugin browser bootstrap must invalidate 1.4.0 assets.", errors);
+    need(read("public/core.js"), 'core.assetVersion = "1.4.0"', "Browser core must use asset version 1.4.0.", errors);
+
     var runtime = read("core/runtime.js");
     need(runtime, '"seed", "MyScripts"', "Runtime must resolve MyScripts from seed/MyScripts.", errors);
     need(runtime, '"seed", "MyCommands"', "Runtime must resolve MyCommands from seed/MyCommands.", errors);
+
+    var portalRuntime = read("core/runtime-portal.js");
+    [
+        "PORTAL_DEFAULTS", "enabled: false", "defaultView", "showLauncher",
+        "runtime.modules.portal", "portalFactory.createModule", "runtime.bootstrap"
+    ].forEach(function (value) {
+        need(portalRuntime, value, "Portal runtime integration missing: " + value, errors);
+    });
+
+    var portalModule = read("modules/Portal/index.js");
+    [
+        'key: "portal"', 'name: "SirK Portal"', 'script: "portal.js"',
+        'style: "portal.css"', "value.enabled", "defaultView", "showLauncher",
+        "reloadRequired", "requireAdmin"
+    ].forEach(function (value) {
+        need(portalModule, value, "Portal server module missing: " + value, errors);
+    });
+
+    var publicRuntime = read("public/runtime.js");
+    [
+        'portal: "portal.js"', '"myscripts", "portal"',
+        "shared-ui/confirm-execution-form.js", "shared-ui/result-layout.js"
+    ].forEach(function (value) {
+        need(publicRuntime, value, "Browser runtime missing: " + value, errors);
+    });
+
+    var moduleShell = read("public/module-shell.js");
+    [
+        'mount: function (host, mode)', 'mountPage(host, mode || "embedded")'
+    ].forEach(function (value) {
+        need(moduleShell, value, "Module shell embedded mounting missing: " + value, errors);
+    });
+
+    var portalClient = read("public/portal.js");
+    [
+        "Zarządzanie", "Akceptacje", "Ustawienia", "Mesh",
+        'mountModule("myscripts"', 'mountModule("approvalcenter"',
+        'url.searchParams.set("pin", "MyCompany")', "sirk-settings-frame",
+        "Standalone SirKPortal", "window.SirKPortal.registerAction",
+        'data-mycompany-portal', "showPortal", "showMesh"
+    ].forEach(function (value) {
+        need(portalClient, value, "Portal client missing: " + value, errors);
+    });
+
+    var portalAdmin = read("web/admin-portal.js");
+    [
+        "Enable SirK Portal", "Save SirK Portal", "defaultView", "showLauncher",
+        'url.searchParams.set("module", "portal")', "reload the MeshCentral tab",
+        "Nie uruchamiaj równolegle osobnej wtyczki SirKPortal"
+    ].forEach(function (value) {
+        need(portalAdmin, value, "Portal admin integration missing: " + value, errors);
+    });
+    need(read("views/MyCompany.handlebars"), "asset=admin-portal.js", "Admin view must load Portal settings.", errors);
+    ["portal.js", "portal.css", "admin-portal.js"].forEach(function (value) {
+        need(read("MyCompanyAdmin.js"), '"' + value + '"', "Admin asset server missing: " + value, errors);
+    });
 
     var confirmationLibrary = read("core/script-confirmation-library.js");
     ["ConfirmExecution", "confirmExecution", "updateDirective", "decorateTree", "saveDefinition"].forEach(function (value) {
@@ -94,7 +158,6 @@ function validateArchitecture() {
     ["Confirm execution before running", "confirmExecution", "payload.definition.confirmExecution", "server rejects unconfirmed requests"].forEach(function (value) {
         need(confirmForm, value, "Shared Confirm execution form missing: " + value, errors);
     });
-    need(read("public/runtime.js"), "shared-ui/confirm-execution-form.js", "Runtime must load the Confirm execution form.", errors);
     need(read("MyCompanyAdmin.js"), "shared-ui/confirm-execution-form.js", "Admin asset server must expose the Confirm execution form.", errors);
 
     var myScripts = read("public/myscripts.js");
@@ -122,7 +185,6 @@ function validateArchitecture() {
     ["mc-results-copy-after-output", "mc-results-debug", "mc-command-inline-result", "data-result-only"].forEach(function (value) {
         need(resultLayout, value, "Shared result layout missing: " + value, errors);
     });
-    need(read("public/runtime.js"), "shared-ui/result-layout.js", "Runtime must load the result layout normalizer.", errors);
     need(read("MyCompanyAdmin.js"), "shared-ui/result-layout.js", "Admin asset server must expose the result layout normalizer.", errors);
 
     var toolbarConfig = read("public/shared-ui/toolbar-config.js");
