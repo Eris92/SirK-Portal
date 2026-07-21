@@ -12,7 +12,16 @@
             : value;
     }
 
-    function matches(node, query) {
+    function scriptAllowed(node, options) {
+        return !options ||
+            typeof options.filterScript !== "function" ||
+            options.filterScript(node) !== false;
+    }
+
+    function matches(node, query, options) {
+        if (node.type === "script" && !scriptAllowed(node, options)) {
+            return false;
+        }
         if (!query) return true;
         return normalize([
             node.name,
@@ -22,11 +31,16 @@
         ].join(" ")).indexOf(query) >= 0;
     }
 
-    function hasMatch(node, query) {
+    function hasMatch(node, query, options) {
         if (!node) return false;
-        if (matches(node, query)) return true;
+        if (node.type === "script") return matches(node, query, options);
+        if (query && matches(node, query, options)) {
+            return (node.children || []).some(function (child) {
+                return hasMatch(child, "", options);
+            });
+        }
         return (node.children || []).some(function (child) {
-            return hasMatch(child, query);
+            return hasMatch(child, query, options);
         });
     }
 
@@ -127,7 +141,7 @@
         var query = options.query;
 
         children.filter(function (item) {
-            return item.type === "directory" && hasMatch(item, query);
+            return item.type === "directory" && hasMatch(item, query, options);
         }).forEach(function (folder) {
             var section = document.createElement("section");
             section.className = "mc-tree-folder";
@@ -136,11 +150,15 @@
             var header = document.createElement("button");
             header.type = "button";
             header.className = "mc-tree-folder-header";
-            appendIcon(header, folder, "mc-tree-folder-icon");
 
-            var arrow = document.createElement("span");
-            arrow.className = "mc-tree-folder-arrow";
-            header.appendChild(arrow);
+            var graphic = appendIcon(header, folder, "mc-tree-folder-icon");
+            var arrow = null;
+
+            if (!graphic) {
+                arrow = document.createElement("span");
+                arrow.className = "mc-tree-folder-arrow";
+                header.appendChild(arrow);
+            }
 
             var title = document.createElement("span");
             title.className = "mc-tree-label";
@@ -151,13 +169,13 @@
             body.className = "mc-tree-folder-body";
             var expanded = !!query || options.expanded[folder.path] === true;
             body.hidden = !expanded;
-            arrow.textContent = expanded ? "▼" : "▶";
+            if (arrow) arrow.textContent = expanded ? "▼" : "▶";
 
             header.onclick = function () {
                 expanded = !expanded;
                 options.expanded[folder.path] = expanded;
                 body.hidden = !expanded;
-                arrow.textContent = expanded ? "▼" : "▶";
+                if (arrow) arrow.textContent = expanded ? "▼" : "▶";
             };
 
             section.appendChild(header);
@@ -167,7 +185,7 @@
         });
 
         children.filter(function (item) {
-            return item.type === "script" && matches(item, query);
+            return item.type === "script" && matches(item, query, options);
         }).forEach(function (script) {
             renderScript(host, script, options);
         });
@@ -188,7 +206,7 @@
             treeHost.innerHTML = "";
 
             var visibleRoots = roots.filter(function (root) {
-                return hasMatch(root, query);
+                return hasMatch(root, query, options);
             });
 
             if (!visibleRoots.length) {
@@ -228,6 +246,7 @@
                 expanded: state.expanded,
                 query: query,
                 selectedScript: state.selectedScript,
+                filterScript: options.filterScript,
                 onScript: function (script) {
                     state.selectedScript = script.path;
                     if (typeof options.onScript === "function") {
