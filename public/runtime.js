@@ -150,6 +150,9 @@
                         return core.loadScript("mycompany-portal-collapse-isolation", core.assetUrl("", "portal-collapse-isolation.js"));
                     })
                     .then(function () {
+                        return core.loadScript("mycompany-portal-folder-collapse", core.assetUrl("", "portal-folder-collapse.js"));
+                    })
+                    .then(function () {
                         return core.loadScript("mycompany-portal-approval", core.assetUrl("", "portal-approval.js"));
                     })
                     .then(function () {
