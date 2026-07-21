@@ -1,9 +1,9 @@
 {
   "name": "My Company",
   "shortName": "MyCompany",
-  "version": "1.3.9",
+  "version": "1.4.0",
   "author": "Eris92",
-  "description": "One consolidated MeshCentral plugin with embedded MyScripts and MyCommands libraries, Approval Center, Move Requests, My Jira and Defender XDR modules.",
+  "description": "Consolidated MeshCentral plugin with MyScripts, MyCommands, Approval Center, integrations and an optional embedded SirK Portal interface.",
   "hasAdminPanel": true,
   "homepage": "https://github.com/Eris92/MeshCentral-MyCompany",
   "changelogUrl": "https://raw.githubusercontent.com/Eris92/MeshCentral-MyCompany/main/changelog.md",
