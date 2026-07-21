@@ -77,6 +77,7 @@ module.exports.createModule = function (context) {
                 style: "myscripts.css",
                 scriptsRoot: root,
                 toolbar: {
+                    collapse: true,
                     refresh: true,
                     clear: false,
                     favorites: true,
@@ -116,6 +117,7 @@ module.exports.createModule = function (context) {
             }
             if (asset === "definition") return { ok: true, definition: admin.getDefinition(user, q.path) };
             if (asset === "script-secrets") return { ok: true, secrets: admin.getSecretState(user, q.path) };
+            if (asset === "system-credentials") return { ok: true, systemCredentials: admin.getSystemCredentialState(user, q.path) };
             if (asset === "results") {
                 return context.approval.list(user, {
                     type: "myscripts",
@@ -149,6 +151,9 @@ module.exports.createModule = function (context) {
             }
             if (asset === "script-secrets") {
                 return { ok: true, secrets: admin.saveSecrets(user, value.path, value.values, value.clearNames) };
+            }
+            if (asset === "system-credentials") {
+                return { ok: true, systemCredentials: admin.saveSystemCredentials(user, value.path, value.selected) };
             }
             if (asset === "request") {
                 return context.approval.submit("myscripts", user, value, value.note)
