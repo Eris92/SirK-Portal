@@ -31,6 +31,8 @@ module.exports.admin = function (plugin) {
         "shared-ui/settings.js": ["public/shared-ui/settings.js", "text/javascript; charset=utf-8"],
         "shared-ui/status-nav.js": ["public/shared-ui/status-nav.js", "text/javascript; charset=utf-8"],
         "shared-ui/tree.js": ["public/shared-ui/tree.js", "text/javascript; charset=utf-8"],
+        "shared-ui/catalog.js": ["public/shared-ui/catalog.js", "text/javascript; charset=utf-8"],
+        "shared-ui/results.js": ["public/shared-ui/results.js", "text/javascript; charset=utf-8"],
         "shared-ui/page.js": ["public/shared-ui/page.js", "text/javascript; charset=utf-8"],
         "shared-ui/shared-ui.css": ["public/shared-ui/shared-ui.css", "text/css; charset=utf-8"],
         "shared-ui/toolbar.css": ["public/shared-ui/toolbar.css", "text/css; charset=utf-8"]
@@ -93,9 +95,9 @@ module.exports.admin = function (plugin) {
                 title: "My Company",
                 pluginShortName: String(req && req.query && req.query.pin || plugin.shortName || "MyCompany"),
                 adminDataJson: JSON.stringify(data)
-                    .replace(/</g, "\u003c")
-                    .replace(/>/g, "\u003e")
-                    .replace(/&/g, "\u0026")
+                    .replace(/</g, "\\u003c")
+                    .replace(/>/g, "\\u003e")
+                    .replace(/&/g, "\\u0026")
             });
         } catch (error) {
             console.error("MyCompany admin render failed", error);
