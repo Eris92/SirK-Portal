@@ -2,7 +2,7 @@
     "use strict";
     window.MyCompanyCore = window.MyCompanyCore || {};
     var core = window.MyCompanyCore;
-    core.assetVersion = "1.3.3";
+    core.assetVersion = "1.3.5";
     core.assetUrl = function (moduleName, assetName, parameters) {
         var endpoint = new URL("pluginadmin.ashx", window.location.href);
         endpoint.searchParams.set("pin", "MyCompany");
@@ -30,10 +30,7 @@
     };
     core.post = function (moduleName, assetName, values) {
         var body = new URLSearchParams();
-        Object.keys(values || {}).forEach(function (key) {
-            var value = values[key];
-            body.set(key, typeof value === "object" ? JSON.stringify(value) : String(value == null ? "" : value));
-        });
+        body.set("payload", JSON.stringify(values && typeof values === "object" ? values : {}));
         return core.api(moduleName, assetName, {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
