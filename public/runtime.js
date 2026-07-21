@@ -43,6 +43,11 @@
                     "mycompany-shared-results-view",
                     core.assetUrl("", "shared-ui/results.js")
                 );
+            }).then(function () {
+                return core.loadScript(
+                    "mycompany-shared-script-tools",
+                    core.assetUrl("", "shared-ui/script-tools.js")
+                );
             });
             order.forEach(function (key) {
                 var state = bootstrap.modules[key];
