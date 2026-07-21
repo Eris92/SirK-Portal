@@ -35,15 +35,19 @@
             navigation.className = "mc-catalog-navigation";
             host.appendChild(navigation);
 
-            createResultsButton(navigation, options.resultsActive, function () {
-                if (typeof options.onResults === "function") {
-                    options.onResults();
-                }
-            });
+            function addResults() {
+                return createResultsButton(navigation, options.resultsActive, function () {
+                    if (typeof options.onResults === "function") options.onResults();
+                });
+            }
+
+            if (options.resultsPosition !== "end") addResults();
 
             var roots = document.createElement("div");
             roots.className = "mc-catalog-roots";
             navigation.appendChild(roots);
+
+            if (options.resultsPosition === "end") addResults();
 
             var treeContainer = options.treeContainer || document.createElement("div");
             var state = window.SharedDirectoryTree.mount({
@@ -57,14 +61,10 @@
                 filterScript: options.filterScript,
                 scriptActions: options.scriptActions,
                 onRootSelect: function (root) {
-                    if (typeof options.onRootSelect === "function") {
-                        options.onRootSelect(root);
-                    }
+                    if (typeof options.onRootSelect === "function") options.onRootSelect(root);
                 },
                 onScript: function (script) {
-                    if (typeof options.onScript === "function") {
-                        options.onScript(script);
-                    }
+                    if (typeof options.onScript === "function") options.onScript(script);
                 }
             });
 
