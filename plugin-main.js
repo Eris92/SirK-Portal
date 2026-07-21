@@ -33,7 +33,7 @@ function createFallbackRuntime(error) {
         },
         adminSnapshot: function () {
             return {
-                plugin: { name: "My Company", version: "1.3.9" },
+                plugin: { name: "My Company", version: "1.4.0" },
                 modules: [],
                 moduleSettings: {},
                 integrations: {},
@@ -86,7 +86,7 @@ function createPlugin(parent, shortName) {
     ];
 
     try {
-        obj.runtime = require("./core/runtime.js").createRuntime({
+        obj.runtime = require("./core/runtime-portal.js").createRuntime({
             parent: parent,
             pluginRoot: __dirname,
             source: obj
@@ -132,7 +132,7 @@ function createPlugin(parent, shortName) {
             var url = new URL("pluginadmin.ashx", window.location.href);
             url.searchParams.set("pin", obj.shortName || "MyCompany");
             url.searchParams.set("asset", name);
-            url.searchParams.set("v", "1.3.9");
+            url.searchParams.set("v", "1.4.0");
             return url.href;
         }
 
