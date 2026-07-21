@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.0
+
+- SirK Portal został włączony do MyCompany jako opcjonalny moduł frontendowy, bez osobnego backendu, storage i lifecycle pluginu.
+- Portal jest domyślnie wyłączony i można go włączyć lub wyłączyć w `Settings → SirK Portal`.
+- `Zarządzanie` montuje istniejący moduł MyScripts bez kopiowania jego kodu i danych.
+- `Akceptacje` montują istniejący Approval Center.
+- `Ustawienia` osadzają panel administracyjny MyCompany i są dostępne tylko dla Site Admin.
+- `Mesh` ukrywa portal i przywraca natywny interfejs MeshCentral; opcjonalny launcher pozwala ponownie otworzyć Portal.
+- Dodano widoki Przegląd i Urządzenia korzystające z aktywnej sesji oraz widocznych danych MeshCentral.
+- ModuleShell obsługuje teraz montowanie modułów wewnątrz innego interfejsu przez wspólny punkt `mount()`.
+- Dodano wykrywanie konfliktu z osobną wtyczką SirKPortal; nie należy uruchamiać obu globalnych shelli równolegle.
+- Dodano testy architektury pilnujące opcjonalności Portalu, mapowania MyScripts/Approval Center i przełącznika administracyjnego.
+
 ## 1.3.9
 
 - Skrypt bez zmiennych po kliknięciu przechodzi bezpośrednio do statusu wykonania i wyniku, bez górnej karty z nazwą, opisem oraz przyciskiem `Run`.
