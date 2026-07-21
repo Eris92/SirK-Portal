@@ -11,9 +11,10 @@
         mycommands: "mycommands.js",
         myjira: "myjira.js",
         defendertools: "defendertools.js",
-        myscripts: "myscripts.js"
+        myscripts: "myscripts.js",
+        portal: "portal.js"
     };
-    var order = ["approvalcenter", "moverequests", "mycommands", "myjira", "defendertools", "myscripts"];
+    var order = ["approvalcenter", "moverequests", "mycommands", "myjira", "defendertools", "myscripts", "portal"];
 
     function installCredentialsActions() {
         if (!window.SharedScriptTools || window.__myCompanyCredentialsActions) return;
