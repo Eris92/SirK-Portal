@@ -1,5 +1,18 @@
 [
   {
+    "version": "1.3.6",
+    "date": "2026-07-21",
+    "changes": [
+      "Restore the original MyCommands Network, System and Other command catalog",
+      "Display Scripts, Network, System, Other and Results as left-menu entries instead of top tabs",
+      "Restore PowerShell, CMD, Registry Editor, Local Security Policy, Windows Firewall, MMC, Services, Device Manager, Event Viewer and Task Manager actions",
+      "Restore Printer Management, computer and user certificate consoles, Indexing Options and Disk Cleanup actions",
+      "Restore Flush DNS, DNS lookup, TCP or UDP port test, netstat and port filtering actions",
+      "Validate variables server-side, keep command bodies server-side and poll real MeshAgent output",
+      "Add architecture tests preventing the restored command catalog from being removed or moved back to top tabs"
+    ]
+  },
+  {
     "version": "1.3.5",
     "date": "2026-07-21",
     "changes": [
