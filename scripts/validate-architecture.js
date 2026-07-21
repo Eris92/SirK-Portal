@@ -33,6 +33,7 @@ var required = [
     "public/shared-ui/tree.js",
     "public/shared-ui/catalog.js",
     "public/shared-ui/results.js",
+    "public/shared-ui/script-tools.js",
     "public/shared-ui/page.js",
     "seed/MyScripts",
     "seed/MyCommands"
@@ -109,6 +110,21 @@ function validateArchitecture() {
     if (toolbarSource.indexOf("root.hidden = Object.keys(context.buttons).length === 0") < 0) {
         errors.push("Empty module toolbars must be hidden.");
     }
+    if (toolbarSource.indexOf("left.appendChild(searchWrap)") < 0) {
+        errors.push("Search input must be appended after the left toolbar buttons.");
+    }
+
+    var cssSource = read("public/shared-ui/shared-ui.css");
+    if (cssSource.indexOf("grid-template-columns:64px") < 0 ||
+        cssSource.indexOf(".mc-shared-layout.is-collapsed .mc-shared-primary .mc-tree-label{display:none}") < 0) {
+        errors.push("Collapsed navigation must remain as a 64px icon rail.");
+    }
+
+    var scriptToolsSource = read("public/shared-ui/script-tools.js");
+    if (scriptToolsSource.indexOf("favoritesOnly") < 0 ||
+        scriptToolsSource.indexOf("addEditActions") < 0) {
+        errors.push("Shared script tools must provide Favorites and Edit behavior.");
+    }
 
     ["myscripts", "mycommands"].forEach(function (name) {
         var source = read("public/" + name + ".js");
@@ -119,15 +135,24 @@ function validateArchitecture() {
             source.indexOf("window.SharedResultsView.mountTable") < 0) {
             errors.push(name + " must use shared status filters and result tables.");
         }
+        if (source.indexOf("window.SharedScriptTools.create") < 0) {
+            errors.push(name + " must use shared Favorites and Edit tools.");
+        }
         if (source.indexOf("tabs: []") < 0) {
             errors.push(name + " must not render top tabs.");
         }
-        ["search", "collapse", "link"].forEach(function (button) {
-            if (source.indexOf(button + ": { side: \"left\"") < 0) {
+        ["collapse", "favorites", "link", "manage", "search"].forEach(function (button) {
+            if (source.indexOf(button + ": {") < 0) {
                 errors.push(name + " must show the left toolbar button: " + button);
             }
         });
-        ["favorites", "manage", "refresh", "clear", "settings"].forEach(function (button) {
+        if (source.indexOf('manage: {\n                title: "Edit"') < 0) {
+            errors.push(name + " must label the pencil action as Edit.");
+        }
+        if (source.indexOf('search: { side: "left", order: 50 }') < 0) {
+            errors.push(name + " Search must be the last left toolbar action.");
+        }
+        ["refresh", "clear", "settings"].forEach(function (button) {
             if (source.indexOf(button + ": false") < 0) {
                 errors.push(name + " must disable top button: " + button);
             }
@@ -140,8 +165,9 @@ function validateArchitecture() {
 
     var catalogSource = read("public/shared-ui/catalog.js");
     if (catalogSource.indexOf("mc-catalog-navigation") < 0 ||
-        catalogSource.indexOf("▤ Results") < 0) {
-        errors.push("Shared catalog must integrate Results with the folder navigation.");
+        catalogSource.indexOf('icon.textContent = "▤"') < 0 ||
+        catalogSource.indexOf('label.textContent = "Results"') < 0) {
+        errors.push("Shared catalog must integrate Results with icon-only collapse support.");
     }
     if (catalogSource.indexOf("mc-catalog-separator") >= 0) {
         errors.push("Shared catalog must not use the hard Results separator.");
