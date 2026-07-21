@@ -18,7 +18,8 @@ var required = [
     "public/shared-ui/layout.js", "public/shared-ui/settings.js",
     "public/shared-ui/status-nav.js", "public/shared-ui/tree.js",
     "public/shared-ui/catalog.js", "public/shared-ui/results.js",
-    "public/shared-ui/script-tools.js", "public/shared-ui/script-definition-form.js",
+    "public/shared-ui/result-layout.js", "public/shared-ui/script-tools.js",
+    "public/shared-ui/script-definition-form.js",
     "public/shared-ui/confirm-execution-form.js", "public/shared-ui/page.js",
     "seed/MyScripts", "seed/MyCommands"
 ];
@@ -99,8 +100,9 @@ function validateArchitecture() {
     var myScripts = read("public/myscripts.js");
     [
         "SharedCatalogView.mount", "SharedResultsView.mountTable", "SharedScriptTools.create",
-        "confirmExecution", "confirmedExecution", "button.click()",
-        "show(shell, script, true)", "show(shell, script, false)", "variableValues"
+        "confirmExecution", "confirmedExecution", "switchToResult", "executeOnSelect",
+        "show(shell, script, true)", "show(shell, script, false)", "variableValues",
+        "previous && executeOnSelect !== true"
     ].forEach(function (value) { need(myScripts, value, "MyScripts UI missing: " + value, errors); });
     match(myScripts, /collapse\s*:\s*true/, "MyScripts must expose Collapse.", errors);
     match(myScripts, /multi\s*:\s*false/, "MyScripts must hide multi-device execution.", errors);
@@ -115,6 +117,13 @@ function validateArchitecture() {
     if (myCommands.indexOf('resultsPosition: "end"') >= 0) errors.push("MyCommands Results must be the first left-menu entry.");
     match(myCommands, /order\s*:\s*60/, "MyCommands multi action order is invalid.", errors);
     match(myCommands, /collapse\s*:\s*\{/, "MyCommands must expose Collapse.", errors);
+
+    var resultLayout = read("public/shared-ui/result-layout.js");
+    ["mc-results-copy-after-output", "mc-results-debug", "mc-command-inline-result", "data-result-only"].forEach(function (value) {
+        need(resultLayout, value, "Shared result layout missing: " + value, errors);
+    });
+    need(read("public/runtime.js"), "shared-ui/result-layout.js", "Runtime must load the result layout normalizer.", errors);
+    need(read("MyCompanyAdmin.js"), "shared-ui/result-layout.js", "Admin asset server must expose the result layout normalizer.", errors);
 
     var toolbarConfig = read("public/shared-ui/toolbar-config.js");
     match(toolbarConfig, /myscripts:\s*\{[^}]*collapse:\s*true/, "Collapse must be enabled in MyScripts.", errors);
