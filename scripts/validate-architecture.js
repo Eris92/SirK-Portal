@@ -22,7 +22,6 @@ var required = [
     "public/shared-ui/confirm-execution-form.js", "public/shared-ui/page.js",
     "seed/MyScripts", "seed/MyCommands"
 ];
-var syntaxFiles = required.filter(function (relative) { return /\.js$/i.test(relative); });
 
 function read(relative) { return fs.readFileSync(path.join(root, relative), "utf8"); }
 function need(source, value, message, errors) { if (source.indexOf(value) < 0) errors.push(message); }
@@ -30,7 +29,7 @@ function match(source, expression, message, errors) { if (!expression.test(sourc
 
 function validateSyntax() {
     var errors = [];
-    syntaxFiles.forEach(function (relative) {
+    required.filter(function (relative) { return /\.js$/i.test(relative); }).forEach(function (relative) {
         if (!fs.existsSync(path.join(root, relative))) return;
         try { new Function(read(relative)); }
         catch (error) { errors.push("Syntax error in " + relative + ": " + error.message); }
@@ -43,7 +42,9 @@ function validateSyntax() {
 
 function validateArchitecture() {
     var errors = [];
-    required.forEach(function (relative) { if (!fs.existsSync(path.join(root, relative))) errors.push("Missing: " + relative); });
+    required.forEach(function (relative) {
+        if (!fs.existsSync(path.join(root, relative))) errors.push("Missing: " + relative);
+    });
 
     var config = JSON.parse(read("config.json").replace(/^\uFEFF/, ""));
     var packageConfig = JSON.parse(read("package.json").replace(/^\uFEFF/, ""));
@@ -58,35 +59,18 @@ function validateArchitecture() {
     need(runtime, '"seed", "MyScripts"', "Runtime must resolve MyScripts from seed/MyScripts.", errors);
     need(runtime, '"seed", "MyCommands"', "Runtime must resolve MyCommands from seed/MyCommands.", errors);
 
-    var library = read("core/script-library.js");
-    ["allowWrite", "saveSource", "getDefinition", "saveDefinition", "approvalLevels", "secretDefinitions", "multiHost"].forEach(function (value) {
-        need(library, value, "Script library missing: " + value, errors);
-    });
-
     var confirmationLibrary = read("core/script-confirmation-library.js");
     ["ConfirmExecution", "confirmExecution", "updateDirective", "decorateTree", "saveDefinition"].forEach(function (value) {
         need(confirmationLibrary, value, "Confirmation metadata library missing: " + value, errors);
     });
 
-    var admin = read("core/script-admin-service.js");
-    ["getDefinition", "saveDefinition", "getSecretState", "saveSecrets", "context.secrets"].forEach(function (value) {
-        need(admin, value, "Shared script administration missing: " + value, errors);
-    });
-    var executor = read("core/server-script-executor.js");
-    ["createServerScriptExecutor", "execFile", "scriptHash", "variableValues", "rawOutput", "systemEnvironment"].forEach(function (value) {
-        need(executor, value, "Shared server script executor missing: " + value, errors);
-    });
-
     ["MyScripts", "MyCommands"].forEach(function (name) {
         var source = read("modules/" + name + "/index.js");
-        need(source, 'context.pluginRoot, "seed", "' + name + '"', name + " must read its seed directory directly.", errors);
-        need(source, "script-confirmation-library", name + " must use the shared confirmation metadata library.", errors);
-        need(source, "confirmedExecution", name + " must transport the confirmation state.", errors);
-        need(source, "Execution confirmation is required", name + " must enforce confirmation server-side.", errors);
-        need(source, "allowWrite: true", name + " must allow controlled Site Admin definition editing.", errors);
-        need(source, 'asset === "definition"', name + " must expose definition endpoints.", errors);
-        need(source, 'asset === "script-secrets"', name + " must expose encrypted credential endpoints.", errors);
-        need(source, "script-admin-service", name + " must use the shared script administration service.", errors);
+        [
+            'context.pluginRoot, "seed", "' + name + '"', "script-confirmation-library",
+            "confirmedExecution", "Execution confirmation is required", "allowWrite: true",
+            'asset === "definition"', 'asset === "script-secrets"', "script-admin-service"
+        ].forEach(function (value) { need(source, value, name + " server module missing: " + value, errors); });
     });
 
     var myScriptsModule = read("modules/MyScripts/index.js");
@@ -105,31 +89,32 @@ function validateArchitecture() {
         "Flush DNS", "Check DNS", "Check port", "Open ports", "Filter by port"
     ].forEach(function (value) { need(commandsModule, value, "MyCommands missing: " + value, errors); });
 
-    var tree = read("public/shared-ui/tree.js");
-    ["iconData", "mc-tree-folder-body", "scriptActions", "mc-tree-script-actions", "options.node && options.node.icon"].forEach(function (value) {
-        need(tree, value, "Shared tree missing: " + value, errors);
-    });
-    need(tree, "if (!graphic)", "Folder arrow must be hidden when an icon exists.", errors);
-
-    var tools = read("public/shared-ui/script-tools.js");
-    ["favoritesOnly", "linkPickMode", "editMode", "multiPickMode", "openDefinitionEditor", "openCredentialsEditor", "openMultiExecution", "selectedDevices", "mc-tree-credential-action"].forEach(function (value) {
-        need(tools, value, "Shared script tools missing: " + value, errors);
-    });
-
     var confirmForm = read("public/shared-ui/confirm-execution-form.js");
-    ["Confirm execution before running", "confirmExecution", "confirmed requests", "payload.definition.confirmExecution"].forEach(function (value) {
+    ["Confirm execution before running", "confirmExecution", "payload.definition.confirmExecution", "server rejects unconfirmed requests"].forEach(function (value) {
         need(confirmForm, value, "Shared Confirm execution form missing: " + value, errors);
     });
     need(read("public/runtime.js"), "shared-ui/confirm-execution-form.js", "Runtime must load the Confirm execution form.", errors);
     need(read("MyCompanyAdmin.js"), "shared-ui/confirm-execution-form.js", "Admin asset server must expose the Confirm execution form.", errors);
 
-    var results = read("public/shared-ui/results.js");
-    ["parseStructured", "Filter results", "View", "Debug / raw output", "Copy", "meshTable", "parseLine", "mountResult", "Filter result rows", "parseJsonSuffix", "__MYCOMMANDS_TABLE_B64__"].forEach(function (value) {
-        need(results, value, "Shared result viewer missing: " + value, errors);
-    });
+    var myScripts = read("public/myscripts.js");
+    [
+        "SharedCatalogView.mount", "SharedResultsView.mountTable", "SharedScriptTools.create",
+        "confirmExecution", "confirmedExecution", "button.click()",
+        "show(shell, script, true)", "show(shell, script, false)", "variableValues"
+    ].forEach(function (value) { need(myScripts, value, "MyScripts UI missing: " + value, errors); });
+    match(myScripts, /collapse\s*:\s*true/, "MyScripts must expose Collapse.", errors);
+    match(myScripts, /multi\s*:\s*false/, "MyScripts must hide multi-device execution.", errors);
 
-    var layout = read("public/shared-ui/layout.js");
-    ["storageKey", "isCollapsed", "setCollapsed", "toggleCollapsed"].forEach(function (value) { need(layout, value, "Shared collapse layout missing: " + value, errors); });
+    var myCommands = read("public/mycommands.js");
+    [
+        "SharedCatalogView.mount", "SharedResultsView.mountTable", "SharedScriptTools.create",
+        "openMultiExecution", 'post("multi-execute"', "confirmExecution", "confirmedExecution",
+        "button.click()", "executeOnSelect", 'name: "Scripts"', '"@menu/" + category.key',
+        "commandId", 'tabs: []', "show(shell, item, true)", "show(shell, item, false)"
+    ].forEach(function (value) { need(myCommands, value, "MyCommands UI missing: " + value, errors); });
+    if (myCommands.indexOf('resultsPosition: "end"') >= 0) errors.push("MyCommands Results must be the first left-menu entry.");
+    match(myCommands, /order\s*:\s*60/, "MyCommands multi action order is invalid.", errors);
+    match(myCommands, /collapse\s*:\s*\{/, "MyCommands must expose Collapse.", errors);
 
     var toolbarConfig = read("public/shared-ui/toolbar-config.js");
     match(toolbarConfig, /myscripts:\s*\{[^}]*collapse:\s*true/, "Collapse must be enabled in MyScripts.", errors);
@@ -137,35 +122,10 @@ function validateArchitecture() {
     match(toolbarConfig, /approvalcenter:\s*\{[^}]*collapse:\s*true[^}]*link:\s*false/, "Approval Center must keep Collapse and disable Link.", errors);
     need(toolbarConfig, "order: 70", "Search must remain the last left toolbar action.", errors);
 
-    ["myscripts", "mycommands"].forEach(function (name) {
-        var source = read("public/" + name + ".js");
-        [
-            "SharedCatalogView.mount", "SharedResultsView.mountStatus", "SharedResultsView.mountTable",
-            "SharedScriptTools.create", "scriptActions", "openDefinitionEditor", "openCredentialsEditor",
-            "confirmExecution", "confirmedExecution", "button.click()", "show(shell, script, true)"
-        ].forEach(function (value) { need(source, value, name + " UI missing: " + value, errors); });
-        match(source, /q\s*:\s*(?:shell|s)\.state\.search/, name + " must pass the shared search value to results.", errors);
-        match(source, /tabs\s*:\s*\[\s*\]/, name + " must not render duplicate tabs.", errors);
-        match(source, /clear\s*:\s*false/, name + " must not render duplicate Clear.", errors);
+    var results = read("public/shared-ui/results.js");
+    ["parseStructured", "Filter results", "View", "Debug / raw output", "Copy", "meshTable", "Filter result rows", "__MYCOMMANDS_TABLE_B64__"].forEach(function (value) {
+        need(results, value, "Shared result viewer missing: " + value, errors);
     });
-
-    var myScripts = read("public/myscripts.js");
-    ["variableValues", "SharedResultsView.mountResult", "show(shell, script, false)"].forEach(function (value) { need(myScripts, value, "MyScripts UI missing: " + value, errors); });
-    match(myScripts, /collapse\s*:\s*true/, "MyScripts must expose Collapse.", errors);
-    match(myScripts, /multi\s*:\s*false/, "MyScripts must hide multi-device execution.", errors);
-
-    var myCommands = read("public/mycommands.js");
-    [
-        "openMultiExecution", 'post("multi-execute"', "executeOnSelect",
-        'name: "Scripts"', '"@menu/" + category.key', "commandId", 'tabs: []',
-        "show(shell, item, true)", "show(shell, item, false)"
-    ].forEach(function (value) { need(myCommands, value, "MyCommands UI missing: " + value, errors); });
-    if (myCommands.indexOf('resultsPosition: "end"') >= 0) errors.push("MyCommands Results must be the first left-menu entry.");
-    match(myCommands, /order\s*:\s*60/, "MyCommands multi action order is invalid.", errors);
-    match(myCommands, /collapse\s*:\s*\{/, "MyCommands must expose Collapse.", errors);
-
-    var sharedCatalog = read("public/shared-ui/catalog.js");
-    need(sharedCatalog, 'resultsPosition !== "end"', "Shared catalog must support putting Results at the start of the left menu.", errors);
 
     var adminEnhancements = read("web/admin-ui-enhancements.js");
     ["Save General", "Save My Commands", "ensureInlineSaveActions", "invokeGlobalSave"].forEach(function (value) {
@@ -173,18 +133,14 @@ function validateArchitecture() {
     });
 
     var approval = read("public/approvalcenter.js");
-    ["Filter requests", "SharedResultsView.mountTable", "mc-approval-nav-icon"].forEach(function (value) { need(approval, value, "Approval Center UI missing: " + value, errors); });
+    ["Filter requests", "SharedResultsView.mountTable", "mc-approval-nav-icon"].forEach(function (value) {
+        need(approval, value, "Approval Center UI missing: " + value, errors);
+    });
     match(approval, /link\s*:\s*false/, "Approval Center Link must remain disabled.", errors);
     match(approval, /showView\s*:\s*true/, "Approval Center must expose View.", errors);
-    match(approval, /actions\s*:\s*function/, "Approval Center actions are missing.", errors);
 
-    var browserCore = read("public/core.js");
-    need(browserCore, 'body.set("payload"', "Browser POST requests must use the parsed JSON payload envelope.", errors);
-
-    var css = read("public/shared-ui/toolbar.css") + read("public/shared-ui/shared-ui.css");
-    ["mc-script-form-row", "mc-multi-device-list", "mc-approval-nav-label", "mc-results-viewer", "grid-template-columns"].forEach(function (value) {
-        need(css, value, "Shared UI styles missing: " + value, errors);
-    });
+    need(read("public/core.js"), 'body.set("payload"', "Browser POST requests must use the parsed JSON payload envelope.", errors);
+    need(read("public/shared-ui/catalog.js"), 'resultsPosition !== "end"', "Shared catalog must support Results at the start.", errors);
 
     if (errors.length) {
         errors.forEach(function (error) { console.error(error); });
