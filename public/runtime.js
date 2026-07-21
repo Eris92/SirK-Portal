@@ -89,6 +89,10 @@
                 );
             }).then(function () {
                 installCredentialsActions();
+                return core.loadScript(
+                    "mycompany-shared-script-edit-actions",
+                    core.assetUrl("", "shared-ui/script-edit-actions.js")
+                );
             });
             order.forEach(function (key) {
                 var state = bootstrap.modules[key];
