@@ -105,24 +105,34 @@ function validateArchitecture() {
 
     ["myscripts", "mycommands"].forEach(function (name) {
         var source = read("public/" + name + ".js");
-        ["SharedCatalogView.mount", "SharedResultsView.mountStatus", "SharedResultsView.mountTable", "SharedScriptTools.create", "scriptActions", "openDefinitionEditor", "openCredentialsEditor", "q: shell.state.search", "tabs: []"].forEach(function (value) {
+        ["SharedCatalogView.mount", "SharedResultsView.mountStatus", "SharedResultsView.mountTable", "SharedScriptTools.create", "scriptActions", "openDefinitionEditor", "openCredentialsEditor"].forEach(function (value) {
             need(source, value, name + " UI missing: " + value, errors);
         });
-        need(source, "clear: false", name + " must not render duplicate Clear.", errors);
+        match(source, /q\s*:\s*(?:shell|s)\.state\.search/, name + " must pass the shared search value to results.", errors);
+        match(source, /tabs\s*:\s*\[\s*\]/, name + " must not render duplicate tabs.", errors);
+        match(source, /clear\s*:\s*false/, name + " must not render duplicate Clear.", errors);
     });
     var myScripts = read("public/myscripts.js");
-    ["collapse: true", "multi: false", "variableValues", "SharedResultsView.mountResult"].forEach(function (value) {
+    ["variableValues", "SharedResultsView.mountResult"].forEach(function (value) {
         need(myScripts, value, "MyScripts UI missing: " + value, errors);
     });
+    match(myScripts, /collapse\s*:\s*true/, "MyScripts must expose Collapse.", errors);
+    match(myScripts, /multi\s*:\s*false/, "MyScripts must hide multi-device execution.", errors);
+
     var myCommands = read("public/mycommands.js");
-    ["openMultiExecution", 'post("multi-execute"', "order:60", "collapse:{"].forEach(function (value) {
+    ["openMultiExecution", 'post("multi-execute"'].forEach(function (value) {
         need(myCommands, value, "MyCommands UI missing: " + value, errors);
     });
+    match(myCommands, /order\s*:\s*60/, "MyCommands multi action order is invalid.", errors);
+    match(myCommands, /collapse\s*:\s*\{/, "MyCommands must expose Collapse.", errors);
 
     var approval = read("public/approvalcenter.js");
-    ["Filter requests", "SharedResultsView.mountTable", "link:false", "mc-approval-nav-icon", "showView:true", "actions:function"].forEach(function (value) {
+    ["Filter requests", "SharedResultsView.mountTable", "mc-approval-nav-icon"].forEach(function (value) {
         need(approval, value, "Approval Center UI missing: " + value, errors);
     });
+    match(approval, /link\s*:\s*false/, "Approval Center Link must remain disabled.", errors);
+    match(approval, /showView\s*:\s*true/, "Approval Center must expose View.", errors);
+    match(approval, /actions\s*:\s*function/, "Approval Center actions are missing.", errors);
 
     var browserCore = read("public/core.js");
     need(browserCore, 'body.set("payload"', "Browser POST requests must use the parsed JSON payload envelope.", errors);
