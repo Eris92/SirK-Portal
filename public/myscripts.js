@@ -214,7 +214,7 @@
             detailsHost.innerHTML = "";
 
             var previous = outputs[script.path];
-            if (previous) {
+            if (previous && executeOnSelect !== true) {
                 var previousHost = createResultHost();
                 detailsHost.appendChild(previousHost);
                 renderResult(previousHost, previous);
