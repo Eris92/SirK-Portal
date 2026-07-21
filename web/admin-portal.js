@@ -174,10 +174,12 @@
 
     function install() {
         scheduled = false;
-        var layout = content.querySelector(".mc-admin-settings-layout");
-        if (!layout) return;
-        var navigation = layout.querySelector(".mc-admin-settings-nav");
-        var panel = layout.querySelector(".mc-admin-settings-panel");
+
+        // admin-layout.js przenosi navigation z content do .mc-admin-tabs.
+        // Szukamy jej w całym root, a panel nadal pozostaje w content.
+        var navigation = root.querySelector(".mc-admin-settings-subnav") ||
+            root.querySelector(".mc-admin-settings-nav");
+        var panel = content.querySelector(".mc-admin-settings-panel");
         if (!navigation || !panel) return;
 
         var button = navigation.querySelector("[data-mycompany-portal-settings]");
@@ -201,7 +203,8 @@
         window.requestAnimationFrame(install);
     }
 
-    new MutationObserver(schedule).observe(content, { childList: true, subtree: true });
+    new MutationObserver(schedule).observe(root, { childList: true, subtree: true });
     root.addEventListener("click", function () { window.setTimeout(schedule, 0); });
+    window.setInterval(schedule, 1000);
     schedule();
 }());
