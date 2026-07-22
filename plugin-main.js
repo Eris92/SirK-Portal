@@ -1,7 +1,7 @@
 "use strict";
 
 var createAdmin = require("./MyCompanyAdmin.js").admin;
-var VERSION = "1.5.3";
+var VERSION = "1.5.4";
 
 function cleanError(error) {
     return String(error && (error.stack || error.message) || error || "Unknown MyCompany load error.");
