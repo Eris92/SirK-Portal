@@ -15,16 +15,15 @@
   <link rel="stylesheet" href="__ASSET_BASE__/portal-standalone-devices.css?v=__VERSION__">
   <link rel="stylesheet" href="__ASSET_BASE__/portal-device-workspace.css?v=__VERSION__">
   <link rel="stylesheet" href="__ASSET_BASE__/portal-module-shell.css?v=__VERSION__">
+  <style>
+    .sirk-connect-wrap{position:relative;display:inline-flex;align-items:center}.sirk-connect-split{display:inline-flex;align-items:stretch}.sirk-connect-split #sirkNativeConnect{border-radius:7px 0 0 7px;border-right:0;background:#198754;border-color:#198754;color:#fff}.sirk-connect-arrow,.sirk-connect-amt{height:32px;border:1px solid #198754;background:#198754;color:#fff;font:600 13px "Segoe UI",Arial,sans-serif;cursor:pointer}.sirk-connect-arrow{width:28px;padding:0;border-radius:0 7px 7px 0;border-left:1px solid rgba(255,255,255,.4)}.sirk-connect-amt{margin-left:8px;padding:0 12px;border-radius:7px}.sirk-connect-menu{position:absolute;z-index:100;top:calc(100% + 4px);left:0;display:grid;min-width:190px;padding:5px 0;border:1px solid var(--sirk-border,#dce3ec);border-radius:9px;background:var(--sirk-panel,#fff);color:var(--sirk-text,#172033);box-shadow:0 12px 28px rgba(15,23,42,.24)}.sirk-connect-menu[hidden]{display:none!important}.sirk-connect-menu button{min-height:34px;padding:7px 13px;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.sirk-connect-menu button:hover{background:var(--sirk-hover,#eef3f9)}
+  </style>
 </head>
 <body>
   <div id="sirkPortalRoot" class="sirk-theme-light">
     <div id="sirkStandaloneRoot" class="sirk-standalone-root">
       <script>
-        try {
-          if (localStorage.getItem("mycompany.sirkportal.standaloneCollapsed") === "1") {
-            document.getElementById("sirkStandaloneRoot").classList.add("is-collapsed");
-          }
-        } catch (ignored) {}
+        try { if (localStorage.getItem("mycompany.sirkportal.standaloneCollapsed") === "1") document.getElementById("sirkStandaloneRoot").classList.add("is-collapsed"); } catch (ignored) {}
       </script>
       <aside class="sirk-standalone-sidebar">
         <div class="sirk-standalone-brand"><span class="sirk-brand-mark">S</span><strong>SirK Portal</strong></div>
@@ -48,34 +47,23 @@
         <a class="sirk-standalone-native" href="__NATIVE_URL__"><span><svg viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8"/><path d="M18 13v6H5V6h6"/></svg></span><b>MeshCentral</b></a>
       </aside>
       <main class="sirk-standalone-main">
-        <header class="sirk-standalone-header">
-          <strong id="sirkStandaloneTitle">Przegląd</strong>
-          <div id="sirkUserMenu" class="sirk-user-menu" hidden>
-            <button id="sirkUserTile" class="sirk-user-tile" type="button" data-action="user-menu" aria-haspopup="menu" aria-expanded="false">
-              <span id="sirkUserName"></span>
-              <img id="sirkUserImage" alt="">
-            </button>
-            <div class="sirk-user-dropdown" role="menu">
-              <button type="button" role="menuitem" data-action="logout">Wyloguj się</button>
-            </div>
-          </div>
-        </header>
+        <header class="sirk-standalone-header"><strong id="sirkStandaloneTitle">Przegląd</strong><div id="sirkUserMenu" class="sirk-user-menu" hidden><button id="sirkUserTile" class="sirk-user-tile" type="button" data-action="user-menu" aria-haspopup="menu" aria-expanded="false"><span id="sirkUserName"></span><img id="sirkUserImage" alt=""></button><div class="sirk-user-dropdown" role="menu"><button type="button" role="menuitem" data-action="logout">Wyloguj się</button></div></div></header>
         <section id="sirkStandaloneContent" class="sirk-standalone-content" aria-live="polite"><div class="sirk-standalone-loading"><span></span><p>Ładowanie SirK Portal…</p></div></section>
       </main>
     </div>
   </div>
-  <script>
-    window.__MYCOMPANY_API_BASE__ = __API_BASE_JSON__;
-    window.__MYCOMPANY_ASSET_BASE__ = __ASSET_BASE_JSON__;
-    window.__MYCOMPANY_NATIVE_URL__ = __NATIVE_URL_JSON__;
-    window.__MYCOMPANY_LOGOUT_URL__ = __LOGOUT_URL_JSON__;
-    window.__MYCOMPANY_USER_IMAGE_URL__ = __USER_IMAGE_URL_JSON__;
-    window.__MYCOMPANY_DEFAULT_USER_IMAGE_URL__ = __DEFAULT_USER_IMAGE_URL_JSON__;
-    window.__MYCOMPANY_PORTAL_VERSION__ = __VERSION_JSON__;
-  </script>
+  <script>window.__MYCOMPANY_API_BASE__=__API_BASE_JSON__;window.__MYCOMPANY_ASSET_BASE__=__ASSET_BASE_JSON__;window.__MYCOMPANY_NATIVE_URL__=__NATIVE_URL_JSON__;window.__MYCOMPANY_LOGOUT_URL__=__LOGOUT_URL_JSON__;window.__MYCOMPANY_USER_IMAGE_URL__=__USER_IMAGE_URL_JSON__;window.__MYCOMPANY_DEFAULT_USER_IMAGE_URL__=__DEFAULT_USER_IMAGE_URL_JSON__;window.__MYCOMPANY_PORTAL_VERSION__=__VERSION_JSON__;</script>
   <script src="__ASSET_BASE__/standalone-core.js?v=__VERSION__"></script>
   <script src="__ASSET_BASE__/portal-standalone.js?v=__VERSION__"></script>
   <script src="__ASSET_BASE__/portal-device-workspace.js?v=__VERSION__"></script>
+  <script>
+  (function(){"use strict";var pending=null;
+    function text(pl,en){try{return localStorage.getItem("sirkPortal.language")==="en"?en:pl}catch(e){return pl}}
+    function patchFrame(){var f=document.getElementById("sirkNativeBridgeFrame");if(!f)return;try{var w=f.contentWindow;if(!w||typeof w.connectDesktop!=="function"||w.connectDesktop.__sirkWrapped)return;var original=w.connectDesktop;var wrapped=function(e,m,a,c){if(pending!=null){c=pending;pending=null}return original.call(this,e,m,a,c)};wrapped.__sirkWrapped=true;w.connectDesktop=wrapped}catch(e){}}
+    function enhance(){var select=document.getElementById("sirkNativeMethod"),connect=document.getElementById("sirkNativeConnect");if(!select||!connect||document.querySelector(".sirk-connect-wrap"))return;var label=document.querySelector('label[for="sirkNativeMethod"]');if(label)label.hidden=true;select.hidden=true;var wrap=document.createElement("div");wrap.className="sirk-connect-wrap";var split=document.createElement("div");split.className="sirk-connect-split";connect.parentNode.insertBefore(wrap,connect);wrap.appendChild(split);split.appendChild(connect);var arrow=document.createElement("button");arrow.type="button";arrow.className="sirk-connect-arrow";arrow.textContent="▾";split.appendChild(arrow);var menu=document.createElement("div");menu.className="sirk-connect-menu";menu.hidden=true;[[72,text("Zapytaj o zgodę + Bar","Ask Consent + Bar")],[8,text("Zapytaj o zgodę","Ask Consent")],[64,text("Pasek Prywatności","Privacy Bar")]].forEach(function(x){var b=document.createElement("button");b.type="button";b.textContent=x[1];b.onclick=function(){pending=x[0];select.value="3";menu.hidden=true;connect.click()};menu.appendChild(b)});wrap.appendChild(menu);var amt=document.createElement("button");amt.type="button";amt.className="sirk-connect-amt";amt.textContent="Intel AMT";amt.onclick=function(){select.value="2";menu.hidden=true;connect.click()};wrap.appendChild(amt);connect.addEventListener("click",function(){if(!pending)select.value="3"},true);arrow.onclick=function(e){e.stopPropagation();menu.hidden=!menu.hidden};document.addEventListener("click",function(e){if(!wrap.contains(e.target))menu.hidden=true});}
+    new MutationObserver(function(){enhance();patchFrame()}).observe(document.documentElement,{childList:true,subtree:true});setInterval(patchFrame,200);enhance();
+  }());
+  </script>
   <script src="__ASSET_BASE__/portal-link-visibility.js?v=__VERSION__"></script>
   <script src="__ASSET_BASE__/portal-standalone-nav.js?v=__VERSION__"></script>
 </body>
