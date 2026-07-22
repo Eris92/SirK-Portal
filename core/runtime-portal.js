@@ -4,7 +4,7 @@ var shared = require("./shared.js");
 var baseFactory = require("./runtime.js");
 var portalFactory = require("../modules/Portal/index-safe.js");
 
-var VERSION = "1.5.0";
+var VERSION = "1.5.3";
 var PORTAL_DEFAULTS = {
     enabled: false,
     defaultView: "overview",
