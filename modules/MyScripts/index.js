@@ -4,67 +4,13 @@ var shared = require("../../core/shared.js");
 var libraryFactory = require("../../core/script-confirmation-library.js");
 var adminFactory = require("../../core/script-admin-service.js");
 var executorFactory = require("../../core/server-script-executor.js");
+var rootResolver = require("../../core/myscripts-root.js");
 
 module.exports.createModule = function (context) {
-    function directoryExists(target) {
-        try { return context.fs.statSync(target).isDirectory(); }
-        catch (error) { return false; }
-    }
-
-    function hasScripts(target) {
-        if (!directoryExists(target)) return false;
-        var found = false;
-        function walk(directory, depth) {
-            if (found || depth > 12) return;
-            var entries = [];
-            try { entries = context.fs.readdirSync(directory, { withFileTypes: true }); }
-            catch (error) { return; }
-            entries.forEach(function (entry) {
-                if (found || entry.name === ".git" || entry.name === "node_modules") return;
-                var item = context.nativePath.join(directory, entry.name);
-                if (entry.isDirectory()) walk(item, depth + 1);
-                else if (entry.isFile() && /\.(ps1|cmd|bat)$/i.test(entry.name)) found = true;
-            });
-        }
-        walk(target, 0);
-        return found;
-    }
-
-    function resolveScriptsRoot() {
-        var pluginsRoot = context.parent && context.parent.pluginPath
-            ? context.parent.pluginPath
-            : context.nativePath.dirname(context.pluginRoot);
-        var candidates = [
-            context.nativePath.join(pluginsRoot, "myscripts", "scripts"),
-            context.nativePath.join(pluginsRoot, "MyScripts", "scripts"),
-            context.nativePath.join(context.dataRoot, "myscripts", "scripts"),
-            context.nativePath.join(context.pluginRoot, "seed", "MyScripts")
-        ];
-        for (var index = 0; index < candidates.length; index++) {
-            if (hasScripts(candidates[index])) return candidates[index];
-        }
-        return candidates[candidates.length - 1];
-    }
-
-    var root = resolveScriptsRoot();
-    var library = libraryFactory.createScriptLibrary({
-        fs: context.fs,
-        path: context.nativePath,
-        root: root,
-        readOnly: true,
-        allowWrite: true
-    });
-    var admin = adminFactory.createScriptAdminService({
-        context: context,
-        library: library,
-        namespace: "script-secrets.myscripts"
-    });
-    var executor = executorFactory.createServerScriptExecutor({
-        context: context,
-        library: library,
-        admin: admin,
-        assignmentNamespace: "script-secrets.myscripts.system-credentials"
-    });
+    var root = rootResolver.resolve(context);
+    var library = libraryFactory.createScriptLibrary({ fs: context.fs, path: context.nativePath || context.path, root: root, readOnly: true, allowWrite: true });
+    var admin = adminFactory.createScriptAdminService({ context: context, library: library, namespace: "script-secrets.myscripts" });
+    var executor = executorFactory.createServerScriptExecutor({ context: context, library: library, admin: admin, assignmentNamespace: "script-secrets.myscripts.system-credentials" });
     var unregister = null;
 
     function allowed(user) {
@@ -73,28 +19,15 @@ module.exports.createModule = function (context) {
         var groups = Array.isArray(config.accessGroupIds) ? config.accessGroupIds : [];
         return !groups.length || shared.isUserInAnyGroup(user, groups);
     }
-
-    function requireAdmin(user) {
-        if (!shared.isSiteAdmin(user)) throw new Error("Permission denied.");
-    }
-
+    function requireAdmin(user) { if (!shared.isSiteAdmin(user)) throw new Error("Permission denied."); }
     function normalizeApprovalLevels(value) {
-        return Array.isArray(value)
-            ? value.map(Number).filter(function (level, index, all) {
-                return level >= 1 && level <= 3 && all.indexOf(level) === index;
-            }).sort()
-            : [];
+        return Array.isArray(value) ? value.map(Number).filter(function (level, index, all) {
+            return level >= 1 && level <= 3 && all.indexOf(level) === index;
+        }).sort() : [];
     }
-
-    function approvalLevels(payload) {
-        return normalizeApprovalLevels(payload && payload.approvalLevels);
-    }
-
     function allowNoApproval() {
         var current = context.settings.read();
-        var provider = current.modules && current.modules.approvalcenter &&
-            current.modules.approvalcenter.providers &&
-            current.modules.approvalcenter.providers.myscripts || {};
+        var provider = current.modules && current.modules.approvalcenter && current.modules.approvalcenter.providers && current.modules.approvalcenter.providers.myscripts || {};
         return provider.allowNoApproval === true;
     }
 
@@ -108,15 +41,13 @@ module.exports.createModule = function (context) {
         columns: ["createdAt", "title", "requester", "status"],
         normalizePayload: function (payload) {
             payload = shared.copy(payload || {});
-            payload.variableValues = payload.variableValues && typeof payload.variableValues === "object" && !Array.isArray(payload.variableValues)
-                ? payload.variableValues
-                : {};
+            payload.variableValues = payload.variableValues && typeof payload.variableValues === "object" && !Array.isArray(payload.variableValues) ? payload.variableValues : {};
             payload.confirmedExecution = payload.confirmedExecution === true;
             return payload;
         },
         getTitle: function (payload) { return payload.label || payload.scriptPath || "Script"; },
         getSummary: function (payload) { return payload.description || payload.scriptPath || "My Scripts request"; },
-        getApprovalLevels: approvalLevels,
+        getApprovalLevels: function (payload) { return normalizeApprovalLevels(payload && payload.approvalLevels); },
         canSubmit: allowed,
         execute: executor.execute
     };
@@ -131,33 +62,21 @@ module.exports.createModule = function (context) {
                 script: "myscripts.js",
                 style: "myscripts.css",
                 scriptsRoot: root,
-                toolbar: {
-                    refresh: true,
-                    clear: false,
-                    favorites: true,
-                    search: true,
-                    manage: true,
-                    settings: false
-                }
+                toolbar: { refresh: true, clear: false, favorites: true, search: true, manage: true, settings: false }
             };
         },
-        getAccess: function (user) {
-            return { allowed: allowed(user), siteAdmin: shared.isSiteAdmin(user) };
-        },
+        getAccess: function (user) { return { allowed: allowed(user), siteAdmin: shared.isSiteAdmin(user) }; },
         initialize: function () {
             library.ensure();
+            console.log("MyCompany MyScripts library:", root);
             if (!unregister) unregister = context.approval.registerProvider(provider);
             return Promise.resolve();
         },
-        serveIcon: function (req, res) {
-            shared.send(res, 404, "text/plain; charset=utf-8", "Icons are embedded in the script tree.");
-        },
+        serveIcon: function (req, res) { shared.send(res, 404, "text/plain; charset=utf-8", "Icons are embedded in the script tree."); },
         apiGet: function (asset, req, user) {
             if (!allowed(user)) throw new Error("Permission denied.");
             var q = req && req.query || {};
-            if (asset === "tree" || asset === "scripts") {
-                return { ok: true, tree: library.getTree(), scriptsRoot: shared.isSiteAdmin(user) ? root : "" };
-            }
+            if (asset === "tree" || asset === "scripts") return { ok: true, tree: library.getTree(), scriptsRoot: shared.isSiteAdmin(user) ? root : "" };
             if (asset === "script") {
                 var script = library.getScript(q.path, true);
                 if (!script) throw new Error("Script not found.");
@@ -173,51 +92,31 @@ module.exports.createModule = function (context) {
             if (asset === "script-secrets") return { ok: true, secrets: admin.getSecretState(user, q.path) };
             if (asset === "system-credentials") return { ok: true, systemCredentials: admin.getSystemCredentialState(user, q.path) };
             if (asset === "results") {
-                return context.approval.list(user, {
-                    type: "myscripts",
-                    status: q.status || "",
-                    q: q.q || "",
-                    page: Number(q.page) || 1,
-                    perPage: Math.min(500, Number(q.perPage) || 100)
-                }).then(function (value) { value.ok = true; return value; });
+                return context.approval.list(user, { type: "myscripts", status: q.status || "", q: q.q || "", page: Number(q.page) || 1, perPage: Math.min(500, Number(q.perPage) || 100) })
+                    .then(function (value) { value.ok = true; return value; });
             }
-            if (asset === "settings") {
-                return { ok: true, settings: context.settings.read().modules.myscripts || {}, scriptsRoot: root };
-            }
+            if (asset === "settings") return { ok: true, settings: context.settings.read().modules.myscripts || {}, scriptsRoot: root };
             throw new Error("Unknown My Scripts action.");
         },
         apiPost: function (asset, req, user) {
             if (!allowed(user)) throw new Error("Permission denied.");
             var value = req && req.body || {};
-            if (asset === "refresh") {
-                library.invalidate();
-                return { ok: true, tree: library.getTree() };
-            }
-            if (asset === "source") {
-                requireAdmin(user);
-                return { ok: true, script: library.saveSource(value.path, value.text), tree: library.getTree() };
-            }
+            if (asset === "refresh") { library.invalidate(); return { ok: true, tree: library.getTree() }; }
+            if (asset === "source") { requireAdmin(user); return { ok: true, script: library.saveSource(value.path, value.text), tree: library.getTree() }; }
             if (asset === "definition") {
                 var saved = admin.saveDefinition(user, value.path, value.definition);
                 saved.ok = true;
                 saved.tree = library.getTree();
                 return saved;
             }
-            if (asset === "script-secrets") {
-                return { ok: true, secrets: admin.saveSecrets(user, value.path, value.values, value.clearNames) };
-            }
-            if (asset === "system-credentials") {
-                return { ok: true, systemCredentials: admin.saveSystemCredentials(user, value.path, value.selected) };
-            }
+            if (asset === "script-secrets") return { ok: true, secrets: admin.saveSecrets(user, value.path, value.values, value.clearNames) };
+            if (asset === "system-credentials") return { ok: true, systemCredentials: admin.saveSystemCredentials(user, value.path, value.selected) };
             if (asset === "request") {
                 var requestedScript = library.getScript(value.scriptPath, false);
                 if (!requestedScript) throw new Error("Script not found.");
-                if (requestedScript.confirmExecution === true && value.confirmedExecution !== true) {
-                    throw new Error("Execution confirmation is required for this script.");
-                }
+                if (requestedScript.confirmExecution === true && value.confirmedExecution !== true) throw new Error("Execution confirmation is required for this script.");
                 var levels = normalizeApprovalLevels(requestedScript.approvalLevels);
                 if (!levels.length && !allowNoApproval()) levels = [1];
-
                 var payload = {
                     scriptPath: requestedScript.path,
                     scriptHash: requestedScript.hash,
@@ -225,20 +124,14 @@ module.exports.createModule = function (context) {
                     description: requestedScript.description || "",
                     approvalLevels: levels,
                     confirmedExecution: requestedScript.confirmExecution === true,
-                    variableValues: value.variableValues && typeof value.variableValues === "object" && !Array.isArray(value.variableValues)
-                        ? shared.copy(value.variableValues)
-                        : {}
+                    variableValues: value.variableValues && typeof value.variableValues === "object" && !Array.isArray(value.variableValues) ? shared.copy(value.variableValues) : {}
                 };
-
-                return context.approval.submit("myscripts", user, payload, value.note)
-                    .then(function (request) { return { ok: true, request: request }; });
+                return context.approval.submit("myscripts", user, payload, value.note).then(function (request) { return { ok: true, request: request }; });
             }
             if (asset === "settings") {
                 requireAdmin(user);
                 return context.settings.update(function (current) {
-                    current.modules.myscripts.accessGroupIds = Array.isArray(value.accessGroupIds)
-                        ? value.accessGroupIds.map(String)
-                        : [];
+                    current.modules.myscripts.accessGroupIds = Array.isArray(value.accessGroupIds) ? value.accessGroupIds.map(String) : [];
                     current.modules.myscripts.runTimeoutSeconds = Math.max(30, Math.min(3600, Number(value.runTimeoutSeconds) || 600));
                     return current;
                 }).then(function () { return { ok: true }; });
