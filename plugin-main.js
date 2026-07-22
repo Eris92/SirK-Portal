@@ -33,7 +33,7 @@ function createFallbackRuntime(error) {
         },
         adminSnapshot: function () {
             return {
-                plugin: { name: "My Company", version: "1.4.9" },
+                plugin: { name: "My Company", version: "1.4.11" },
                 modules: [],
                 moduleSettings: {},
                 integrations: {},
@@ -128,11 +128,35 @@ function createPlugin(parent, shortName) {
             return;
         }
 
+        var portalExpected = false;
+        try {
+            portalExpected = window.localStorage.getItem("mycompany.sirkportal.enabled") === "1";
+        } catch (ignored) {}
+
+        if (portalExpected) {
+            var documentRoot = document.documentElement;
+            documentRoot.classList.add("mycompany-auth-portal-pending");
+            var cloakStyle = document.getElementById("mycompany-auth-portal-cloak");
+            if (!cloakStyle) {
+                cloakStyle = document.createElement("style");
+                cloakStyle.id = "mycompany-auth-portal-cloak";
+                cloakStyle.textContent = "html.mycompany-auth-portal-pending body{visibility:hidden!important;background:#f3f6fb!important}";
+                (document.head || document.documentElement).appendChild(cloakStyle);
+            }
+            var cloakTimer = window.setTimeout(function () {
+                documentRoot.classList.remove("mycompany-auth-portal-pending");
+            }, 6000);
+            window.__myCompanyRevealAuthenticatedPortal = function () {
+                window.clearTimeout(cloakTimer);
+                documentRoot.classList.remove("mycompany-auth-portal-pending");
+            };
+        }
+
         function asset(name) {
             var url = new URL("pluginadmin.ashx", window.location.href);
             url.searchParams.set("pin", obj.shortName || "MyCompany");
             url.searchParams.set("asset", name);
-            url.searchParams.set("v", "1.4.9");
+            url.searchParams.set("v", "1.4.11");
             return url.href;
         }
 
@@ -261,6 +285,9 @@ function createPlugin(parent, shortName) {
             .catch(function (error) {
                 if (window.console) {
                     console.error("MyCompany browser startup failed", error);
+                }
+                if (typeof window.__myCompanyRevealAuthenticatedPortal === "function") {
+                    window.__myCompanyRevealAuthenticatedPortal();
                 }
             });
     };
