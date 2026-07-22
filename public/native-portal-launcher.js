@@ -21,7 +21,7 @@
         link.innerHTML = '<span aria-hidden="true">S</span><b>SirK Portal</b>';
         link.style.cssText = [
             "position:fixed",
-            "left:18px",
+            "left:82px",
             "bottom:18px",
             "z-index:2147483000",
             "display:flex",
@@ -34,7 +34,8 @@
             "color:#fff",
             "text-decoration:none",
             "font:600 14px Segoe UI,Arial,sans-serif",
-            "box-shadow:0 8px 24px rgba(0,0,0,.28)"
+            "box-shadow:0 8px 24px rgba(0,0,0,.28)",
+            "pointer-events:auto"
         ].join(";");
         var mark = link.querySelector("span");
         mark.style.cssText = "display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#6346ed;color:#fff;font-weight:800";
