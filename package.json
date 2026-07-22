@@ -3,8 +3,8 @@
   "version": "1.5.0",
   "private": true,
   "scripts": {
-    "test": "node scripts/validate-architecture.js",
-    "check": "node scripts/validate-architecture.js"
+    "test": "node scripts/validate-standalone.js",
+    "check": "node scripts/validate-standalone.js"
   },
   "engines": {
     "node": ">=20"
