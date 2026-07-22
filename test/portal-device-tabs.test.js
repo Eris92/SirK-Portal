@@ -5,6 +5,7 @@ var tabs = read("public/portal-device-tabs.js");
 var css = read("public/portal-device-tabs.css");
 var main = read("plugin-main.js");
 var admin = read("MyCompanyAdmin.js");
+var standalone = read("public/portal-standalone.html");
 [
     'name: "ALL | Wszystkie"',
     'className = "sirk-device-tab-close"',
@@ -25,7 +26,9 @@ assert(tabs.indexOf("DocumentFragment") < 0, "Device tabs must not store live wo
     ".sirk-device-tab-close",
     ".sirk-device-tab-cache"
 ].forEach(function (value) { assert(css.indexOf(value) >= 0, "Missing compact device tab CSS: " + value); });
-assert(main.indexOf('style("mycompany-device-tabs-style", "portal-device-tabs.css")') >= 0, "Device tab CSS must load in browser bootstrap");
-assert(main.indexOf('load("mycompany-device-tabs-script", asset("portal-device-tabs.js"))') >= 0, "Device tab script must load in browser bootstrap");
+assert(main.indexOf('style("mycompany-device-tabs-style", "portal-device-tabs.css")') >= 0, "Device tab CSS must load in native browser bootstrap");
+assert(main.indexOf('load("mycompany-device-tabs-script", asset("portal-device-tabs.js"))') >= 0, "Device tab script must load in native browser bootstrap");
+assert(standalone.indexOf('__ASSET_BASE__/portal-device-tabs.css?v=__VERSION__') >= 0, "Standalone Portal must load device tab CSS");
+assert(standalone.indexOf('__ASSET_BASE__/portal-device-tabs.js?v=__VERSION__') >= 0, "Standalone Portal must load device tab script");
 assert(admin.indexOf('"portal-device-tabs.js"') >= 0 && admin.indexOf('"portal-device-tabs.css"') >= 0, "Admin asset server must expose device tab assets");
 console.log("Persistent Portal device workspace tabs: OK");
