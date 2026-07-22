@@ -1,7 +1,7 @@
 "use strict";
 
 var createAdmin = require("./MyCompanyAdmin.js").admin;
-var VERSION = "1.5.7";
+var VERSION = "1.5.17";
 
 function cleanError(error) {
     return String(error && (error.stack || error.message) || error || "Unknown MyCompany load error.");
@@ -81,9 +81,7 @@ function createPlugin(parent, shortName) {
     obj.onWebUIStartupEnd = function () {
         if (typeof window === "undefined" || typeof document === "undefined") return;
 
-        // MeshCentral serializes this function and executes it in the browser.
-        // Do not reference Node.js closure variables such as VERSION or obj here.
-        var browserVersion = "1.5.7";
+        var browserVersion = "1.5.17";
         var browserPin = "MyCompany";
 
         function asset(name) {
@@ -122,6 +120,7 @@ function createPlugin(parent, shortName) {
             (document.head || document.documentElement).appendChild(link);
         }
 
+        // Native MeshCentral receives only native/shared styles. Portal-only styles are never loaded here.
         style("mycompany-main-style", "main.css");
         style("mycompany-myscripts-style", "myscripts.css");
         style("mycompany-shared-style-0", "shared-ui/shared-ui.css");
