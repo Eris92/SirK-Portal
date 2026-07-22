@@ -75,14 +75,6 @@ module.exports.createPluginAdminService = function (options) {
         return result;
     }
 
-    function uniqueTarget(root, name) {
-        var target = path.join(root, name);
-        if (!fs.existsSync(target)) return target;
-        var suffix = 1;
-        while (fs.existsSync(path.join(root, name + "-imported-" + suffix))) suffix++;
-        return path.join(root, name + "-imported-" + suffix);
-    }
-
     function normalize(plugin) {
         var primary = path.resolve(primaryRoot());
         fs.mkdirSync(primary, { recursive: true });
@@ -90,7 +82,10 @@ module.exports.createPluginAdminService = function (options) {
             var alreadyDirect = path.resolve(backup.container) === path.resolve(backup.source);
             var alreadyPrimary = path.dirname(path.resolve(backup.container)) === primary;
             if (alreadyPrimary && alreadyDirect) return;
-            var target = uniqueTarget(primary, backup.id);
+
+            var targetName = backup.id + (alreadyPrimary ? "-normalized" : "");
+            var target = path.join(primary, targetName);
+            if (fs.existsSync(target)) return;
             fs.cpSync(backup.source, target, { recursive: true, errorOnExist: true });
         });
     }
