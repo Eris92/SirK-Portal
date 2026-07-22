@@ -1,7 +1,7 @@
 {
   "name": "My Company",
   "shortName": "MyCompany",
-  "version": "1.5.22",
+  "version": "1.5.23",
   "author": "Eris92",
   "description": "Consolidated MeshCentral plugin with a standalone SirK Portal frontend, MyScripts, MyCommands, Approval Center and shared integrations.",
   "hasAdminPanel": true,
@@ -10,9 +10,6 @@
   "configUrl": "https://raw.githubusercontent.com/Eris92/MeshCentral-MyCompany/main/config.json",
   "downloadUrl": "https://codeload.github.com/Eris92/MeshCentral-MyCompany/zip/refs/heads/main",
   "versionHistoryUrl": "https://raw.githubusercontent.com/Eris92/MeshCentral-MyCompany/main/version-history.json",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Eris92/MeshCentral-MyCompany.git"
-  },
+  "repository": { "type": "git", "url": "https://github.com/Eris92/MeshCentral-MyCompany.git" },
   "meshCentralCompat": ">=1.1.18"
 }
