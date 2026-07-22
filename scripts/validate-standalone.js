@@ -27,7 +27,7 @@ required.filter(function (file) { return /\.js$/i.test(file) && fs.existsSync(pa
 var config = JSON.parse(read("config.json").replace(/^\uFEFF/, ""));
 var pkg = JSON.parse(read("package.json").replace(/^\uFEFF/, ""));
 if (config.version !== pkg.version) errors.push("config.json and package.json versions must match.");
-if (config.version !== "1.5.3") errors.push("Standalone Portal release must publish version 1.5.3.");
+if (config.version !== "1.5.4") errors.push("Standalone Portal release must publish version 1.5.4.");
 
 var wrapper = read("plugin-main-standalone.js");
 ["hook_setupHttpHandlers", 'base + "sirkportal"', 'base + "meshcentral"', 'base + "pluginadmin.ashx"', "portal-standalone.html"].forEach(function (value) {
@@ -44,7 +44,7 @@ need(html, 'data-view="management"', "Standalone navigation must include Managem
 need(html, 'class="sirk-standalone-native"', "Standalone navigation must include native MeshCentral link.");
 
 var app = read("public/portal-standalone.js");
-['core.api("", "bootstrap")', "MyCompanyPortalManagement.mount", 'initializeModule("approvalcenter")', "sirk-standalone-settings-frame", "portal-folder-collapse.js", "portal-subfolder-icons.js"].forEach(function (value) {
+['core.api("", "bootstrap")', "MyCompanyPortalManagement.mount", 'initializeModule("approvalcenter")', "sirk-standalone-settings-frame", "portal-folder-collapse.js", "portal-subfolder-icons.js", 'mycommands.js', 'myjira.js', 'defendertools.js'].forEach(function (value) {
     need(app, value, "Standalone app contract missing: " + value);
 });
 if (app.indexOf('initializeModule("myscripts")') >= 0) errors.push("Standalone Portal must not initialize the legacy MyScripts UI.");
@@ -54,12 +54,18 @@ var management = read("public/portal-management.js");
     need(management, value, "Management backend integration missing: " + value);
 });
 
+var myScriptsBackend = read("modules/MyScripts/index.js");
+need(myScriptsBackend, '"myscripts", "scripts"', "MyScripts must discover the complete legacy script library.");
+need(myScriptsBackend, "resolveScriptsRoot", "MyScripts root selection is missing.");
+
 var standaloneCore = read("public/standalone-core.js");
 need(standaloneCore, "__MYCOMPANY_API_BASE__", "Standalone core must use the injected API base.");
 need(standaloneCore, 'credentials = "same-origin"', "Standalone API requests must use the MeshCentral session.");
 
 var runtime = read("public/runtime.js");
 need(runtime, "native-portal-launcher.js", "Native MeshCentral must load the SirK Portal launcher.");
+var launcher = read("public/native-portal-launcher.js");
+need(launcher, '"left:18px"', "Native SirK Portal launcher must be positioned on the left.");
 var moduleShell = read("public/module-shell.js");
 ["myscripts: 101", "mycommands: 102", "myjira: 103", "defendertools: 104", "approvalcenter: 105", "moverequests: 106"].forEach(function (value) {
     need(moduleShell, value, "Original viewmode mapping missing: " + value);
