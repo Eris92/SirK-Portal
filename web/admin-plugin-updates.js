@@ -43,9 +43,7 @@
         }).then(parseResponse);
     }
 
-    function statusHost() {
-        return content.querySelector(".mc-admin-save-status");
-    }
+    function statusHost() { return content.querySelector(".mc-admin-save-status"); }
 
     function setStatus(text, error) {
         var host = statusHost();
@@ -118,6 +116,9 @@
         if (!plugin) return;
         var actionCell = row.querySelector(".mc-admin-table-actions");
         if (!actionCell) return;
+        var signature = [plugin.version, plugin.availableVersion, plugin.updateStatus, plugin.updateError, plugin.updateAvailable, plugin.updateCompatible].join("|");
+        if (row.getAttribute("data-plugin-update-signature") === signature) return;
+        row.setAttribute("data-plugin-update-signature", signature);
 
         var versionCell = row.querySelector("[data-plugin-update-cell=version]");
         var statusCell = row.querySelector("[data-plugin-update-cell=status]");
@@ -135,6 +136,7 @@
 
         versionCell.textContent = plugin.availableVersion || "—";
         statusCell.innerHTML = "";
+        statusCell.title = "";
         if (plugin.updateStatus === "available") statusCell.appendChild(badge("Dostępna", "update"));
         else if (plugin.updateStatus === "current") statusCell.appendChild(badge("Aktualna", "current"));
         else if (plugin.updateStatus === "incompatible") statusCell.appendChild(badge("Niezgodna", "warning"));
@@ -159,6 +161,7 @@
                     var backup = result.result && result.result.backupPath;
                     setStatus("Zaktualizowano do " + (result.result && result.result.version || plugin.availableVersion) + (backup ? ". Backup: " + backup : "."), false);
                     state.plugins = result.plugins || [];
+                    row.removeAttribute("data-plugin-update-signature");
                     enhanceTable();
                 }).catch(function (error) {
                     setStatus(error.message || String(error), true);
@@ -185,6 +188,7 @@
         setStatus("Sprawdzanie aktualizacji…", false);
         getState().then(function (result) {
             state.plugins = result.plugins || [];
+            content.querySelectorAll(".mc-admin-plugin-table tbody tr").forEach(function (row) { row.removeAttribute("data-plugin-update-signature"); });
             setStatus("Sprawdzanie zakończone.", false);
             enhanceTable();
         }).catch(function (error) {
