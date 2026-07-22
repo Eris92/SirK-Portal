@@ -36,6 +36,7 @@
             openMesh: "Otwórz w MeshCentral", noGroup: "Bez grupy", noOs: "Brak danych o systemie",
             method: "Metoda połączenia", meshAgent: "MeshAgent", amtKvm: "Intel AMT KVM",
             connect: "Połącz", disconnect: "Rozłącz", ready: "Pulpit nie jest połączony. Wybierz metodę i kliknij Połącz.",
+            connectOptions: "Opcje połączenia", requestApprovalWithBar: "Zapytaj o zgodę + Bar", requestApprovalOnly: "Zapytaj o zgodę", privacyNotice: "Pasek Prywatności",
             loadingNative: "Ładowanie natywnej sesji MeshCentral…", preparing: "Przygotowanie modułu MeshCentral…",
             connecting: "Łączenie…", connected: "Połączono.", disconnected: "Rozłączono.",
             nativeReady: "Natywny moduł MeshCentral jest gotowy.", sessionError: "Nie udało się uruchomić natywnego modułu MeshCentral.",
@@ -53,6 +54,7 @@
             openMesh: "Open in MeshCentral", noGroup: "No group", noOs: "No operating system data",
             method: "Connection method", meshAgent: "MeshAgent", amtKvm: "Intel AMT KVM",
             connect: "Connect", disconnect: "Disconnect", ready: "Desktop is not connected. Choose a method and click Connect.",
+            connectOptions: "Connect options", requestApprovalWithBar: "Request approval + Bar", requestApprovalOnly: "Request approval", privacyNotice: "Privacy notice",
             loadingNative: "Loading the native MeshCentral session…", preparing: "Preparing the MeshCentral module…",
             connecting: "Connecting…", connected: "Connected.", disconnected: "Disconnected.",
             nativeReady: "The native MeshCentral module is ready.", sessionError: "The native MeshCentral module could not be started.",
@@ -446,9 +448,20 @@
         stopBridge(true);
         var interactive = type === "desktop" || type === "terminal" || type === "files";
         var selector = type === "desktop"
-            ? '<label class="sirk-native-bridge-label" for="sirkNativeMethod">' + esc(t("method")) + '</label><select id="sirkNativeMethod" class="sirk-native-bridge-select"><option value="3">' + esc(t("meshAgent")) + '</option><option value="2">' + esc(t("amtKvm")) + '</option></select>'
+            ? '<div class="sirk-native-bridge-button-group">' +
+              '<button id="sirkNativeConnect" class="sirk-native-bridge-button sirk-native-bridge-split-main" type="button">' + esc(t("connect")) + '</button>' +
+              '<button id="sirkNativeConnectDropdown" class="sirk-native-bridge-button sirk-native-bridge-split-toggle" type="button" aria-expanded="false" aria-haspopup="menu" title="' + esc(t("connectOptions")) + '">▼</button>' +
+              '<div id="sirkNativeConnectMenu" class="sirk-native-bridge-menu" hidden>' +
+              '<button type="button" class="sirk-native-bridge-menu-item" data-connect-option="3">' + esc(t("requestApprovalWithBar")) + '</button>' +
+              '<button type="button" class="sirk-native-bridge-menu-item" data-connect-option="3">' + esc(t("requestApprovalOnly")) + '</button>' +
+              '<button type="button" class="sirk-native-bridge-menu-item" data-connect-option="1">' + esc(t("privacyNotice")) + '</button>' +
+              '</div>' +
+              '</div>' +
+              '<button id="sirkNativeAMT" class="sirk-native-bridge-button" type="button">' + esc(t("amtKvm")) + '</button>'
             : '<span class="sirk-native-bridge-label">' + esc(t(type)) + '</span>';
-        var controls = interactive
+        var controls = type === "desktop"
+            ? '<button id="sirkNativeDisconnect" class="sirk-native-bridge-button" type="button" disabled>' + esc(t("disconnect")) + '</button>'
+            : interactive
             ? '<button id="sirkNativeConnect" class="sirk-native-bridge-button" type="button">' + esc(t("connect")) + '</button><button id="sirkNativeDisconnect" class="sirk-native-bridge-button" type="button" disabled>' + esc(t("disconnect")) + '</button>'
             : "";
         var quickPanel = type === "desktop" ? '<button id="sirkQuickCommandsToggle" class="sirk-quick-commands-toggle" type="button" aria-expanded="false" title="' + esc(t("quickCommands")) + '" hidden><span>›_</span></button><aside id="sirkQuickCommandsPanel" class="sirk-quick-commands-panel" hidden></aside>' : "";
@@ -470,10 +483,45 @@
         });
         frame.src = nativeRootUrl();
         if (interactive) {
+            var selectedConnectOption = type === "desktop" ? 3 : 1;
+            
             document.getElementById("sirkNativeConnect").addEventListener("click", function () {
-                var method = type === "desktop" ? document.getElementById("sirkNativeMethod").value : 1;
+                var method = type === "desktop" ? selectedConnectOption : 1;
                 connectNative(method);
             });
+            
+            if (type === "desktop") {
+                var connectDropdown = document.getElementById("sirkNativeConnectDropdown");
+                var connectMenu = document.getElementById("sirkNativeConnectMenu");
+                
+                connectDropdown.addEventListener("click", function (event) {
+                    event.stopPropagation();
+                    connectMenu.hidden = !connectMenu.hidden;
+                    connectDropdown.setAttribute("aria-expanded", connectMenu.hidden ? "false" : "true");
+                });
+                
+                var menuItems = connectMenu.querySelectorAll("[data-connect-option]");
+                menuItems.forEach(function (item) {
+                    item.addEventListener("click", function () {
+                        selectedConnectOption = parseInt(this.getAttribute("data-connect-option"), 10);
+                        connectMenu.hidden = true;
+                        connectDropdown.setAttribute("aria-expanded", "false");
+                    });
+                });
+                
+                var amtButton = document.getElementById("sirkNativeAMT");
+                amtButton.addEventListener("click", function () {
+                    connectNative(2);
+                });
+                
+                document.addEventListener("click", function (event) {
+                    if (!event.target.closest("#sirkNativeConnectDropdown") && !event.target.closest("#sirkNativeConnectMenu")) {
+                        connectMenu.hidden = true;
+                        connectDropdown.setAttribute("aria-expanded", "false");
+                    }
+                });
+            }
+            
             document.getElementById("sirkNativeDisconnect").addEventListener("click", disconnectNative);
         }
         if (type === "desktop") {
