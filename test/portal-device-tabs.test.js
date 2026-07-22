@@ -8,12 +8,16 @@ var admin = read("MyCompanyAdmin.js");
 [
     'name: "ALL | Wszystkie"',
     'className = "sirk-device-tab-close"',
-    'state.cache.appendChild',
-    'state.view.appendChild(state.panes[key].fragment)',
-    'window.dispatchEvent(new Event("resize"))',
+    'className = "sirk-device-tab-store"',
+    'moveChildren(state.view, pane.store)',
+    'moveChildren(pane.store, state.view)',
+    'window.MyCompanyDeviceTabs',
+    'new MutationObserver(scheduleEnsure)',
+    'window.setInterval(function () { ensureInfrastructure(); }, 1000)',
     'disconnectPane(pane)',
-    'data-view="devices"'
+    '[data-view="devices"]'
 ].forEach(function (value) { assert(tabs.indexOf(value) >= 0, "Missing persistent device tab contract: " + value); });
+assert(tabs.indexOf("DocumentFragment") < 0, "Device tabs must not store live workspaces in consumable DocumentFragment objects");
 [
     ".sirk-device-tabs",
     "height:32px",
