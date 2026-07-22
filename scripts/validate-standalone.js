@@ -10,6 +10,7 @@ var required = [
     "config.json", "package.json", "core/runtime.js", "core/runtime-portal.js", "core/device-service.js",
     "modules/Portal/index-safe.js", "modules/MyScripts/index.js", "modules/ApprovalCenter/index.js",
     "public/portal-standalone.html", "public/portal-standalone.css", "public/portal-standalone-devices.css", "public/portal-standalone.js",
+    "public/portal-device-workspace.css", "public/portal-device-workspace.js",
     "public/standalone-core.js", "public/portal-management.js", "public/portal-folder-collapse.js",
     "public/portal-subfolder-icons.js", "public/native-portal-launcher.js", "public/approvalcenter.js",
     "public/shared-ui/script-tools.js", "public/shared-ui/results.js"
@@ -27,7 +28,7 @@ required.filter(function (file) { return /\.js$/i.test(file) && fs.existsSync(pa
 var config = JSON.parse(read("config.json").replace(/^\uFEFF/, ""));
 var pkg = JSON.parse(read("package.json").replace(/^\uFEFF/, ""));
 if (config.version !== pkg.version) errors.push("config.json and package.json versions must match.");
-if (config.version !== "1.5.21") errors.push("Standalone Portal release must publish version 1.5.21.");
+if (config.version !== "1.5.22") errors.push("Standalone Portal release must publish version 1.5.22.");
 
 var wrapper = read("plugin-main-standalone.js");
 ["hook_setupHttpHandlers", 'base + "sirkportal"', 'base + "meshcentral"', 'base + "pluginadmin.ashx"', "portal-standalone.html"].forEach(function (value) {
@@ -37,7 +38,7 @@ need(wrapper, "webserver.app.get(portalPath, servePortal)", "Slashless Portal ro
 need(wrapper, "webserver.app.get(portalPathSlash, servePortal)", "Slash Portal route must be served directly.");
 
 var html = read("public/portal-standalone.html");
-['id="sirkPortalRoot"', 'id="sirkStandaloneRoot"', "standalone-core.js", "portal-standalone.js", "shared-ui/shared-ui.css", "portal-standalone.css", "portal-standalone-devices.css"].forEach(function (value) {
+['id="sirkPortalRoot"', 'id="sirkStandaloneRoot"', "standalone-core.js", "portal-standalone.js", "portal-device-workspace.js", "shared-ui/shared-ui.css", "portal-standalone.css", "portal-standalone-devices.css", "portal-device-workspace.css"].forEach(function (value) {
     need(html, value, "Standalone document missing: " + value);
 });
 need(html, 'data-view="management"', "Standalone navigation must include Management.");
@@ -49,6 +50,12 @@ var app = read("public/portal-standalone.js");
     need(app, value, "Standalone app contract missing: " + value);
 });
 if (app.indexOf('initializeModule("myscripts")') >= 0) errors.push("Standalone Portal must not initialize the legacy MyScripts UI.");
+
+var deviceWorkspace = read("public/portal-device-workspace.js");
+["desktop: 11", "terminal: 12", "files: 13", "registry: 9", "software: 18", "amt: 14", "connectDesktop", "connectTerminal", "connectFiles", "sirkDeviceTabBody", "sirkNativeBridgeFrame", "sirkPortal.language"].forEach(function (value) {
+    need(deviceWorkspace, value, "Device workspace native bridge missing: " + value);
+});
+need(deviceWorkspace, "new URL(String(window.__MYCOMPANY_NATIVE_URL__", "Device workspace must use the independent native MeshCentral route.");
 
 var portalBackend = read("modules/Portal/index-safe.js");
 need(portalBackend, 'asset === "devices"', "Portal devices API is missing.");
@@ -74,8 +81,11 @@ need(standaloneCore, 'credentials = "same-origin"', "Standalone API requests mus
 
 var runtime = read("public/runtime.js");
 need(runtime, "native-portal-launcher.js", "Native MeshCentral must load the SirK Portal launcher.");
+need(runtime, "portal.config.showLauncher !== false", "Native Portal launcher setting must be honored.");
 var launcher = read("public/native-portal-launcher.js");
-need(launcher, '"left:', "Native SirK Portal launcher must be positioned on the left.");
+need(launcher, '"left:8px"', "Native SirK Portal launcher must use left: 8px.");
+need(launcher, '"bottom:8px"', "Native SirK Portal launcher must use bottom: 8px.");
+need(launcher, "launcherAllowed", "Native SirK Portal launcher must remove itself when disabled.");
 var moduleShell = read("public/module-shell.js");
 ["myscripts: 101", "mycommands: 102", "myjira: 103", "defendertools: 104", "approvalcenter: 105", "moverequests: 106"].forEach(function (value) {
     need(moduleShell, value, "Original viewmode mapping missing: " + value);
@@ -87,5 +97,5 @@ if (errors.length) {
 }
 
 console.log("Standalone SirK Portal architecture: OK");
-console.log("Language and device inventory integration: OK");
-console.log("Native launcher and viewmode compatibility: OK");
+console.log("Language, device inventory and native bridge: OK");
+console.log("Native launcher setting and viewmode compatibility: OK");
