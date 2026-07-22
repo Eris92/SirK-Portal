@@ -83,13 +83,13 @@ module.exports.createPlugin = function (parent, shortName) {
         var apiBase = base + "pluginadmin.ashx";
         var nativeUrl = base + "meshcentral/";
         return template
-            .replace(/__VERSION__/g, VERSION)
-            .replace(/__ASSET_BASE__/g, assetBase)
-            .replace(/__NATIVE_URL__/g, nativeUrl)
             .replace(/__API_BASE_JSON__/g, JSON.stringify(apiBase))
             .replace(/__ASSET_BASE_JSON__/g, JSON.stringify(assetBase))
             .replace(/__NATIVE_URL_JSON__/g, JSON.stringify(nativeUrl))
-            .replace(/__VERSION_JSON__/g, JSON.stringify(VERSION));
+            .replace(/__VERSION_JSON__/g, JSON.stringify(VERSION))
+            .replace(/__ASSET_BASE__/g, assetBase)
+            .replace(/__NATIVE_URL__/g, nativeUrl)
+            .replace(/__VERSION__/g, VERSION);
     }
 
     function registerDomain(webserver, domain) {
@@ -138,7 +138,7 @@ module.exports.createPlugin = function (parent, shortName) {
             redirect(res, base + "?sirkNative=1");
         });
 
-        // This handler is registered before MeshCentral's native root handler.
+        // Registered before MeshCentral's native root route.
         webserver.app.get(base, function (req, res, next) {
             if (!portalEnabled() || !authenticated(req) || String(req.query && req.query.sirkNative || "") === "1") {
                 next();
