@@ -14,7 +14,9 @@
         value.title = definition.title || definition.key;
         value.setAttribute("aria-label", value.title);
         value.innerHTML = '<span class="mc-shared-toolbar-icon"></span>';
-        value.firstChild.textContent = definition.icon || definition.title || definition.key;
+        var icon = definition.icon || definition.title || definition.key;
+        if (String(icon).indexOf("<svg") === 0) value.firstChild.innerHTML = icon;
+        else value.firstChild.textContent = icon;
         return value;
     }
 

@@ -3,6 +3,30 @@
 
     if (window.__myCompanySirkLoginLoaded) return;
     window.__myCompanySirkLoginLoaded = true;
+    var STORAGE_LANGUAGE = "sirkPortal.language";
+    var TEXT = {
+        pl: {
+            heroTitle: "Zarządzaj infrastrukturą z jednego miejsca.", heroText: "Urządzenia, automatyzacja, akceptacje i monitoring z wykorzystaniem bezpiecznej sesji MeshCentral.",
+            point1: "Natywne uwierzytelnianie MeshCentral", point2: "Jedna sesja i te same uprawnienia", point3: "Niezależny frontend operacyjny",
+            access: "BEZPIECZNY DOSTĘP", loginTitle: "Zaloguj się", loginText: "Użyj konta skonfigurowanego w MeshCentral.",
+            username: "Nazwa użytkownika", password: "Hasło", login: "Zaloguj", reset: "Resetuj hasło", footer: "Uwierzytelnianie i sesja obsługiwane przez MeshCentral", languageTitle: "Switch to English",
+            loginError: "Logowanie nie powiodło się. Sprawdź nazwę użytkownika i hasło."
+        },
+        en: {
+            heroTitle: "Manage your infrastructure from one place.", heroText: "Devices, automation, approvals and monitoring through a secure MeshCentral session.",
+            point1: "Native MeshCentral authentication", point2: "One session and the same permissions", point3: "Independent operational frontend",
+            access: "SECURE ACCESS", loginTitle: "Sign in", loginText: "Use your account configured in MeshCentral.",
+            username: "Username", password: "Password", login: "Sign in", reset: "Reset password", footer: "Authentication and session provided by MeshCentral", languageTitle: "Przełącz na polski",
+            loginError: "Sign-in failed. Check your username and password."
+        }
+    };
+
+    function language() {
+        try { return localStorage.getItem(STORAGE_LANGUAGE) === "en" ? "en" : "pl"; }
+        catch (error) { return "pl"; }
+    }
+
+    function t(key) { return TEXT[language()][key] || key; }
 
     function visible(element) {
         return !!(element && (element.offsetWidth || element.offsetHeight || element.getClientRects().length));
@@ -28,7 +52,53 @@
     }
 
     function shellHtml() {
-        return '<section class="sirk-login-hero"><div class="sirk-login-hero-content"><div class="sirk-login-mark">S</div><div class="sirk-login-product">SirK Portal</div><h1>Zarządzaj infrastrukturą z jednego miejsca.</h1><p>Urządzenia, automatyzacja, akceptacje i monitoring z wykorzystaniem bezpiecznej sesji MeshCentral.</p><div class="sirk-login-points"><span><i></i>Natywne uwierzytelnianie MeshCentral</span><span><i></i>Jedna sesja i te same uprawnienia</span><span><i></i>Niezależny frontend operacyjny</span></div></div><div class="sirk-login-watermark">SIRK</div></section><section class="sirk-login-panel"><div class="sirk-login-card"><header><span>SECURE ACCESS</span><h2>Zaloguj się</h2><p>Użyj konta skonfigurowanego w MeshCentral.</p></header><div id="sirkNativeLoginHost"></div><footer>Authentication and session provided by MeshCentral</footer></div></section>';
+        return '<section class="sirk-login-hero"><div class="sirk-login-hero-content"><div class="sirk-login-mark">S</div><div class="sirk-login-product">SirK Portal</div><h1 data-login-text="heroTitle">' + t("heroTitle") + '</h1><p data-login-text="heroText">' + t("heroText") + '</p><div class="sirk-login-points"><span><i></i><b data-login-text="point1">' + t("point1") + '</b></span><span><i></i><b data-login-text="point2">' + t("point2") + '</b></span><span><i></i><b data-login-text="point3">' + t("point3") + '</b></span></div></div><div class="sirk-login-watermark">SIRK</div></section><section class="sirk-login-panel"><div class="sirk-login-card"><button class="sirk-login-language" type="button" data-login-language="1"></button><header><span data-login-text="access">' + t("access") + '</span><h2 data-login-text="loginTitle">' + t("loginTitle") + '</h2><p data-login-text="loginText">' + t("loginText") + '</p></header><div id="sirkNativeLoginHost"></div><a class="sirk-password-reset" href="https://passwordreset.microsoftonline.com/" target="_blank" rel="noopener noreferrer" data-login-text="reset">' + t("reset") + '</a><footer data-login-text="footer">' + t("footer") + '</footer></div></section>';
+    }
+
+    function applyErrorLanguage(form) {
+        if (!form) return;
+        var patterns = [
+            /logowanie nie powiodło się[,.]?\s*sprawdź nazwę użytkownika i hasło[.!]?/i,
+            /login failed[,.]?\s*check (your )?username and password[.!]?/i,
+            /sign-in failed[,.]?\s*check (your )?username and password[.!]?/i
+        ];
+        Array.prototype.forEach.call(form.querySelectorAll("div,span,p,td"), function (node) {
+            if (node.children.length) return;
+            var value = String(node.textContent || "").trim();
+            if (!value || !patterns.some(function (pattern) { return pattern.test(value); })) return;
+            node.textContent = t("loginError");
+            node.setAttribute("data-login-error", "credentials");
+            node.setAttribute("role", "alert");
+        });
+    }
+
+    function applyLanguage(form) {
+        document.documentElement.lang = language();
+        Array.prototype.forEach.call(document.querySelectorAll("[data-login-text]"), function (node) {
+            var value = t(node.getAttribute("data-login-text"));
+            if (node.textContent !== value) node.textContent = value;
+        });
+        var user = form && form.querySelector('input[type="text"],input[type="email"]');
+        var password = form && form.querySelector('input[type="password"]');
+        var submit = form && form.querySelector('input[type="submit"],input[type="button"],button[type="submit"],button:not([type])');
+        if (user) user.placeholder = t("username");
+        if (password) password.placeholder = t("password");
+        if (submit) {
+            if (submit.tagName === "INPUT") submit.value = t("login");
+            else submit.textContent = t("login");
+        }
+        applyErrorLanguage(form);
+        var toggle = document.querySelector("[data-login-language]");
+        if (toggle) {
+            var toggleText = language() === "pl" ? "EN" : "PL";
+            if (toggle.textContent !== toggleText) toggle.textContent = toggleText;
+            toggle.title = t("languageTitle");
+            toggle.setAttribute("aria-label", toggle.title);
+            toggle.onclick = function () {
+                try { localStorage.setItem(STORAGE_LANGUAGE, language() === "pl" ? "en" : "pl"); } catch (error) {}
+                applyLanguage(form);
+            };
+        }
     }
 
     function install() {
@@ -48,6 +118,7 @@
             form.classList.add("sirk-native-login-form");
             host.appendChild(form);
         }
+        applyLanguage(form);
         return true;
     }
 

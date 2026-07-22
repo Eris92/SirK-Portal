@@ -1,4 +1,5 @@
-# Email Explorer | Open Microsoft Defender Email Explorer.
+#PL Eksplorator poczty | Otwiera Email Explorer w Microsoft Defender.
+#EN Email Explorer | Opens Microsoft Defender Email Explorer.
 $result = [ordered]@{
     meshPortal = $true
     title = 'Email Explorer'

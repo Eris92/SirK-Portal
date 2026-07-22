@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test MyCompany"
+  short_description: "Run verified MyCompany project checks"
+  default_prompt: "Use $test-mycompany to run and interpret the MyCompany validation suite."

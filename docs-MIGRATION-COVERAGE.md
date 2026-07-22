@@ -1,4 +1,4 @@
-# Migration coverage — MyCompany 1.2.2
+# Migration coverage — MyCompany 1.5.34
 
 ## UI standard
 
@@ -79,9 +79,9 @@ Migrated from the former My Commands/CommandTabs implementation:
 - run status, debug log and embedded HTML report;
 - centralized Graph credentials and configuration.
 
-## Legacy import
+## Legacy data
 
-First startup can import/copy data from disabled old plugin directories for:
+The following former plugin domains are consolidated in MyCompany:
 
 - My Scripts;
 - My Commands / CommandTabs;
@@ -90,4 +90,4 @@ First startup can import/copy data from disabled old plugin directories for:
 - My Jira;
 - DefenderTools.
 
-The old plugins are never loaded or registered by MyCompany.
+The old plugins are never loaded or registered by MyCompany. Runtime auto-import is intentionally disabled; migration must be an explicit, backed-up operation into `meshcentral-data/mycompany-data`.

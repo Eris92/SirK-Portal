@@ -13,6 +13,8 @@
     var bridge = null;
     var bridgeSequence = 0;
     var transformScheduled = false;
+    var quickCommands = { data: null, category: "", selected: null, search: "" };
+    var DEVICE_ICON = '<svg class="sirk-device-computer-svg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M6.5 7.5h11v6h-11z" class="sirk-device-computer-screen"/></svg>';
 
     var VIEWMODES = { desktop: 11, terminal: 12, files: 13, registry: 9, software: 18, amt: 14 };
     var PANEL_IDS = {
@@ -26,32 +28,38 @@
 
     var TEXT = {
         pl: {
-            general: "Ogólne", desktop: "Pulpit", terminal: "Terminal", files: "Pliki",
+            general: "Ogólne", desktop: "Pulpit", terminal: "Terminal", commands: "Polecenia", files: "Pliki",
             registry: "Rejestr", software: "Oprogramowanie", amt: "Intel AMT",
             back: "Wróć do urządzeń", online: "Online", offline: "Offline",
             name: "Nazwa", status: "Status", group: "Grupa", system: "System",
             ip: "Adres IP", lastSeen: "Ostatnio widziany", agent: "Wersja agenta", nodeId: "Node ID",
             openMesh: "Otwórz w MeshCentral", noGroup: "Bez grupy", noOs: "Brak danych o systemie",
             method: "Metoda połączenia", meshAgent: "MeshAgent", amtKvm: "Intel AMT KVM",
-            connect: "Połącz", disconnect: "Rozłącz", ready: "Gotowy — kliknij Połącz.",
+            connect: "Połącz", disconnect: "Rozłącz", ready: "Pulpit nie jest połączony. Wybierz metodę i kliknij Połącz.",
             loadingNative: "Ładowanie natywnej sesji MeshCentral…", preparing: "Przygotowanie modułu MeshCentral…",
             connecting: "Łączenie…", connected: "Połączono.", disconnected: "Rozłączono.",
             nativeReady: "Natywny moduł MeshCentral jest gotowy.", sessionError: "Nie udało się uruchomić natywnego modułu MeshCentral.",
-            sessionMissing: "Sesja MeshCentral nie jest dostępna albo host nie został odnaleziony.", clickCanvas: "Kliknij ekran, aby przejąć klawiaturę."
+            sessionMissing: "Sesja MeshCentral nie jest dostępna albo host nie został odnaleziony.", clickCanvas: "Kliknij ekran, aby przejąć klawiaturę.",
+            quickCommands: "Szybkie polecenia", close: "Zamknij", loadingCommands: "Ładowanie poleceń…", noCommands: "Brak poleceń.",
+            searchCommands: "Szukaj poleceń…", variables: "Parametry", runCommand: "Uruchom", requestCommand: "Wyślij wniosek",
+            commandSent: "Polecenie zostało wysłane.", commandPending: "Polecenie oczekuje na akceptację.", commandFailed: "Nie udało się wysłać polecenia.", confirmCommand: "Uruchomić polecenie"
         },
         en: {
-            general: "Overview", desktop: "Desktop", terminal: "Terminal", files: "Files",
+            general: "Overview", desktop: "Desktop", terminal: "Terminal", commands: "Commands", files: "Files",
             registry: "Registry", software: "Software", amt: "Intel AMT",
             back: "Back to devices", online: "Online", offline: "Offline",
             name: "Name", status: "Status", group: "Group", system: "Operating system",
             ip: "IP address", lastSeen: "Last seen", agent: "Agent version", nodeId: "Node ID",
             openMesh: "Open in MeshCentral", noGroup: "No group", noOs: "No operating system data",
             method: "Connection method", meshAgent: "MeshAgent", amtKvm: "Intel AMT KVM",
-            connect: "Connect", disconnect: "Disconnect", ready: "Ready — click Connect.",
+            connect: "Connect", disconnect: "Disconnect", ready: "Desktop is not connected. Choose a method and click Connect.",
             loadingNative: "Loading the native MeshCentral session…", preparing: "Preparing the MeshCentral module…",
             connecting: "Connecting…", connected: "Connected.", disconnected: "Disconnected.",
             nativeReady: "The native MeshCentral module is ready.", sessionError: "The native MeshCentral module could not be started.",
-            sessionMissing: "The MeshCentral session is unavailable or the host could not be found.", clickCanvas: "Click the screen to capture the keyboard."
+            sessionMissing: "The MeshCentral session is unavailable or the host could not be found.", clickCanvas: "Click the screen to capture the keyboard.",
+            quickCommands: "Quick commands", close: "Close", loadingCommands: "Loading commands…", noCommands: "No commands.",
+            searchCommands: "Search commands…", variables: "Variables", runCommand: "Run", requestCommand: "Request",
+            commandSent: "Command submitted.", commandPending: "Command is waiting for approval.", commandFailed: "Command could not be submitted.", confirmCommand: "Run command"
         }
     };
 
@@ -61,6 +69,15 @@
     }
 
     function t(key) { return TEXT[language()][key] || key; }
+
+    function commandModule() {
+        return window.MyCompanyModules && window.MyCompanyModules.mycommands || null;
+    }
+
+    function localized(item, field) {
+        var locale = item && item.locales && item.locales[language()];
+        return locale && locale[field] || item && item[field] || "";
+    }
 
     function esc(value) {
         return String(value == null ? "" : value)
@@ -349,6 +366,7 @@
                 bridge.win = native.win;
                 bridge.node = native.node;
                 bridge.panel = panel;
+                frame.classList.add("is-session-visible");
                 hideBridgeOverlay();
                 return bridge;
             });
@@ -384,6 +402,8 @@
                 var state = object && (object.State != null ? object.State : object.state);
                 if (state === 3 || state === 4) {
                     setBridgeStatus(t("connected") + (prepared.type === "desktop" ? " " + t("clickCanvas") : ""));
+                    var quickToggle = document.getElementById("sirkQuickCommandsToggle");
+                    if (quickToggle && prepared.type === "desktop") quickToggle.hidden = false;
                     if (prepared.type === "terminal" && win.xterm) { try { win.xterm.focus(); } catch (error) {} }
                 } else setBridgeStatus(t("connecting") + (state != null ? " [" + state + "]" : ""));
             }, 250);
@@ -413,6 +433,12 @@
         var disconnectButton = document.getElementById("sirkNativeDisconnect");
         if (connectButton) connectButton.disabled = false;
         if (disconnectButton) disconnectButton.disabled = true;
+        var quickToggle = document.getElementById("sirkQuickCommandsToggle");
+        var quickPanel = document.getElementById("sirkQuickCommandsPanel");
+        if (quickToggle) { quickToggle.hidden = true; quickToggle.setAttribute("aria-expanded", "false"); }
+        if (quickPanel) quickPanel.hidden = true;
+        if (bridge.frame) bridge.frame.classList.remove("is-session-visible");
+        showBridgeOverlay(t("ready"), false);
         setBridgeStatus(t("disconnected"));
     }
 
@@ -425,13 +451,13 @@
         var controls = interactive
             ? '<button id="sirkNativeConnect" class="sirk-native-bridge-button" type="button">' + esc(t("connect")) + '</button><button id="sirkNativeDisconnect" class="sirk-native-bridge-button" type="button" disabled>' + esc(t("disconnect")) + '</button>'
             : "";
-        host.innerHTML = '<div class="sirk-native-bridge-shell"><div class="sirk-native-bridge-toolbar">' + selector + controls + '<span id="sirkNativeBridgeStatus" class="sirk-native-bridge-status">' + esc(interactive ? t("ready") : t("loadingNative")) + '</span></div><div class="sirk-native-bridge-stage"><iframe id="sirkNativeBridgeFrame" class="sirk-native-bridge-frame" title="MeshCentral native module" allow="clipboard-read; clipboard-write; fullscreen"></iframe><div id="sirkNativeBridgeOverlay" class="sirk-native-bridge-overlay"><div>' + esc(t("loadingNative")) + '</div></div></div></div>';
+        var quickPanel = type === "desktop" ? '<button id="sirkQuickCommandsToggle" class="sirk-quick-commands-toggle" type="button" aria-expanded="false" title="' + esc(t("quickCommands")) + '" hidden><span>›_</span></button><aside id="sirkQuickCommandsPanel" class="sirk-quick-commands-panel" hidden></aside>' : "";
+        host.innerHTML = '<div class="sirk-native-bridge-shell"><div class="sirk-native-bridge-toolbar">' + selector + controls + '<span id="sirkNativeBridgeStatus" class="sirk-native-bridge-status">' + esc(interactive ? t("ready") : t("loadingNative")) + '</span></div><div class="sirk-native-bridge-stage"><iframe id="sirkNativeBridgeFrame" class="sirk-native-bridge-frame" title="MeshCentral native module" allow="clipboard-read; clipboard-write; fullscreen"></iframe><div id="sirkNativeBridgeOverlay" class="sirk-native-bridge-overlay"><div>' + esc(interactive ? t("ready") : t("loadingNative")) + '</div></div>' + quickPanel + '</div></div>';
         var frame = document.getElementById("sirkNativeBridgeFrame");
         var sequence = ++bridgeSequence;
         bridge = { sequence: sequence, frame: frame, portalNode: node, type: type, win: null, node: null, panel: null, timer: null, timeout: null };
         frame.addEventListener("load", function () {
             if (!bridge || bridge.sequence !== sequence) return;
-            hideBridgeOverlay();
             setBridgeStatus(interactive ? t("ready") : t("preparing"));
             if (!interactive) {
                 prepareNative(frame, node, type, sequence).then(function () {
@@ -450,6 +476,23 @@
             });
             document.getElementById("sirkNativeDisconnect").addEventListener("click", disconnectNative);
         }
+        if (type === "desktop") {
+            document.getElementById("sirkQuickCommandsToggle").addEventListener("click", function () {
+                var panel = document.getElementById("sirkQuickCommandsPanel");
+                if (!panel) return;
+                panel.hidden = !panel.hidden;
+                this.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
+                if (panel.hidden) return;
+                panel.innerHTML = '<div class="sirk-quick-command-loading">' + esc(t("loadingCommands")) + '</div>';
+                if (quickCommands.data) { renderCompactCommands(); return; }
+                core.api("mycommands", "scripts").then(function (response) {
+                    quickCommands.data = response;
+                    renderCompactCommands();
+                }).catch(function (error) {
+                    panel.innerHTML = '<div class="sirk-device-command-error">' + esc(error.message || String(error)) + '</div>';
+                });
+            });
+        }
     }
 
     function renderGeneral(host, node) {
@@ -463,8 +506,137 @@
             '</div><div class="sirk-device-general-actions"><a href="' + esc(nativeDeviceUrl(node)) + '">' + esc(t("openMesh")) + '</a></div></div>';
     }
 
+    function renderCommandsTab(host, node) {
+        stopBridge(true);
+        var module = commandModule();
+        if (!module || typeof module.mount !== "function") {
+            host.innerHTML = '<div class="sirk-device-command-error">' + esc(t("noCommands")) + '</div>';
+            return;
+        }
+        host.innerHTML = '<div class="sirk-device-commands-host"></div>';
+        var moduleHost = host.firstElementChild;
+        if (typeof module.mountDeviceCommands === "function") module.mountDeviceCommands(moduleHost, String(node.id || node._id || ""));
+        else {
+            if (typeof module.onDeviceRefreshEnd === "function") module.onDeviceRefreshEnd(String(node.id || node._id || ""));
+            module.mount(moduleHost, "sirk-device-commands");
+        }
+    }
+
+    function flattenCommandScripts(node, prefix, output) {
+        (node && node.children || []).forEach(function (child) {
+            if (child.type === "script") {
+                output.push({ kind: "script", path: child.path, label: localized(child, "label") || child.name || child.path, description: localized(child, "description") || "", requiresApproval: child.requiresApproval === true, confirmExecution: child.confirmExecution === true, variables: child.variables || [] });
+                return;
+            }
+            flattenCommandScripts(child, prefix ? prefix + " / " + (localized(child, "label") || child.name) : (localized(child, "label") || child.name), output);
+        });
+        return output;
+    }
+
+    function compactCategories(data) {
+        var categories = [];
+        (data.tree && data.tree.children || []).forEach(function (root) {
+            categories.push({ key: "script:" + root.path, label: localized(root, "label") || root.name || root.path, items: flattenCommandScripts(root, "", []) });
+        });
+        (data.catalog || []).forEach(function (category) {
+            categories.push({
+                key: "catalog:" + category.key,
+                label: category.title || category.key,
+                items: (category.commands || []).map(function (command) {
+                    return { kind: "command", commandId: command.id, label: command.label || command.id, description: command.description || "", requiresApproval: command.requiresApproval === true, confirmExecution: command.confirmExecution === true, variables: command.variables || [] };
+                })
+            });
+        });
+        return categories.filter(function (category) { return category.items.length > 0; });
+    }
+
+    function compactVariableForm(host, item) {
+        var controls = [];
+        if (!(item.variables || []).length) return function () { return {}; };
+        host.appendChild((function () { var heading = document.createElement("h4"); heading.textContent = t("variables"); return heading; }()));
+        (item.variables || []).forEach(function (variable) {
+            var row = document.createElement("label");
+            row.className = "sirk-quick-command-field";
+            var caption = document.createElement("span");
+            var labels = variable.labels || {};
+            caption.textContent = (labels[language()] || variable.label || variable.name) + (variable.required ? " *" : "");
+            row.appendChild(caption);
+            var input;
+            if (variable.control === "select") {
+                input = document.createElement("select");
+                (variable.options || []).forEach(function (choice) {
+                    var option = document.createElement("option");
+                    option.value = String(choice.value == null ? choice : choice.value);
+                    option.textContent = choice.labels && choice.labels[language()] || choice.label || option.value;
+                    input.appendChild(option);
+                });
+            } else {
+                input = document.createElement("input");
+                input.type = variable.control === "switch" ? "checkbox" : "text";
+            }
+            if (input.type === "checkbox") input.checked = /^(1|true|yes|tak)$/i.test(String(variable.defaultValue || ""));
+            else input.value = String(variable.defaultValue == null ? "" : variable.defaultValue);
+            row.appendChild(input);
+            host.appendChild(row);
+            controls.push({ variable: variable, input: input });
+        });
+        return function () {
+            var values = {};
+            controls.forEach(function (entry) { values[entry.variable.name] = entry.input.type === "checkbox" ? entry.input.checked : entry.input.value; });
+            return values;
+        };
+    }
+
+    function submitCompactCommand(item, values, button, status) {
+        if (item.confirmExecution === true && !window.confirm(t("confirmCommand") + ' "' + item.label + '"?')) return;
+        button.disabled = true;
+        status.textContent = t("loadingCommands");
+        var payload = { nodeId: String(selectedNode && (selectedNode.id || selectedNode._id) || ""), nodeName: selectedNode && selectedNode.name || "", variableValues: values || {}, confirmedExecution: item.confirmExecution === true, note: "" };
+        if (item.kind === "command") payload.commandId = item.commandId;
+        else payload.scriptPath = item.path;
+        core.post("mycommands", "execute", payload).then(function (response) {
+            status.textContent = response.request && response.request.status === "pending" ? t("commandPending") : t("commandSent");
+            status.classList.remove("is-error");
+        }).catch(function (error) {
+            status.textContent = t("commandFailed") + " " + (error.message || String(error));
+            status.classList.add("is-error");
+        }).then(function () { button.disabled = false; });
+    }
+
+    function renderCompactCommands() {
+        var panel = document.getElementById("sirkQuickCommandsPanel");
+        if (!panel || !quickCommands.data) return;
+        var categories = compactCategories(quickCommands.data);
+        if (!categories.some(function (category) { return category.key === quickCommands.category; })) quickCommands.category = categories[0] && categories[0].key || "";
+        var selectedCategory = categories.find(function (category) { return category.key === quickCommands.category; });
+        var query = String(quickCommands.search || "").toLowerCase();
+        var items = (selectedCategory && selectedCategory.items || []).filter(function (item) { return !query || (item.label + " " + item.description).toLowerCase().indexOf(query) >= 0; });
+        panel.innerHTML = '<header><strong>' + esc(t("quickCommands")) + '</strong><button type="button" data-quick-command-close="1" title="' + esc(t("close")) + '">×</button></header><input class="sirk-quick-command-search" type="search" placeholder="' + esc(t("searchCommands")) + '" value="' + esc(quickCommands.search) + '"><div class="sirk-quick-command-browser"><nav>' + categories.map(function (category) { return '<button type="button" data-quick-command-category="' + esc(category.key) + '" class="' + (category.key === quickCommands.category ? "is-active" : "") + '">' + esc(category.label) + '</button>'; }).join("") + '</nav><section>' + (items.length ? items.map(function (item, index) { return '<button type="button" data-quick-command-item="' + index + '"><strong>' + esc(item.label) + '</strong>' + (item.description ? '<small>' + esc(item.description) + '</small>' : '') + '</button>'; }).join("") : '<p>' + esc(t("noCommands")) + '</p>') + '</section></div><div class="sirk-quick-command-run"></div><div class="sirk-quick-command-status" aria-live="polite"></div>';
+        panel.__items = items;
+    }
+
+    function selectCompactCommand(item) {
+        var runHost = document.querySelector("#sirkQuickCommandsPanel .sirk-quick-command-run");
+        var status = document.querySelector("#sirkQuickCommandsPanel .sirk-quick-command-status");
+        if (!runHost || !status) return;
+        function show(value) {
+            runHost.innerHTML = "";
+            var heading = document.createElement("h3"); heading.textContent = value.label; runHost.appendChild(heading);
+            if (value.description) { var description = document.createElement("p"); description.textContent = value.description; runHost.appendChild(description); }
+            var collect = compactVariableForm(runHost, value);
+            var run = document.createElement("button"); run.type = "button"; run.className = "sirk-quick-command-submit"; run.textContent = value.requiresApproval ? t("requestCommand") : t("runCommand");
+            run.addEventListener("click", function () { submitCompactCommand(value, collect(), run, status); });
+            runHost.appendChild(run);
+        }
+        if (item.kind !== "script") { show(item); return; }
+        core.api("mycommands", "script", null, { path: item.path }).then(function (response) {
+            var script = response.script || item;
+            show({ kind: "script", path: script.path, label: localized(script, "label") || script.label || script.name, description: localized(script, "description") || script.description || "", variables: script.variables || [], requiresApproval: script.requiresApproval === true, confirmExecution: script.confirmExecution === true });
+        }).catch(function (error) { status.textContent = error.message || String(error); status.classList.add("is-error"); });
+    }
+
     function renderTab(node, type) {
-        activeTab = VIEWMODES[type] ? type : "general";
+        activeTab = VIEWMODES[type] || type === "commands" ? type : "general";
         var body = document.getElementById("sirkDeviceTabBody");
         if (!body) return;
         Array.prototype.forEach.call(document.querySelectorAll("[data-device-tab]"), function (button) {
@@ -473,6 +645,7 @@
             button.setAttribute("aria-selected", active ? "true" : "false");
         });
         if (activeTab === "general") renderGeneral(body, node);
+        else if (activeTab === "commands") renderCommandsTab(body, node);
         else renderNativeTab(body, node, activeTab);
     }
 
@@ -480,8 +653,8 @@
         if (!content || !node) return;
         selectedNode = node;
         var online = nodeOnline(node);
-        content.innerHTML = '<div class="sirk-device-workspace"><header class="sirk-device-compact-header"><button type="button" class="sirk-device-compact-back" data-device-back="1" title="' + esc(t("back")) + '">‹</button><span class="sirk-device-compact-icon" aria-hidden="true">▣</span><div class="sirk-device-compact-main"><strong>' + esc(node.name || shortId(node.id)) + '</strong><small>' + esc(nodeGroup(node)) + ' · ' + esc(node.os || t("noOs")) + '</small></div><div class="sirk-device-compact-meta"><span class="sirk-device-connection ' + (online ? "is-online" : "is-offline") + '"><i></i>' + esc(online ? t("online") : t("offline")) + '</span><small>' + esc(node.ip || "—") + '</small></div></header><nav class="sirk-device-tabs" role="tablist">' +
-            ["general", "desktop", "terminal", "files", "registry", "software", "amt"].map(function (type) {
+        content.innerHTML = '<div class="sirk-device-workspace"><header class="sirk-device-compact-header"><button type="button" class="sirk-device-compact-back" data-device-back="1" title="' + esc(t("back")) + '">‹</button><span class="sirk-device-compact-icon" aria-hidden="true">' + DEVICE_ICON + '</span><div class="sirk-device-compact-main"><strong>' + esc(node.name || shortId(node.id)) + '</strong><small>' + esc(nodeGroup(node)) + ' · ' + esc(node.os || t("noOs")) + '</small></div><div class="sirk-device-compact-meta"><span class="sirk-device-connection ' + (online ? "is-online" : "is-offline") + '"><i></i>' + esc(online ? t("online") : t("offline")) + '</span><small>' + esc(node.ip || "—") + '</small></div></header><nav class="sirk-device-tabs" role="tablist">' +
+            ["general", "desktop", "terminal", "commands", "files", "registry", "software", "amt"].map(function (type) {
                 return '<button type="button" role="tab" data-device-tab="' + type + '">' + esc(t(type)) + '</button>';
             }).join("") + '</nav><section id="sirkDeviceTabBody" class="sirk-device-tab-body"></section></div>';
         renderTab(node, activeTab);
@@ -549,6 +722,34 @@
             activeTab = "general";
             stopBridge(true);
         }
+        var quickClose = event.target && event.target.closest && event.target.closest("[data-quick-command-close]");
+        if (quickClose) {
+            var quickPanel = document.getElementById("sirkQuickCommandsPanel");
+            var quickToggle = document.getElementById("sirkQuickCommandsToggle");
+            if (quickPanel) quickPanel.hidden = true;
+            if (quickToggle) quickToggle.setAttribute("aria-expanded", "false");
+            return;
+        }
+        var quickCategory = event.target && event.target.closest && event.target.closest("[data-quick-command-category]");
+        if (quickCategory) {
+            quickCommands.category = quickCategory.getAttribute("data-quick-command-category") || "";
+            renderCompactCommands();
+            return;
+        }
+        var quickItem = event.target && event.target.closest && event.target.closest("[data-quick-command-item]");
+        if (quickItem) {
+            var panel = document.getElementById("sirkQuickCommandsPanel");
+            var index = Number(quickItem.getAttribute("data-quick-command-item"));
+            if (panel && panel.__items && panel.__items[index]) selectCompactCommand(panel.__items[index]);
+        }
+    }, true);
+
+    document.addEventListener("input", function (event) {
+        if (!event.target || !event.target.classList.contains("sirk-quick-command-search")) return;
+        quickCommands.search = event.target.value || "";
+        renderCompactCommands();
+        var search = document.querySelector("#sirkQuickCommandsPanel .sirk-quick-command-search");
+        if (search) { search.focus(); search.setSelectionRange(search.value.length, search.value.length); }
     }, true);
 
     window.addEventListener("sirkportal:languagechange", function () {

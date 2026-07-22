@@ -19,17 +19,17 @@
     }
 
     var icons = {
-        overview: svg('<path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h8M8 17h5"/>'),
-        moverequests: svg('<path d="M7 7h11l-3-3M18 7l-3 3"/><path d="M17 17H6l3 3M6 17l3-3"/>'),
-        mycommands: svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m7 10 3 2-3 2M12 15h5"/>'),
-        myscripts: svg('<path d="M6 3h9l3 3v15H6V3Z"/><path d="M9 11h6M9 15h6"/>'),
+        overview: svg('<path d="M5 4h14v3H5zM5 10h14v3H5zM5 16h14v3H5z"/>'),
+        moverequests: svg('<path d="M5 7h12l-3-3m3 3-3 3M19 17H7l3 3m-3-3 3-3"/>'),
+        mycommands: svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m7 10 3 2-3 2m5 1h5"/>'),
+        myscripts: svg('<path d="M6 3h9l3 3v15H6z"/><path d="M9 11h6m-6 4h6"/>'),
         all: svg('<path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h8"/>'),
-        pending: svg('<path d="M6 2h12M6 22h12M8 2v5l4 5-4 5v5M16 2v5l-4 5 4 5v5"/>'),
-        executing: svg('<path d="m8 5 11 7-11 7V5Z"/>'),
-        approved: svg('<path d="m4 12 5 5L20 6"/>'),
-        completed: svg('<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>'),
-        failed: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 17h.01"/>'),
-        rejected: svg('<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>')
+        pending: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+        executing: svg('<circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4V8Z"/>'),
+        approved: svg('<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16.5 9"/>'),
+        completed: svg('<path d="M4 5h16v14H4z"/><path d="m8 12 2.5 2.5L16 9"/>'),
+        failed: svg('<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>'),
+        rejected: svg('<circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/>')
     };
 
     function ordered(rows) {
@@ -41,13 +41,9 @@
     function skin(shell) {
         var page = shell.state.page;
         if (!page || !page.root) return;
-        page.root.classList.add("mc-module-approvalcenter", "sirk-management-shell");
-        page.layout.root.classList.add("sirk-management-workspace");
-        page.primary.classList.add("sirk-management-column");
-        page.secondary.classList.add("sirk-management-column");
-        page.details.classList.add("sirk-management-column", "sirk-management-content");
-        var toolbar = page.root.querySelector(".mc-shared-toolbar");
-        if (toolbar) toolbar.classList.add("sirk-management-toolbar");
+        // SharedPage owns the complete layout and visual classes. Approval Center
+        // adds only its semantic hook so switching views cannot pollute the shell.
+        page.root.classList.add("mc-module-approvalcenter");
     }
 
     function nav(host, options) {
@@ -60,6 +56,7 @@
 
         var icon = document.createElement("span");
         icon.className = "sirk-management-item-icon mc-approval-nav-icon";
+        if (options.iconKey) icon.classList.add("mc-approval-icon-" + options.iconKey);
         icon.setAttribute("aria-hidden", "true");
         icon.innerHTML = options.icon || icons.all;
 
@@ -79,6 +76,7 @@
             nav(host, {
                 title: titles[provider.type] || provider.tabTitle || provider.title,
                 icon: icons[provider.type] || icons.all,
+                iconKey: provider.type,
                 className: "mc-approval-provider",
                 active: selectedProvider === provider.type,
                 onClick: function () {
@@ -96,6 +94,7 @@
         nav(host, {
             title: "Overview",
             icon: icons.overview,
+            iconKey: "overview",
             active: !selectedProvider,
             onClick: function () {
                 selectedProvider = "";
@@ -121,6 +120,7 @@
         nav(host, {
             title: "All",
             icon: icons.all,
+            iconKey: "all",
             count: count.all,
             active: !overviewFilter,
             onClick: function () { overviewFilter = ""; shell.render(); }
@@ -129,6 +129,7 @@
             nav(host, {
                 title: titles[provider.type] || provider.title,
                 icon: icons[provider.type] || icons.all,
+                iconKey: provider.type,
                 count: count[provider.type] || 0,
                 active: overviewFilter === provider.type,
                 onClick: function () { overviewFilter = provider.type; shell.render(); }
@@ -143,6 +144,7 @@
             nav(host, {
                 title: status.title,
                 icon: icons[status.key] || icons.all,
+                iconKey: status.key,
                 className: "mc-approval-status",
                 active: selectedStatus === status.key,
                 onClick: function () { selectedStatus = status.key; shell.render(); }

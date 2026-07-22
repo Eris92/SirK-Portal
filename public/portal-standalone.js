@@ -20,9 +20,10 @@
         pl: {
             overview: "Przegląd", devices: "Urządzenia", approvals: "Akceptacje",
             automation: "Automatyzacja", monitoring: "Monitoring", assets: "Zasoby",
-            management: "Zarządzanie", reports: "Raporty", security: "Security",
-            settings: "Ustawienia", meshCentral: "MeshCentral",
+            management: "Zarządzanie", reports: "Raporty", security: "Bezpieczeństwo",
+            settings: "Ustawienia", meshCentral: "MeshCentral", logout: "Wyloguj się",
             collapse: "Zwiń menu", expand: "Rozwiń menu", theme: "Zmień motyw",
+            switchToDark: "Włącz ciemny motyw", switchToLight: "Włącz jasny motyw",
             languageTitle: "Switch to English", loading: "Ładowanie…",
             loadingModules: "Ładowanie modułów MyCompany…", loadingDevices: "Ładowanie urządzeń…",
             unknownError: "Nieznany błąd Portalu.", moduleDisabled: "moduł jest wyłączony albo użytkownik nie ma dostępu.",
@@ -31,8 +32,11 @@
             overviewDevicesLoading: "Pobieranie listy urządzeń…",
             overviewApprovalsTitle: "Akceptacje",
             overviewApprovalsDescription: "Move Requests, Commands i Scripts wymagające zatwierdzenia.",
+            overviewApprovalsLoading: "Sprawdzanie otwartych wniosków…", overviewApprovalsSuffix: "wniosków oczekuje na akceptację.",
             overviewIntegrationsTitle: "Integracje",
             overviewIntegrationsDescription: "Jira, Zabbix, Defender XDR, Entra i automatyzacja.",
+            healthOk: "OK", healthWarning: "Ostrzeżenie", healthCritical: "Krytyczny", healthUnknown: "Nieznany",
+            healthAllOk: "Wszystkie integracje działają prawidłowo.", healthHasIssues: "Stan integracji wymaga uwagi.", healthLoading: "Sprawdzanie stanu integracji…",
             total: "Wszystkie", online: "Online", offline: "Offline",
             searchDevices: "Szukaj hosta, grupy lub systemu…", refresh: "Odśwież",
             waitingDevices: "Oczekiwanie na dane urządzeń…", noDevices: "Brak urządzeń dostępnych dla tego konta.",
@@ -52,8 +56,9 @@
             overview: "Overview", devices: "Devices", approvals: "Approval",
             automation: "Automation", monitoring: "Monitoring", assets: "Assets",
             management: "Management", reports: "Reports", security: "Security",
-            settings: "Settings", meshCentral: "MeshCentral",
+            settings: "Settings", meshCentral: "MeshCentral", logout: "Sign out",
             collapse: "Collapse menu", expand: "Expand menu", theme: "Change theme",
+            switchToDark: "Switch to dark theme", switchToLight: "Switch to light theme",
             languageTitle: "Przełącz na polski", loading: "Loading…",
             loadingModules: "Loading MyCompany modules…", loadingDevices: "Loading devices…",
             unknownError: "Unknown Portal error.", moduleDisabled: "module is disabled or the user does not have access.",
@@ -62,8 +67,11 @@
             overviewDevicesLoading: "Loading the device list…",
             overviewApprovalsTitle: "Approval",
             overviewApprovalsDescription: "Move Requests, Commands and Scripts awaiting approval.",
+            overviewApprovalsLoading: "Checking open requests…", overviewApprovalsSuffix: "requests are awaiting approval.",
             overviewIntegrationsTitle: "Integrations",
             overviewIntegrationsDescription: "Jira, Zabbix, Defender XDR, Entra and automation.",
+            healthOk: "OK", healthWarning: "Warning", healthCritical: "Critical", healthUnknown: "Unknown",
+            healthAllOk: "All integrations are healthy.", healthHasIssues: "Integration health requires attention.", healthLoading: "Checking integration health…",
             total: "All", online: "Online", offline: "Offline",
             searchDevices: "Search host, group or operating system…", refresh: "Refresh",
             waitingDevices: "Waiting for device data…", noDevices: "No devices are available for this account.",
@@ -82,6 +90,12 @@
     };
 
     var moduleViews = { automation: "mycommands", assets: "myjira", security: "defendertools" };
+    var VIEW_KEYS = ["overview", "devices", "approvals", "automation", "monitoring", "assets", "management", "reports", "security", "settings"];
+    var THEME_ICONS = {
+        moon: '<svg class="sirk-theme-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.7 15.1A8.5 8.5 0 0 1 8.9 3.4a8.7 8.7 0 1 0 11.8 11.7Z"/><path class="sirk-theme-star" d="m17.5 3 .55 1.45L19.5 5l-1.45.55L17.5 7l-.55-1.45L15.5 5l1.45-.55Z"/></svg>',
+        sun: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>'
+    };
+    var DEVICE_ICON = '<svg class="sirk-device-computer-svg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M6.5 7.5h11v6h-11z" class="sirk-device-computer-screen"/></svg>';
 
     function language() {
         try { return window.localStorage.getItem(STORAGE_LANGUAGE) === "en" ? "en" : "pl"; }
@@ -99,10 +113,77 @@
             .replace(/'/g, "&#39;");
     }
 
-    function viewName(view) { return t(view); }
+    function portalConfig() {
+        var state = moduleState("portal");
+        return state && state.config || {};
+    }
+
+    function viewConfig(view) {
+        var views = portalConfig().views;
+        return views && views[view] && typeof views[view] === "object" ? views[view] : {};
+    }
+
+    function viewEnabled(view) { return viewConfig(view).enabled !== false; }
+
+    function firstEnabledView() {
+        return VIEW_KEYS.find(function (key) { return viewEnabled(key); }) || "overview";
+    }
+
+    function viewName(view) {
+        var config = viewConfig(view);
+        return config.personalized === true && String(config.label || "").trim()
+            ? String(config.label).trim()
+            : t(view);
+    }
+
+    function viewAccent(view) {
+        var config = viewConfig(view);
+        return config.personalized === true && /^#[0-9a-f]{6}$/i.test(String(config.accent || ""))
+            ? String(config.accent)
+            : "#4d6bd8";
+    }
+
+    function applyViewPreferences() {
+        Array.prototype.forEach.call(root.querySelectorAll(".sirk-standalone-nav [data-view]"), function (button) {
+            var view = button.getAttribute("data-view");
+            var config = viewConfig(view);
+            button.hidden = !viewEnabled(view);
+            button.setAttribute("aria-hidden", button.hidden ? "true" : "false");
+            button.style.setProperty("--sirk-view-accent", viewAccent(view));
+            button.classList.toggle("is-personalized", config.personalized === true);
+        });
+    }
+
+    function applyViewSurface(view) {
+        var unified = view !== "devices";
+        content.classList.toggle("sirk-unified-content", unified);
+        content.classList.toggle("sirk-device-content", !unified);
+        content.setAttribute("data-active-view", view);
+        root.style.setProperty("--sirk-active-accent", viewAccent(view));
+    }
+
+    function prepareModuleHost(view) {
+        content.innerHTML = "";
+        content.removeAttribute("style");
+        content.setAttribute("data-module-view", view);
+        var host = document.createElement("div");
+        host.className = "sirk-portal-view-host sirk-portal-view-" + view;
+        content.appendChild(host);
+        return host;
+    }
+
+    function syncThemeButton(dark) {
+        var button = root.querySelector('[data-action="theme"]');
+        if (!button) return;
+        button.innerHTML = dark ? THEME_ICONS.sun : THEME_ICONS.moon;
+        button.title = dark ? t("switchToLight") : t("switchToDark");
+        button.setAttribute("aria-label", button.title);
+        button.setAttribute("data-theme-icon", dark ? "sun" : "moon");
+    }
 
     function applyShellLanguage() {
         document.documentElement.lang = language();
+        applyViewPreferences();
         Array.prototype.forEach.call(root.querySelectorAll(".sirk-standalone-nav [data-view]"), function (button) {
             var key = button.getAttribute("data-view");
             var label = button.querySelector("b");
@@ -111,6 +192,8 @@
         });
         var nativeLabel = root.querySelector(".sirk-standalone-native b");
         if (nativeLabel) nativeLabel.textContent = t("meshCentral");
+        var logoutButton = root.querySelector('[data-action="logout"]');
+        if (logoutButton) logoutButton.textContent = t("logout");
         var languageButton = root.querySelector('[data-action="language"]');
         if (languageButton) {
             languageButton.textContent = language() === "pl" ? "PL" : "EN";
@@ -124,10 +207,28 @@
         }
         var themeButton = root.querySelector('[data-action="theme"]');
         if (themeButton) {
-            themeButton.title = t("theme");
-            themeButton.setAttribute("aria-label", themeButton.title);
+            syncThemeButton(portalRoot.classList.contains("sirk-theme-dark"));
         }
         title.textContent = viewName(activeView);
+    }
+
+    function applyUserProfile() {
+        var profile = bootstrap && bootstrap.user || {};
+        var menu = document.getElementById("sirkUserMenu");
+        var name = document.getElementById("sirkUserName");
+        var image = document.getElementById("sirkUserImage");
+        if (!menu || !name || !image || !String(profile.name || "").trim()) return;
+        name.textContent = String(profile.name).trim();
+        var fallback = String(window.__MYCOMPANY_DEFAULT_USER_IMAGE_URL__ || "");
+        image.onerror = function () {
+            image.onerror = null;
+            image.src = fallback;
+        };
+        image.src = profile.hasImage === true
+            ? String(window.__MYCOMPANY_USER_IMAGE_URL__ || "") + "?rnd=" + encodeURIComponent(profile.imageRnd || Date.now())
+            : fallback;
+        image.alt = String(profile.name).trim();
+        menu.hidden = false;
     }
 
     function setLanguage(value) {
@@ -204,13 +305,13 @@
     }
 
     function overview(sequence) {
-        content.innerHTML = '<div class="sirk-standalone-view-scroll"><div class="sirk-standalone-grid">' +
-            '<button type="button" class="sirk-standalone-card sirk-overview-link" data-open-view="devices"><h2>' + escapeHtml(t("overviewDevicesTitle")) + '</h2><p><strong id="sirkOverviewDeviceCount">…</strong> <span id="sirkOverviewDeviceSuffix">' + escapeHtml(t("overviewDevicesLoading")) + '</span></p></button>' +
-            '<button type="button" class="sirk-standalone-card sirk-overview-link" data-open-view="approvals"><h2>' + escapeHtml(t("overviewApprovalsTitle")) + '</h2><p>' + escapeHtml(t("overviewApprovalsDescription")) + '</p></button>' +
-            '<section class="sirk-standalone-card"><h2>' + escapeHtml(t("overviewIntegrationsTitle")) + '</h2><p>' + escapeHtml(t("overviewIntegrationsDescription")) + '</p></section>' +
-            '</div></div>';
+        var cards = [];
+        if (viewEnabled("devices")) cards.push('<button type="button" class="sirk-standalone-card sirk-overview-link" data-open-view="devices"><h2>' + escapeHtml(viewName("devices")) + '</h2><p><strong id="sirkOverviewDeviceCount">…</strong> <span id="sirkOverviewDeviceSuffix">' + escapeHtml(t("overviewDevicesLoading")) + '</span></p></button>');
+        if (viewEnabled("approvals")) cards.push('<button type="button" class="sirk-standalone-card sirk-overview-link" data-open-view="approvals"><h2>' + escapeHtml(viewName("approvals")) + '</h2><p><strong id="sirkOverviewApprovalCount">…</strong> <span id="sirkOverviewApprovalSuffix">' + escapeHtml(t("overviewApprovalsLoading")) + '</span></p></button>');
+        cards.push('<section class="sirk-standalone-card sirk-overview-health"><h2>' + escapeHtml(t("overviewIntegrationsTitle")) + '</h2><p><span id="sirkOverviewHealthBadge" class="sirk-health-badge is-unknown">' + escapeHtml(t("healthUnknown")) + '</span> <span id="sirkOverviewHealthText">' + escapeHtml(t("healthLoading")) + '</span></p><ul id="sirkOverviewHealthIssues" hidden></ul></section>');
+        content.innerHTML = '<div class="sirk-standalone-view-scroll"><div class="sirk-standalone-grid">' + cards.join("") + '</div></div>';
 
-        loadDevices(false).then(function (inventory) {
+        if (viewEnabled("devices")) loadDevices(false).then(function (inventory) {
             if (!isCurrent(sequence) || activeView !== "overview") return;
             var count = document.getElementById("sirkOverviewDeviceCount");
             var suffix = document.getElementById("sirkOverviewDeviceSuffix");
@@ -222,6 +323,46 @@
             var suffix = document.getElementById("sirkOverviewDeviceSuffix");
             if (count) count.textContent = "0";
             if (suffix) suffix.textContent = t("overviewDevicesSuffix");
+        });
+
+        core.api("portal", "overview").then(function (value) {
+            if (!isCurrent(sequence) || activeView !== "overview") return;
+            var approvalCount = document.getElementById("sirkOverviewApprovalCount");
+            var approvalSuffix = document.getElementById("sirkOverviewApprovalSuffix");
+            if (approvalCount) approvalCount.textContent = String(Number(value.pendingApprovals) || 0);
+            if (approvalSuffix) approvalSuffix.textContent = t("overviewApprovalsSuffix");
+            var health = value.integrations || {};
+            var status = ["ok", "warning", "critical"].indexOf(health.status) >= 0 ? health.status : "unknown";
+            var badge = document.getElementById("sirkOverviewHealthBadge");
+            var healthText = document.getElementById("sirkOverviewHealthText");
+            var issues = document.getElementById("sirkOverviewHealthIssues");
+            var labels = { ad: "Active Directory", entra: "Entra ID", jira: "Jira", defender: "Defender XDR", zabbix: "Zabbix" };
+            if (badge) {
+                badge.className = "sirk-health-badge is-" + status;
+                badge.textContent = t(status === "ok" ? "healthOk" : status === "warning" ? "healthWarning" : status === "critical" ? "healthCritical" : "healthUnknown");
+            }
+            if (healthText) healthText.textContent = status === "ok" ? t("healthAllOk") : t("healthHasIssues");
+            var healthItems = Array.isArray(health.items) ? health.items : [];
+            if (issues) {
+                issues.innerHTML = healthItems.map(function (item) {
+                    var message = language() === "pl" ? item.messagePl : item.messageEn;
+                    if (!message) message = language() === "pl" ? item.messageEn : item.messagePl;
+                    var itemStatus = ["ok", "warning", "critical"].indexOf(item.status) >= 0 ? item.status : "unknown";
+                    var statusText = t(itemStatus === "ok" ? "healthOk" : itemStatus === "critical" ? "healthCritical" : itemStatus === "warning" ? "healthWarning" : "healthUnknown");
+                    return '<li><strong>' + escapeHtml(labels[item.key] || item.key) + '</strong><span class="sirk-health-badge is-' + itemStatus + '">' + escapeHtml(statusText) + '</span>' + (message && itemStatus !== "ok" ? '<small>' + escapeHtml(message) + '</small>' : '') + '</li>';
+                }).join("");
+                issues.hidden = healthItems.length === 0;
+            }
+        }).catch(function () {
+            if (!isCurrent(sequence) || activeView !== "overview") return;
+            var approvalCount = document.getElementById("sirkOverviewApprovalCount");
+            var approvalSuffix = document.getElementById("sirkOverviewApprovalSuffix");
+            if (approvalCount) approvalCount.textContent = "—";
+            if (approvalSuffix) approvalSuffix.textContent = t("loadFailed");
+            var badge = document.getElementById("sirkOverviewHealthBadge");
+            var healthText = document.getElementById("sirkOverviewHealthText");
+            if (badge) badge.textContent = t("healthUnknown");
+            if (healthText) healthText.textContent = t("loadFailed");
         });
     }
 
@@ -244,8 +385,8 @@
             if (!isCurrent(sequence)) return;
             var module = window.MyCompanyModules[key];
             if (!module || typeof module.mount !== "function") throw new Error("Module " + key + " does not expose a Portal view.");
-            content.innerHTML = "";
-            return Promise.resolve(module.mount(content, "sirk-standalone-" + view));
+            var host = prepareModuleHost(view);
+            return Promise.resolve(module.mount(host, "sirk-standalone-" + view));
         }).catch(function (reason) {
             if (isCurrent(sequence)) showError(viewName(view) + ": " + t("loadFailed"), reason && (reason.stack || reason.message) || reason);
         });
@@ -262,10 +403,10 @@
             showError("MyScripts renderer is unavailable.");
             return;
         }
+        var outerHost = prepareModuleHost("management");
         var host = document.createElement("div");
         host.className = "mycompany-management-host";
-        content.innerHTML = "";
-        content.appendChild(host);
+        outerHost.appendChild(host);
         var timer = window.setTimeout(function () {
             if (isCurrent(sequence) && !host.querySelector(".sirk-management-shell,.mc-shared-error,.sirk-card")) {
                 showError("MyScripts did not finish initialization.", "pluginadmin.ashx?pin=MyCompany&module=myscripts&asset=scripts");
@@ -291,8 +432,8 @@
             if (!isCurrent(sequence)) return;
             var module = window.MyCompanyModules.approvalcenter;
             if (!module || typeof module.mount !== "function") throw new Error("Approval Center does not expose a Portal view.");
-            content.innerHTML = "";
-            return Promise.resolve(module.mount(content, "sirk-standalone-approval"));
+            var host = prepareModuleHost("approvals");
+            return Promise.resolve(module.mount(host, "sirk-standalone-approval"));
         }).catch(function (reason) {
             if (isCurrent(sequence)) showError(viewName("approvals") + ": " + t("loadFailed"), reason && (reason.stack || reason.message) || reason);
         });
@@ -302,14 +443,24 @@
         var portal = moduleState("portal") || {};
         var access = portal.access || bootstrap && bootstrap.access || {};
         if (access.siteAdmin !== true) { showError(t("settingsAdminOnly")); return; }
-        content.innerHTML = "";
+        var host = prepareModuleHost("settings");
+        var shell = document.createElement("section");
+        shell.className = "mc-portal-module-shell sirk-settings-module-shell";
+        var toolbar = document.createElement("header");
+        toolbar.className = "mc-portal-module-toolbar sirk-settings-module-toolbar";
+        toolbar.innerHTML = '<strong>' + escapeHtml(viewName("settings")) + '</strong>';
+        var workspace = document.createElement("div");
+        workspace.className = "mc-portal-module-workspace sirk-settings-module-workspace";
         var frame = document.createElement("iframe");
         frame.className = "sirk-standalone-settings-frame";
         frame.title = "MyCompany settings";
         var url = new URL(window.__MYCOMPANY_API_BASE__, window.location.href);
         url.searchParams.set("pin", "MyCompany");
         frame.src = url.href;
-        content.appendChild(frame);
+        workspace.appendChild(frame);
+        shell.appendChild(toolbar);
+        shell.appendChild(workspace);
+        host.appendChild(shell);
     }
 
     function nativeDeviceUrl(node) {
@@ -328,7 +479,7 @@
         var online = nodeOnline(node);
         content.innerHTML = '<div class="sirk-standalone-view-scroll">' +
             '<div class="sirk-device-detail-head"><button type="button" class="sirk-device-back" data-device-back="1">← ' + escapeHtml(t("backToDevices")) + '</button></div>' +
-            '<section class="sirk-device-hero"><span class="sirk-device-hero-icon">▣</span><div><h2>' + escapeHtml(node.name || t("unknownHost")) + '</h2><p>' + escapeHtml(nodeGroup(node, map)) + ' · ' + escapeHtml(node.os || t("noOs")) + '</p></div><span class="sirk-device-connection ' + (online ? "is-online" : "is-offline") + '"><i></i>' + escapeHtml(online ? t("online") : t("offline")) + '</span></section>' +
+            '<section class="sirk-device-hero"><span class="sirk-device-hero-icon">' + DEVICE_ICON + '</span><div><h2>' + escapeHtml(node.name || t("unknownHost")) + '</h2><p>' + escapeHtml(nodeGroup(node, map)) + ' · ' + escapeHtml(node.os || t("noOs")) + '</p></div><span class="sirk-device-connection ' + (online ? "is-online" : "is-offline") + '"><i></i>' + escapeHtml(online ? t("online") : t("offline")) + '</span></section>' +
             '<div class="sirk-device-detail-grid">' +
             detailItem(t("name"), node.name) + detailItem(t("status"), online ? t("online") : t("offline")) +
             detailItem(t("group"), nodeGroup(node, map)) + detailItem(t("system"), node.os || t("noOs")) +
@@ -380,7 +531,7 @@
             return '<section class="sirk-device-group"><header class="sirk-device-group-header"><div><strong>' + escapeHtml(group) + '</strong><small>' + rows.length + ' ' + escapeHtml(t("devicesCount")) + '</small></div><span>' + rows.filter(nodeOnline).length + ' ' + escapeHtml(t("online").toLowerCase()) + '</span></header><div class="sirk-device-list">' +
                 rows.map(function (node) {
                     var online = nodeOnline(node);
-                    return '<button type="button" class="sirk-device-row" data-device-id="' + escapeHtml(node.id) + '"><span class="sirk-device-icon">▣</span><span class="sirk-device-primary"><strong>' + escapeHtml(node.name || t("unknownHost")) + '</strong><small>' + escapeHtml(group) + '</small></span><span class="sirk-device-os">' + escapeHtml(node.os || t("noOs")) + '</span><span class="sirk-device-network">' + escapeHtml(node.ip || "—") + '</span><span class="sirk-device-seen">' + escapeHtml(formatLastSeen(node.lastSeen)) + '</span><span class="sirk-device-connection ' + (online ? "is-online" : "is-offline") + '"><i></i>' + escapeHtml(online ? t("online") : t("offline")) + '</span><span class="sirk-device-open">' + escapeHtml(t("open")) + '</span></button>';
+                    return '<button type="button" class="sirk-device-row" data-device-id="' + escapeHtml(node.id) + '"><span class="sirk-device-icon">' + DEVICE_ICON + '</span><span class="sirk-device-primary"><strong>' + escapeHtml(node.name || t("unknownHost")) + '</strong><small>' + escapeHtml(group) + '</small></span><span class="sirk-device-os">' + escapeHtml(node.os || t("noOs")) + '</span><span class="sirk-device-network">' + escapeHtml(node.ip || "—") + '</span><span class="sirk-device-seen">' + escapeHtml(formatLastSeen(node.lastSeen)) + '</span><span class="sirk-device-connection ' + (online ? "is-online" : "is-offline") + '"><i></i>' + escapeHtml(online ? t("online") : t("offline")) + '</span><span class="sirk-device-open">' + escapeHtml(t("open")) + '</span></button>';
                 }).join("") + '</div></section>';
         }).join("");
     }
@@ -413,13 +564,14 @@
     }
 
     function placeholder(view, description) {
-        content.innerHTML = '<div class="sirk-standalone-view-scroll"><div class="sirk-standalone-card sirk-standalone-placeholder"><h2>' + escapeHtml(viewName(view)) + '</h2><p>' + escapeHtml(description) + '</p></div></div>';
+        content.innerHTML = '<section class="mc-portal-module-shell mc-portal-placeholder-shell"><div class="mc-portal-placeholder-content"><h2>' + escapeHtml(viewName(view)) + '</h2><p class="sirk-muted">' + escapeHtml(description) + '</p></div></section>';
     }
 
     function render(view) {
-        view = TEXT.pl[view] ? view : "overview";
+        view = VIEW_KEYS.indexOf(view) >= 0 && viewEnabled(view) ? view : firstEnabledView();
         activeView = view;
         var sequence = ++renderSequence;
+        applyViewSurface(view);
         applyShellLanguage();
         title.textContent = viewName(view);
         Array.prototype.forEach.call(document.querySelectorAll(".sirk-standalone-nav [data-view]"), function (button) {
@@ -443,6 +595,7 @@
         portalRoot.classList.toggle("sirk-theme-dark", dark);
         portalRoot.classList.toggle("sirk-theme-light", !dark);
         document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        syncThemeButton(dark);
         try { localStorage.setItem("mycompany.sirkportal.theme", dark ? "dark" : "light"); } catch (ignored) {}
     }
 
@@ -489,7 +642,28 @@
                 setTheme(!portalRoot.classList.contains("sirk-theme-dark"));
             } else if (name === "language") {
                 setLanguage(language() === "pl" ? "en" : "pl");
+            } else if (name === "user-menu") {
+                var userMenu = document.getElementById("sirkUserMenu");
+                var open = userMenu && !userMenu.classList.contains("is-open");
+                if (userMenu) userMenu.classList.toggle("is-open", open);
+                action.setAttribute("aria-expanded", open ? "true" : "false");
+            } else if (name === "logout") {
+                window.location.assign(String(window.__MYCOMPANY_LOGOUT_URL__ || "/logout"));
             }
+        });
+        document.addEventListener("click", function (event) {
+            var userMenu = document.getElementById("sirkUserMenu");
+            if (!userMenu || userMenu.contains(event.target)) return;
+            userMenu.classList.remove("is-open");
+            var tile = document.getElementById("sirkUserTile");
+            if (tile) tile.setAttribute("aria-expanded", "false");
+        });
+        document.addEventListener("keydown", function (event) {
+            if (event.key !== "Escape") return;
+            var userMenu = document.getElementById("sirkUserMenu");
+            if (userMenu) userMenu.classList.remove("is-open");
+            var tile = document.getElementById("sirkUserTile");
+            if (tile) tile.setAttribute("aria-expanded", "false");
         });
         try {
             if (localStorage.getItem("mycompany.sirkportal.standaloneCollapsed") === "1") root.classList.add("is-collapsed");
@@ -508,7 +682,7 @@
             ["sirk-shared-toolbar", "shared-ui/toolbar.js"], ["sirk-shared-tabs", "shared-ui/tabs.js"],
             ["sirk-shared-layout", "shared-ui/layout.js"], ["sirk-shared-settings", "shared-ui/settings.js"],
             ["sirk-shared-status-nav", "shared-ui/status-nav.js"], ["sirk-shared-page", "shared-ui/page.js"],
-            ["sirk-shared-tree", "shared-ui/tree.js"], ["sirk-shared-results", "shared-ui/results.js"],
+            ["sirk-shared-tree", "shared-ui/tree.js"], ["sirk-shared-catalog", "shared-ui/catalog.js"], ["sirk-shared-results", "shared-ui/results.js"],
             ["sirk-shared-result-layout", "shared-ui/result-layout.js"], ["sirk-shared-script-tools", "shared-ui/script-tools.js"],
             ["sirk-shared-script-definition", "shared-ui/script-definition-form.js"], ["sirk-shared-confirm", "shared-ui/confirm-execution-form.js"],
             ["sirk-shared-edit-actions", "shared-ui/script-edit-actions.js"], ["sirk-shared-system-credentials", "shared-ui/system-credentials-form.js"],
@@ -532,9 +706,12 @@
             window.MyCompanyRuntime.state = window.MyCompanyRuntime.state || {};
             window.MyCompanyRuntime.state.bootstrap = bootstrap;
             bootstrap.access = bootstrap.access || (bootstrap.modules && bootstrap.modules.portal && bootstrap.modules.portal.access) || {};
+            applyUserProfile();
+            applyShellLanguage();
             return loadDependencies();
         }).then(function () {
-            render(location.hash.slice(1) || "overview");
+            var requested = location.hash.slice(1);
+            render(requested || portalConfig().defaultView || "overview");
         }).catch(function (reason) {
             showError("SirK Portal: " + t("loadFailed"), reason && (reason.stack || reason.message) || reason);
         });

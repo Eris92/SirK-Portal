@@ -5,6 +5,7 @@ var http = require("../../core/http-client.js");
 
 module.exports.createModule = function (context) {
     function allowed(user) {
+        if (!user) return false;
         if (shared.isSiteAdmin(user)) return true;
         var groups = context.settings.read().modules.myjira.accessGroupIds || [];
         return shared.isUserInAnyGroup(user, groups);

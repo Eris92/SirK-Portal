@@ -1,7 +1,7 @@
 "use strict";
 
 var createAdmin = require("./MyCompanyAdmin.js").admin;
-var VERSION = "1.5.23";
+var VERSION = require("./config.json").version;
 
 function cleanError(error) {
     return String(error && (error.stack || error.message) || error || "Unknown MyCompany load error.");
@@ -24,13 +24,14 @@ function createFallbackRuntime(error) {
         initialize: function () { return Promise.resolve(); },
         captureAgentData: function () {},
         request: function (method, moduleName, asset, req, res) {
-            sendJson(res, 503, { ok: false, error: "MyCompany runtime failed to load.", detail: message });
+            sendJson(res, 503, { ok: false, error: "MyCompany runtime failed to load." });
         },
         adminSnapshot: function () {
             return {
                 plugin: { name: "My Company", version: VERSION },
                 modules: [], moduleSettings: {}, integrations: {},
                 migration: { completed: false, error: message },
+                diagnostics: { logs: "", errors: message },
                 loadError: message, generatedAt: new Date().toISOString()
             };
         },
@@ -81,8 +82,9 @@ function createPlugin(parent, shortName) {
     obj.onWebUIStartupEnd = function () {
         if (typeof window === "undefined" || typeof document === "undefined") return;
 
-        var browserVersion = "1.5.23";
+        var browserVersion = "1.5.83";
         var browserPin = "MyCompany";
+        window.__MYCOMPANY_VERSION__ = browserVersion;
         document.documentElement.classList.add("mycompany-native-ui");
 
         function asset(name) {
@@ -136,6 +138,15 @@ function createPlugin(parent, shortName) {
             .then(function () { return load("mycompany-shared-layout", asset("shared-ui/layout.js")); })
             .then(function () { return load("mycompany-shared-settings", asset("shared-ui/settings.js")); })
             .then(function () { return load("mycompany-shared-status-nav", asset("shared-ui/status-nav.js")); })
+            .then(function () { return load("mycompany-shared-tree", asset("shared-ui/tree.js")); })
+            .then(function () { return load("mycompany-shared-catalog", asset("shared-ui/catalog.js")); })
+            .then(function () { return load("mycompany-shared-results", asset("shared-ui/results.js")); })
+            .then(function () { return load("mycompany-shared-result-layout", asset("shared-ui/result-layout.js")); })
+            .then(function () { return load("mycompany-shared-script-tools", asset("shared-ui/script-tools.js")); })
+            .then(function () { return load("mycompany-shared-script-definition", asset("shared-ui/script-definition-form.js")); })
+            .then(function () { return load("mycompany-shared-confirm", asset("shared-ui/confirm-execution-form.js")); })
+            .then(function () { return load("mycompany-shared-edit-actions", asset("shared-ui/script-edit-actions.js")); })
+            .then(function () { return load("mycompany-shared-system-credentials", asset("shared-ui/system-credentials-form.js")); })
             .then(function () { return load("mycompany-shared-page", asset("shared-ui/page.js")); })
             .then(function () { return load("mycompany-module-shell-script", asset("module-shell.js")); })
             .then(function () { return load("mycompany-runtime-script", asset("runtime.js")); })
@@ -165,8 +176,16 @@ function createPlugin(parent, shortName) {
         if (parent.plugins[alias]) return;
         parent.plugins[alias] = {
             exports: [],
-            handleAdminReq: function (req, res, user) { return obj.handleAdminReq(req, res, user); },
-            handleAdminPostReq: function (req, res, user) { return obj.handleAdminPostReq(req, res, user); }
+            handleAdminReq: function (req, res, user) {
+                var active = parent.plugins[obj.shortName];
+                if (!active || typeof active.handleAdminReq !== "function") return;
+                return active.handleAdminReq(req, res, user);
+            },
+            handleAdminPostReq: function (req, res, user) {
+                var active = parent.plugins[obj.shortName];
+                if (!active || typeof active.handleAdminPostReq !== "function") return;
+                return active.handleAdminPostReq(req, res, user);
+            }
         };
         parent.exports[alias] = [];
     }());

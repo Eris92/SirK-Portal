@@ -79,7 +79,36 @@ html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-nav-icon {
   flex: 0 0 22px;
   width: 22px;
   height: 22px;
-  color: #5ba4ff;
+  color: #2563a8;
+}
+
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-overview,
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-all {
+  color: inherit;
+}
+
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-moverequests {
+  color: #2496d4;
+}
+
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-mycommands,
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-myscripts,
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-executing {
+  color: #3f7fdb;
+}
+
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-approved,
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-completed {
+  color: #258c78;
+}
+
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-pending {
+  color: #c18418;
+}
+
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-failed,
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-rejected {
+  color: #c74747;
 }
 
 html.mycompany-native-ui .mc-module-approvalcenter .sirk-management-item-icon svg,
@@ -91,6 +120,12 @@ html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-nav-icon svg {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-overview svg,
+html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-icon-all svg {
+  fill: currentColor;
+  stroke: none;
 }
 
 html.mycompany-native-ui .mc-module-approvalcenter .mc-approval-details-title {

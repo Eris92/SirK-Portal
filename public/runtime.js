@@ -96,7 +96,7 @@
             // Native MeshCentral only receives an optional launcher to the standalone Portal.
             // Portal layout, theme and standalone renderers are never loaded here.
             var portal = bootstrap.modules && bootstrap.modules.portal;
-            var showLauncher = !!(portal && portal.enabled && portal.ready !== false && (!portal.config || portal.config.showLauncher !== false));
+            var showLauncher = !!(portal && portal.enabled && portal.ready !== false && portal.config && portal.config.showLauncher === true);
             if (showLauncher) {
                 chain = chain.then(function () {
                     return core.loadScript("mycompany-native-portal-launcher", core.assetUrl("", "native-portal-launcher.js"));

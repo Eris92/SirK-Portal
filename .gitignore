@@ -3,3 +3,5 @@ node_modules/
 mycompany-data/
 .DS_Store
 Thumbs.db
+
+.codex-local/

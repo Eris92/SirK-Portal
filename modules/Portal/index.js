@@ -2,41 +2,51 @@
 
 var fs = require("fs");
 var path = require("path");
-var https = require("https");
 var shared = require("../../core/shared.js");
+var folderAccess = require("../../core/folder-access.js");
+var sessionPersistenceFactory = require("../../core/session-persistence.js");
 
 var VENDOR_VERSION = "0.3.17";
-var VENDOR_REF = "e894c444c9d7e2e1218642018bf9c14dfb99c957";
-var CUSTOM_FILES_KEY = "mycompany-sirk-portal";
-var VENDOR_FILES = [
-    "sirk-portal.css",
-    "sirk-preflight-0.3.13.js",
-    "sirk-portal.js",
-    "sirk-remote-modules-0.3.13.js",
-    "sirk-portal-patch-0.2.8.js",
-    "sirk-ui-icons-0.3.4.js",
-    "sirk-layout-0.3.1.js",
-    "sirk-management-workspace-0.3.6.js",
-    "sirk-ui-runtime-0.3.15.js",
-    "sirk-device-layout-0.3.13.js",
-    "sirk-controls-0.3.17.js"
-];
-var EARLY_VENDOR_SCRIPTS = [
-    "sirk-preflight-0.3.13.js",
-    "sirk-portal.js",
-    "sirk-remote-modules-0.3.13.js",
-    "sirk-portal-patch-0.2.8.js",
-    "sirk-ui-icons-0.3.4.js",
-    "sirk-layout-0.3.1.js",
-    "sirk-ui-runtime-0.3.15.js",
-    "sirk-device-layout-0.3.13.js",
-    "sirk-controls-0.3.17.js"
-];
+var BUNDLED_FILES = ["sirk-portal.css"];
+var VIEW_KEYS = ["overview", "devices", "approvals", "automation", "monitoring", "assets", "management", "reports", "security", "settings"];
+
+function cleanLabel(value) {
+    return String(value == null ? "" : value).replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 40);
+}
+
+function cleanAccent(value, fallback) {
+    value = String(value || "").trim();
+    return /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : fallback;
+}
+
+function updateViews(current, input, knownGroups) {
+    current = current && typeof current === "object" ? current : {};
+    input = input && typeof input === "object" ? input : {};
+    knownGroups = Array.isArray(knownGroups) ? knownGroups.map(String) : [];
+    var enabledCount = 0;
+    VIEW_KEYS.forEach(function (key) {
+        var previous = current[key] && typeof current[key] === "object" ? current[key] : {};
+        var next = input[key] && typeof input[key] === "object" ? input[key] : {};
+        current[key] = {
+            enabled: typeof next.enabled === "boolean" ? next.enabled : previous.enabled !== false,
+            allowAll: typeof next.allowAll === "boolean" ? next.allowAll : previous.allowAll === true,
+            personalized: typeof next.personalized === "boolean" ? next.personalized : previous.personalized === true,
+            label: Object.prototype.hasOwnProperty.call(next, "label") ? cleanLabel(next.label) : cleanLabel(previous.label),
+            accent: cleanAccent(next.accent, cleanAccent(previous.accent, "#4d6bd8")),
+            groupIds: (Array.isArray(next.groupIds) ? next.groupIds : Array.isArray(previous.groupIds) ? previous.groupIds : []).map(String).filter(function (id, index, all) {
+                return knownGroups.indexOf(id) >= 0 && all.indexOf(id) === index;
+            })
+        };
+        if (current[key].enabled) enabledCount += 1;
+    });
+    if (!enabledCount) current.overview.enabled = true;
+    return current;
+}
 
 module.exports.createModule = function (context) {
+    var sessionPersistence = sessionPersistenceFactory.createManager(context);
     var vendorState = {
         version: VENDOR_VERSION,
-        ref: VENDOR_REF,
         ready: false,
         directory: "",
         missing: [],
@@ -53,12 +63,31 @@ module.exports.createModule = function (context) {
         return !!user;
     }
 
-    function requireAdmin(user) {
-        if (!shared.isSiteAdmin(user)) throw new Error("Permission denied.");
+    function viewAllowed(user, key) {
+        return folderAccess.canAccess(user, settings().views || {}, key);
     }
 
-    function meshServer() {
-        return context.parent && context.parent.parent;
+    function visibleViews(user) {
+        var source = settings().views || {};
+        var result = {};
+        VIEW_KEYS.forEach(function (key) {
+            var view = source[key] && typeof source[key] === "object" ? source[key] : {};
+            result[key] = {
+                enabled: viewAllowed(user, key),
+                personalized: view.personalized === true,
+                label: cleanLabel(view.label),
+                accent: cleanAccent(view.accent, "#4d6bd8")
+            };
+        });
+        return result;
+    }
+
+    function requireView(user, key) {
+        if (!viewAllowed(user, key)) throw new Error("Portal view access denied.");
+    }
+
+    function requireAdmin(user) {
+        if (!shared.isSiteAdmin(user)) throw new Error("Permission denied.");
     }
 
     function standalonePortalActive() {
@@ -73,7 +102,7 @@ module.exports.createModule = function (context) {
         return path.join(context.pluginRoot, "public", "vendor", "sirk-portal");
     }
 
-    function validVendorFile(filePath) {
+    function validBundledFile(filePath) {
         try {
             return fs.statSync(filePath).isFile() && fs.statSync(filePath).size > 32;
         } catch (error) {
@@ -81,244 +110,76 @@ module.exports.createModule = function (context) {
         }
     }
 
-    function download(url, targetPath, redirects) {
-        redirects = Number(redirects || 0);
-        return new Promise(function (resolve, reject) {
-            var request = https.get(url, {
-                headers: {
-                    "User-Agent": "MeshCentral-MyCompany/1.4.9",
-                    "Accept": "application/octet-stream"
-                }
-            }, function (response) {
-                if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-                    response.resume();
-                    if (redirects >= 5) {
-                        reject(new Error("Too many redirects while downloading " + url));
-                        return;
-                    }
-                    download(response.headers.location, targetPath, redirects + 1).then(resolve, reject);
-                    return;
-                }
-                if (response.statusCode !== 200) {
-                    response.resume();
-                    reject(new Error("HTTP " + response.statusCode + " while downloading " + url));
-                    return;
-                }
-
-                var temporaryPath = targetPath + ".tmp-" + process.pid + "-" + Date.now();
-                var stream = fs.createWriteStream(temporaryPath, { flags: "wx" });
-                var completed = false;
-
-                function fail(error) {
-                    if (completed) return;
-                    completed = true;
-                    try { stream.destroy(); } catch (ignored) {}
-                    try { fs.unlinkSync(temporaryPath); } catch (ignored) {}
-                    reject(error);
-                }
-
-                response.on("error", fail);
-                stream.on("error", fail);
-                stream.on("finish", function () {
-                    if (completed) return;
-                    completed = true;
-                    stream.close(function () {
-                        try {
-                            if (!validVendorFile(temporaryPath)) throw new Error("Downloaded vendor asset is empty: " + path.basename(targetPath));
-                            try { fs.unlinkSync(targetPath); } catch (ignored) {}
-                            fs.renameSync(temporaryPath, targetPath);
-                            resolve();
-                        } catch (error) {
-                            try { fs.unlinkSync(temporaryPath); } catch (ignored) {}
-                            reject(error);
-                        }
-                    });
-                });
-                response.pipe(stream);
-            });
-            request.setTimeout(30000, function () {
-                request.destroy(new Error("Timeout while downloading " + url));
-            });
-            request.on("error", reject);
+    function validateBundledAssets() {
+        vendorState.directory = vendorDirectory();
+        vendorState.missing = BUNDLED_FILES.filter(function (name) {
+            return !validBundledFile(path.join(vendorState.directory, name));
         });
-    }
-
-    function ensureVendorAssets() {
-        var directory = vendorDirectory();
-        vendorState.directory = directory;
-        fs.mkdirSync(directory, { recursive: true });
-
-        var missing = VENDOR_FILES.filter(function (name) {
-            return !validVendorFile(path.join(directory, name));
-        });
-        vendorState.missing = missing.slice();
-
-        var chain = Promise.resolve();
-        missing.forEach(function (name) {
-            chain = chain.then(function () {
-                var url = "https://raw.githubusercontent.com/Eris92/SirK-Portal/" + VENDOR_REF + "/" + encodeURIComponent(name);
-                return download(url, path.join(directory, name));
-            });
-        });
-
-        return chain.then(function () {
-            var unresolved = VENDOR_FILES.filter(function (name) {
-                return !validVendorFile(path.join(directory, name));
-            });
-            if (unresolved.length) throw new Error("Missing SirK Portal vendor assets: " + unresolved.join(", "));
-            vendorState.ready = true;
-            vendorState.missing = [];
-            vendorState.error = "";
-            return vendorState;
-        }).catch(function (error) {
-            vendorState.ready = false;
-            vendorState.error = String(error && error.message || error);
-            throw new Error("Unable to provision embedded SirK Portal " + VENDOR_VERSION + ": " + vendorState.error);
-        });
-    }
-
-    function webPaths() {
-        var server = meshServer();
-        if (!server || !server.datapath) throw new Error("MeshCentral datapath is unavailable.");
-        var meshRoot = path.dirname(server.datapath);
-        return {
-            root: path.join(meshRoot, "meshcentral-web", "public"),
-            scripts: path.join(meshRoot, "meshcentral-web", "public", "scripts"),
-            styles: path.join(meshRoot, "meshcentral-web", "public", "styles")
-        };
-    }
-
-    function earlyScript() {
-        return [
-            "(function(){",
-            "if(window.__myCompanySirkEarlyLoaded)return;window.__myCompanySirkEarlyLoaded=true;",
-            "var root=document.documentElement;",
-            "var url=new URL(window.location.href);",
-            "if(url.searchParams.get('sirkNative')==='1'||url.searchParams.get('sirkremote39')==='1'){root.classList.add('sirk-native-embed');return;}",
-            "root.classList.add('mycompany-sirk-pending');",
-            "function ready(){if(document.getElementById('sirkPortalRoot')||document.getElementById('sirkLoginShell')||root.classList.contains('sirk-login-active')||root.classList.contains('sirk-portal-active'))root.classList.remove('mycompany-sirk-pending');}",
-            "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ready);else ready();",
-            "new MutationObserver(ready).observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});",
-            "setTimeout(function(){root.classList.remove('mycompany-sirk-pending');},8000);",
-            "})();"
-        ].join("");
-    }
-
-    function earlyStyle() {
-        return [
-            "html.mycompany-sirk-pending body{visibility:hidden!important;background:#0b1220!important}",
-            "html.sirk-login-active body,html.sirk-portal-active body,html.sirk-native-embed body{visibility:visible!important}",
-            "html.sirk-native-embed body{background:#fff!important}"
-        ].join("\n");
-    }
-
-    function copyEarlyAssets() {
-        var paths = webPaths();
-        fs.mkdirSync(paths.scripts, { recursive: true });
-        fs.mkdirSync(paths.styles, { recursive: true });
-        fs.writeFileSync(path.join(paths.scripts, "mycompany-sirk-early.js"), earlyScript(), "utf8");
-        fs.writeFileSync(path.join(paths.styles, "mycompany-sirk-early.css"), earlyStyle(), "utf8");
-        EARLY_VENDOR_SCRIPTS.forEach(function (name) {
-            fs.copyFileSync(path.join(vendorDirectory(), name), path.join(paths.scripts, name));
-        });
-        fs.copyFileSync(path.join(vendorDirectory(), "sirk-portal.css"), path.join(paths.styles, "sirk-portal.css"));
-        return paths;
-    }
-
-    function isPortalCustomEntry(entry) {
-        if (!entry || typeof entry !== "object") return false;
-        if (entry.name === CUSTOM_FILES_KEY || entry.myCompanyPortal === true) return true;
-        return entry.sirkPortal === true || entry.name === "sirk-portal";
-    }
-
-    function removePortalEntries(current) {
-        if (Array.isArray(current)) return current.filter(function (entry) { return !isPortalCustomEntry(entry); });
-        if (current && typeof current === "object") {
-            var result = Object.assign({}, current);
-            Object.keys(result).forEach(function (key) {
-                if (key === CUSTOM_FILES_KEY || isPortalCustomEntry(result[key])) delete result[key];
-            });
-            return result;
-        }
-        return {};
-    }
-
-    function portalCustomEntry() {
-        return {
-            name: CUSTOM_FILES_KEY,
-            myCompanyPortal: true,
-            css: ["mycompany-sirk-early.css", "sirk-portal.css"],
-            js: ["mycompany-sirk-early.js"].concat(EARLY_VENDOR_SCRIPTS),
-            scope: ["all"]
-        };
-    }
-
-    function setEarlyOverlay(enabled) {
-        var server = meshServer();
-        var config = server && server.config;
-        if (!config || !config.domains || typeof config.domains !== "object") throw new Error("MeshCentral config.domains is unavailable.");
-        if (enabled) copyEarlyAssets();
-
-        var domains = [];
-        Object.keys(config.domains).forEach(function (domainId) {
-            var domain = config.domains[domainId];
-            if (!domain || typeof domain !== "object") return;
-            var current = domain.customFiles != null ? domain.customFiles : domain.customfiles;
-            var cleaned = removePortalEntries(current);
-            if (enabled) {
-                if (Array.isArray(cleaned)) cleaned.push(portalCustomEntry());
-                else cleaned[CUSTOM_FILES_KEY] = portalCustomEntry();
-                domain.newAccounts = false;
-                domain.newaccounts = false;
-            }
-            domain.customFiles = cleaned;
-            domain.customfiles = cleaned;
-            domains.push(domainId || "<default>");
-        });
-        vendorState.earlyOverlay = !!enabled;
-        vendorState.customFilesDomains = domains;
-        return domains;
+        vendorState.ready = vendorState.missing.length === 0;
+        vendorState.error = vendorState.ready
+            ? ""
+            : "Missing bundled SirK Portal assets: " + vendorState.missing.join(", ");
+        vendorState.earlyOverlay = false;
+        vendorState.customFilesDomains = [];
+        if (!vendorState.ready) return Promise.reject(new Error(vendorState.error));
+        return Promise.resolve(vendorState);
     }
 
     return {
         key: "portal",
-        clientConfig: function () {
+        canAccessView: viewAllowed,
+        clientConfig: function (user) {
             var value = settings();
+            var persistence = sessionPersistence.status(value);
+            var views = visibleViews(user);
+            var defaultView = String(value.defaultView || "overview");
+            if (!views[defaultView] || views[defaultView].enabled !== true) {
+                defaultView = VIEW_KEYS.find(function (key) { return views[key].enabled === true; }) || "overview";
+            }
             return {
                 key: "portal",
                 name: "SirK Portal",
                 menuTitle: "SirK Portal",
-                script: "portal.js",
-                style: "portal.css",
+                script: "",
+                style: "",
                 showInMenu: false,
-                defaultView: String(value.defaultView || "overview"),
-                showLauncher: value.showLauncher !== false,
+                defaultView: defaultView,
+                views: views,
+                showLauncher: value.showLauncher === true,
+                forceNewLogin: value.forceNewLogin === true,
+                forcePortalInterface: value.forcePortalInterface === true,
+                keepSessionsAfterRestart: persistence.enabled,
+                sessionKeyManagedByMyCompany: persistence.managedByMyCompany,
                 standaloneConflict: standalonePortalActive(),
                 vendorVersion: VENDOR_VERSION,
                 vendorReady: vendorState.ready,
-                earlyOverlay: vendorState.earlyOverlay
+                earlyOverlay: false
             };
         },
         getAccess: function (user) {
             return {
-                allowed: allowed(user),
+                allowed: allowed(user) && VIEW_KEYS.some(function (key) { return viewAllowed(user, key); }),
                 siteAdmin: shared.isSiteAdmin(user)
             };
         },
-        initialize: function () {
-            return ensureVendorAssets().then(function () {
-                var value = settings();
-                if (value.enabled === true && !standalonePortalActive()) setEarlyOverlay(true);
-                else setEarlyOverlay(false);
-                return vendorState;
-            });
-        },
+        initialize: validateBundledAssets,
         apiGet: function (asset, req, user) {
             if (!allowed(user)) throw new Error("Permission denied.");
+            if (asset === "overview") {
+                requireView(user, "overview");
+                return context.approval.list(user, { status: "pending", page: 1, perPage: 10 }).then(function (requests) {
+                    return {
+                        ok: true,
+                        pendingApprovals: Number(requests && requests.total) || 0,
+                        integrations: context.integrations.healthSummary()
+                    };
+                });
+            }
+            if (asset === "settings") requireAdmin(user);
             if (asset === "status" || asset === "settings") {
                 return {
                     ok: true,
-                    module: settings(),
+                    module: asset === "settings" ? settings() : this.clientConfig(user),
                     siteAdmin: shared.isSiteAdmin(user),
                     standaloneConflict: standalonePortalActive(),
                     vendor: vendorState
@@ -331,20 +192,50 @@ module.exports.createModule = function (context) {
             var value = req && req.body || {};
             if (asset !== "settings") throw new Error("Unknown Portal action.");
             if (value.enabled === true && standalonePortalActive()) {
-                throw new Error("Disable or uninstall the standalone SirKPortal plugin before enabling the embedded MyCompany Portal.");
+                throw new Error("Disable or uninstall the standalone SirKPortal plugin before enabling the MyCompany Portal.");
             }
+            var portalBefore = settings();
+            var persistence = typeof value.keepSessionsAfterRestart === "boolean"
+                ? sessionPersistence.configure(value.keepSessionsAfterRestart, portalBefore)
+                : sessionPersistence.status(portalBefore);
             return context.settings.update(function (current) {
                 current.modules.portal = current.modules.portal || {};
                 if (typeof value.enabled === "boolean") current.modules.portal.enabled = value.enabled;
-                current.modules.portal.defaultView = ["overview", "devices", "management", "approvals", "settings"].indexOf(String(value.defaultView || "")) >= 0
+                current.modules.portal.defaultView = VIEW_KEYS.indexOf(String(value.defaultView || "")) >= 0
                     ? String(value.defaultView)
                     : "overview";
-                current.modules.portal.showLauncher = value.showLauncher !== false;
+                current.modules.portal.showLauncher = value.showLauncher === true;
+                if (typeof value.forceNewLogin === "boolean") current.modules.portal.forceNewLogin = value.forceNewLogin;
+                if (typeof value.forcePortalInterface === "boolean") current.modules.portal.forcePortalInterface = value.forcePortalInterface;
+                current.modules.portal.keepSessionsAfterRestart = persistence.enabled;
+                current.modules.portal.sessionKeyManaged = persistence.managedByMyCompany;
+                current.modules.portal.sessionKeyHash = persistence.sessionKeyHash || "";
+                if (current.modules.portal.forceNewLogin === true || current.modules.portal.forcePortalInterface === true) {
+                    current.modules.portal.enabled = true;
+                }
+                current.modules.portal.views = updateViews(current.modules.portal.views, value.views, shared.getUserGroups(context.parent).map(function (group) { return group.id; }));
+                if (current.modules.portal.views[current.modules.portal.defaultView].enabled === false) {
+                    current.modules.portal.defaultView = VIEW_KEYS.find(function (key) {
+                        return current.modules.portal.views[key].enabled !== false;
+                    }) || "overview";
+                }
                 return current;
             }).then(function () {
-                var enabled = settings().enabled === true && !standalonePortalActive();
-                setEarlyOverlay(enabled);
-                return { ok: true, module: settings(), reloadRequired: true, vendor: vendorState };
+                var moduleSettings = settings();
+                moduleSettings.keepSessionsAfterRestart = persistence.enabled;
+                return {
+                    ok: true,
+                    module: moduleSettings,
+                    reloadRequired: true,
+                    serviceRestartRequired: persistence.restartRequired,
+                    sessionPersistence: {
+                        enabled: persistence.enabled,
+                        managedByMyCompany: persistence.managedByMyCompany,
+                        managedExternally: persistence.managedExternally,
+                        backupCreated: persistence.backupCreated === true
+                    },
+                    vendor: vendorState
+                };
             });
         }
     };

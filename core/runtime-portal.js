@@ -4,13 +4,27 @@ var shared = require("./shared.js");
 var baseFactory = require("./runtime.js");
 var portalFactory = require("../modules/Portal/index-safe.js");
 
-var VERSION = "1.5.23";
+var VERSION = require("../config.json").version;
+var PORTAL_VIEW_DEFAULTS = {
+    overview: { enabled: true, personalized: false, label: "", accent: "#4d6bd8" },
+    devices: { enabled: true, personalized: false, label: "", accent: "#55b8ff" },
+    approvals: { enabled: true, personalized: false, label: "", accent: "#35d7a4" },
+    automation: { enabled: true, personalized: false, label: "", accent: "#ffae00" },
+    monitoring: { enabled: true, personalized: false, label: "", accent: "#34d1e7" },
+    assets: { enabled: true, personalized: false, label: "", accent: "#9a7cff" },
+    management: { enabled: true, personalized: false, label: "", accent: "#ff5f7d" },
+    reports: { enabled: true, personalized: false, label: "", accent: "#7f85ff" },
+    security: { enabled: true, personalized: false, label: "", accent: "#ff385d" },
+    settings: { enabled: true, personalized: false, label: "", accent: "#94a3b8" }
+};
 var PORTAL_DEFAULTS = {
     enabled: false,
     defaultView: "overview",
-    showLauncher: true,
+    showLauncher: false,
     showNativeLink: true,
-    loginPanel: false
+    forceNewLogin: false,
+    forcePortalInterface: false,
+    views: PORTAL_VIEW_DEFAULTS
 };
 
 module.exports.createRuntime = function (options) {
@@ -36,12 +50,21 @@ module.exports.createRuntime = function (options) {
             result[key] = {
                 enabled: context.settings.isModuleEnabled(key),
                 ready: !module.__loadError,
-                error: module.__loadError || null,
-                config: module.clientConfig(),
+                error: module.__loadError ? (shared.isSiteAdmin(user) ? module.__loadError : "Module failed to load.") : null,
+                config: module.clientConfig(user),
                 access: module.getAccess(user)
             };
         });
-        return { ok: true, version: VERSION, modules: result };
+        return {
+            ok: true,
+            version: VERSION,
+            user: {
+                name: shared.userName(user),
+                hasImage: !!(user && user.flags && (user.flags & 1)),
+                imageRnd: user && user.accountImageRnd != null ? String(user.accountImageRnd) : ""
+            },
+            modules: result
+        };
     };
 
     var originalRequest = runtime.request;

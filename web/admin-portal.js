@@ -2,11 +2,20 @@
     "use strict";
 
     var root = document.getElementById("mycompany-admin");
-    var content = document.getElementById("mycompany-admin-content");
-    if (!root || !content || window.__myCompanyPortalAdminInstalled) return;
-    window.__myCompanyPortalAdminInstalled = true;
+    if (!root) return;
 
-    var scheduled = false;
+    var PORTAL_VIEWS = [
+        { key: "overview", label: "Przegląd", accent: "#4d6bd8" },
+        { key: "devices", label: "Urządzenia", accent: "#55b8ff", styleNote: "Zachowuje własny układ urządzeń." },
+        { key: "approvals", label: "Akceptacje", accent: "#35d7a4" },
+        { key: "automation", label: "Automatyzacja", accent: "#ffae00" },
+        { key: "monitoring", label: "Monitoring", accent: "#34d1e7" },
+        { key: "assets", label: "Zasoby", accent: "#9a7cff" },
+        { key: "management", label: "Zarządzanie", accent: "#ff5f7d" },
+        { key: "reports", label: "Raporty", accent: "#7f85ff" },
+        { key: "security", label: "Security", accent: "#ff385d" },
+        { key: "settings", label: "Ustawienia", accent: "#94a3b8" }
+    ];
 
     function data() { return window.MyCompanyAdminData || {}; }
     function pluginPin() { return root.getAttribute("data-plugin") || "MyCompany"; }
@@ -22,13 +31,7 @@
     }
     function moduleSettings() {
         var settings = data().moduleSettings || {};
-        return settings.portal || {
-            enabled: false,
-            defaultView: "overview",
-            showLauncher: true,
-            showNativeLink: true,
-            loginPanel: false
-        };
+        return settings.portal || { enabled: false, defaultView: "overview", showLauncher: false, showNativeLink: true, forceNewLogin: false, forcePortalInterface: false, views: {} };
     }
     function checkbox(host, labelText, checked, description) {
         var label = element("label", "mc-admin-check");
@@ -47,19 +50,59 @@
         var wrapper = element("div", "mc-admin-field");
         wrapper.appendChild(element("label", "mc-admin-field-label", labelText));
         var field = element("select", "mc-admin-input");
-        [
-            ["overview", "Przegląd"], ["devices", "Urządzenia"],
-            ["management", "Zarządzanie / MyScripts"], ["approvals", "Akceptacje / Approval Center"],
-            ["settings", "Ustawienia"]
-        ].forEach(function (entry) {
-            var option = element("option", "", entry[1]);
-            option.value = entry[0];
-            option.selected = String(value || "overview") === entry[0];
+        PORTAL_VIEWS.forEach(function (entry) {
+            var option = element("option", "", entry.label);
+            option.value = entry.key;
+            option.selected = String(value || "overview") === entry.key;
             field.appendChild(option);
         });
         wrapper.appendChild(field);
         host.appendChild(wrapper);
         return field;
+    }
+    function viewEditor(host, definition, value) {
+        value = value && typeof value === "object" ? value : {};
+        var row = element("section", "mc-admin-portal-view");
+        var heading = element("div", "mc-admin-portal-view-heading");
+        heading.appendChild(element("strong", "", definition.label));
+        heading.appendChild(element("code", "", definition.key));
+        row.appendChild(heading);
+
+        var enabled = checkbox(row, "Pokaż zakładkę", value.enabled !== false,
+            definition.styleNote || "Ukrycie usuwa pozycję z menu i blokuje bezpośrednie otwarcie widoku.");
+        var personalized = checkbox(row, "Włącz personalizację", value.personalized === true,
+            "Pozwala użyć własnej nazwy i koloru akcentu tylko dla tej zakładki.");
+
+        var controls = element("div", "mc-admin-portal-view-controls");
+        var labelWrapper = element("label", "mc-admin-field");
+        labelWrapper.appendChild(element("span", "mc-admin-field-label", "Własna nazwa"));
+        var label = element("input", "mc-admin-input");
+        label.type = "text";
+        label.maxLength = 40;
+        label.placeholder = definition.label;
+        label.value = value.label || "";
+        labelWrapper.appendChild(label);
+        controls.appendChild(labelWrapper);
+
+        var accentWrapper = element("label", "mc-admin-field mc-admin-portal-color-field");
+        accentWrapper.appendChild(element("span", "mc-admin-field-label", "Kolor akcentu"));
+        var accent = element("input", "mc-admin-input mc-admin-portal-color");
+        accent.type = "color";
+        accent.value = /^#[0-9a-f]{6}$/i.test(String(value.accent || "")) ? value.accent : definition.accent;
+        accentWrapper.appendChild(accent);
+        controls.appendChild(accentWrapper);
+        row.appendChild(controls);
+
+        function updateDisabled() {
+            var editable = personalized.checked;
+            label.disabled = !editable;
+            accent.disabled = !editable;
+            controls.classList.toggle("is-disabled", !editable);
+        }
+        personalized.addEventListener("change", updateDisabled);
+        updateDisabled();
+        host.appendChild(row);
+        return { enabled: enabled, personalized: personalized, label: label, accent: accent };
     }
     function post(values) {
         var url = new URL("pluginadmin.ashx", window.location.href);
@@ -91,7 +134,7 @@
             } catch (error) { window.location.reload(); }
         }, 700);
     }
-    function renderPanel(panel, button) {
+    function render(panel) {
         var record = moduleRecord();
         var current = moduleSettings();
         panel.innerHTML = "";
@@ -103,42 +146,67 @@
 
         var card = element("section", "mc-admin-card");
         card.appendChild(element("h3", "", "Portal interface"));
-        card.appendChild(element("div", "mc-admin-card-description", "Każdy element nawigacji i ekran logowania można włączyć niezależnie."));
-
+        card.appendChild(element("div", "mc-admin-card-description", "Portal działa w osobnym dokumencie i nie ładuje swojego layoutu, CSS ani loginu do natywnego interfejsu MeshCentral."));
         var enabled = checkbox(card, "Enable SirK Portal", current.enabled === true || record.enabled === true,
             "Udostępnia portal pod adresem /sirkportal/. Wyłączenie nie usuwa danych MyCompany.");
         var defaultView = select(card, "Default start view", current.defaultView || "overview");
         var showNativeLink = checkbox(card, "Show MeshCentral link in SirK Portal", current.showNativeLink !== false,
-            "Pokazuje link MeshCentral na dole menu SirK Portal. Po wyłączeniu portal jest dostępny tylko przez znany adres.");
-        var showLauncher = checkbox(card, "Show SirK Portal launcher in native Mesh", current.showLauncher !== false,
-            "Pokazuje przycisk SirK Portal w natywnym interfejsie MeshCentral.");
-        var loginPanel = checkbox(card, "Enable SirK Portal login screen", current.loginPanel === true,
-            "Zmienia wyłącznie wygląd logowania. Formularz, MFA, SSO i sesja nadal są obsługiwane przez MeshCentral.");
+            "Pokazuje link MeshCentral na dole menu SirK Portal.");
+        var showLauncher = checkbox(card, "Show SirK Portal launcher in native Mesh", current.showLauncher === true,
+            "Opcjonalny link nawigacyjny, domyślnie wyłączony.");
+        var forceNewLogin = checkbox(card, "Wymuszaj nowy ekran logowania", current.forceNewLogin === true,
+            "Wejście na ekran logowania MeshCentral otwiera niezależny ekran SirK Portal z osadzonym natywnym uwierzytelnianiem.");
+        var forcePortalInterface = checkbox(card, "Wymuszaj nowy interfejs", current.forcePortalInterface === true,
+            "Wejście do starego interfejsu przekierowuje użytkownika z powrotem do SirK Portal.");
+        var keepSessionsAfterRestart = checkbox(card, "Utrzymuj sesje po restarcie MeshCentral", current.keepSessionsAfterRestart === true,
+            "Zapisuje stały SessionKey MeshCentral. Zmiana wymaga restartu usługi; klucz pozostaje sekretem i nie jest wyświetlany w interfejsie.");
 
-        var notice = element("div", "mc-admin-notice");
-        notice.textContent = "Zmiana ekranu logowania wymaga restartu usługi MeshCentral. Nie uruchamiaj równolegle starej wtyczki SirKPortal.";
-        card.appendChild(notice);
+        var viewCard = element("section", "mc-admin-card");
+        viewCard.appendChild(element("h3", "", "Zakładki i personalizacja"));
+        viewCard.appendChild(element("div", "mc-admin-card-description", "Wszystkie zakładki poza Urządzeniami używają jednego wspólnego stylu. Każdą pozycję można niezależnie pokazać, ukryć i spersonalizować."));
+        var viewList = element("div", "mc-admin-portal-view-list");
+        var viewInputs = {};
+        PORTAL_VIEWS.forEach(function (definition) {
+            viewInputs[definition.key] = viewEditor(viewList, definition, current.views && current.views[definition.key]);
+        });
+        viewCard.appendChild(viewList);
+        panel.appendChild(viewCard);
 
-        var actions = element("div", "mc-admin-inline-actions");
-        var save = element("button", "mc-admin-primary", "Save SirK Portal");
+        var actions = element("div", "mc-admin-actions mc-admin-settings-savebar");
+        var save = element("button", "mc-admin-primary", "Save settings");
         save.type = "button";
         var status = element("span", "mc-admin-save-status");
         save.onclick = function () {
             save.disabled = true;
             status.className = "mc-admin-save-status";
             status.textContent = "Saving...";
+            var views = {};
+            PORTAL_VIEWS.forEach(function (definition) {
+                var fields = viewInputs[definition.key];
+                views[definition.key] = {
+                    enabled: fields.enabled.checked,
+                    personalized: fields.personalized.checked,
+                    label: fields.label.value,
+                    accent: fields.accent.value
+                };
+            });
             post({
                 enabled: enabled.checked,
                 defaultView: defaultView.value,
                 showNativeLink: showNativeLink.checked,
                 showLauncher: showLauncher.checked,
-                loginPanel: loginPanel.checked
+                forceNewLogin: forceNewLogin.checked,
+                forcePortalInterface: forcePortalInterface.checked,
+                keepSessionsAfterRestart: keepSessionsAfterRestart.checked,
+                views: views
             }).then(function (result) {
                 var state = result.module || {};
                 data().moduleSettings = data().moduleSettings || {};
                 data().moduleSettings.portal = state;
                 moduleRecord().enabled = state.enabled === true;
-                status.textContent = "Saved — restart MeshCentral when login screen setting changed.";
+                status.textContent = result.serviceRestartRequired
+                    ? "Saved — restart MeshCentral to apply persistent sessions."
+                    : "Saved — reloading MeshCentral UI.";
                 reloadMeshCentral();
             }).catch(function (error) {
                 status.className = "mc-admin-save-status mc-admin-error";
@@ -148,35 +216,9 @@
         };
         actions.appendChild(save);
         actions.appendChild(status);
-        card.appendChild(actions);
-        panel.appendChild(card);
-        card.dataset.portalSettingsCard = "1";
-        button.classList.add("active");
+        panel.insertBefore(actions, viewCard);
+        panel.insertBefore(card, viewCard);
     }
-    function install() {
-        scheduled = false;
-        var navigation = root.querySelector(".mc-admin-settings-subnav") || root.querySelector(".mc-admin-settings-nav");
-        var panel = content.querySelector(".mc-admin-settings-panel");
-        if (!navigation || !panel) return;
-        var button = navigation.querySelector("[data-mycompany-portal-settings]");
-        if (!button) {
-            button = element("button", "", "SirK Portal");
-            button.type = "button";
-            button.setAttribute("data-mycompany-portal-settings", "1");
-            navigation.insertBefore(button, navigation.firstChild);
-            button.onclick = function () {
-                navigation.querySelectorAll("button").forEach(function (item) { item.classList.remove("active"); });
-                renderPanel(panel, button);
-            };
-        }
-    }
-    function schedule() {
-        if (scheduled) return;
-        scheduled = true;
-        window.requestAnimationFrame(install);
-    }
-    new MutationObserver(schedule).observe(root, { childList: true, subtree: true });
-    root.addEventListener("click", function () { window.setTimeout(schedule, 0); });
-    window.setInterval(schedule, 1000);
-    schedule();
+
+    window.MyCompanyPortalAdmin = { render: render };
 }());

@@ -5,6 +5,7 @@ var libraryFactory = require("../../core/script-confirmation-library.js");
 var adminFactory = require("../../core/script-admin-service.js");
 var executorFactory = require("../../core/server-script-executor.js");
 var rootResolver = require("../../core/myscripts-root.js");
+var folderAccess = require("../../core/folder-access.js");
 
 module.exports.createModule = function (context) {
     var root = rootResolver.resolve(context);
@@ -14,12 +15,25 @@ module.exports.createModule = function (context) {
     var unregister = null;
 
     function allowed(user) {
+        if (!user) return false;
         if (shared.isSiteAdmin(user)) return true;
         var config = context.settings.read().modules.myscripts || {};
         var groups = Array.isArray(config.accessGroupIds) ? config.accessGroupIds : [];
         return !groups.length || shared.isUserInAnyGroup(user, groups);
     }
     function requireAdmin(user) { if (!shared.isSiteAdmin(user)) throw new Error("Permission denied."); }
+    function tree() { return library.getTree(); }
+    function folderKeys() { return (tree().children || []).map(function (item) { return String(item.path || item.name || ""); }); }
+    function folderRules() { return (context.settings.read().modules.myscripts || {}).folderPermissions || {}; }
+    function visibleTree(user) { return folderAccess.filterTree(tree(), folderRules(), user); }
+    function requireScriptAccess(user, relativePath) { return folderAccess.requirePath(user, folderRules(), relativePath); }
+    function folderSettings() {
+        var rules = folderRules();
+        return (tree().children || []).map(function (item) {
+            var key = String(item.path || item.name || "");
+            return { key: key, label: item.label || item.name || key, locales: item.locales || {}, enabled: !rules[key] || rules[key].enabled !== false, allowAll: !!(rules[key] && rules[key].allowAll === true), groupIds: rules[key] && Array.isArray(rules[key].groupIds) ? rules[key].groupIds : [] };
+        });
+    }
     function normalizeApprovalLevels(value) {
         return Array.isArray(value) ? value.map(Number).filter(function (level, index, all) {
             return level >= 1 && level <= 3 && all.indexOf(level) === index;
@@ -49,7 +63,15 @@ module.exports.createModule = function (context) {
         getSummary: function (payload) { return payload.description || payload.scriptPath || "My Scripts request"; },
         getApprovalLevels: function (payload) { return normalizeApprovalLevels(payload && payload.approvalLevels); },
         canSubmit: allowed,
-        execute: executor.execute
+        getResources: function (user, query) {
+            var script = query && query.scriptPath ? library.getScript(query.scriptPath, true) : null;
+            return { tree: visibleTree(user), script: script && (requireScriptAccess(user, script.path), script) || null };
+        },
+        execute: function (payload, request) {
+            var requester = shared.findUser(context.parent, request && request.requester && request.requester.id) || { _id: request && request.requester && request.requester.id };
+            requireScriptAccess(requester, payload && payload.scriptPath);
+            return executor.execute(payload, request);
+        }
     };
 
     return {
@@ -76,24 +98,33 @@ module.exports.createModule = function (context) {
         apiGet: function (asset, req, user) {
             if (!allowed(user)) throw new Error("Permission denied.");
             var q = req && req.query || {};
-            if (asset === "tree" || asset === "scripts") return { ok: true, tree: library.getTree(), scriptsRoot: shared.isSiteAdmin(user) ? root : "" };
+            if (asset === "tree" || asset === "scripts") return { ok: true, tree: visibleTree(user), scriptsRoot: shared.isSiteAdmin(user) ? root : "" };
             if (asset === "script") {
+                requireScriptAccess(user, q.path);
                 var script = library.getScript(q.path, true);
                 if (!script) throw new Error("Script not found.");
                 return { ok: true, script: script };
             }
             if (asset === "source") {
                 requireAdmin(user);
+                requireScriptAccess(user, q.path);
                 var source = library.getSource(q.path);
                 if (!source) throw new Error("Script not found.");
                 return { ok: true, source: source };
             }
-            if (asset === "definition") return { ok: true, definition: admin.getDefinition(user, q.path) };
-            if (asset === "script-secrets") return { ok: true, secrets: admin.getSecretState(user, q.path) };
-            if (asset === "system-credentials") return { ok: true, systemCredentials: admin.getSystemCredentialState(user, q.path) };
+            if (asset === "definition") { requireScriptAccess(user, q.path); return { ok: true, definition: admin.getDefinition(user, q.path) }; }
+            if (asset === "script-secrets") { requireScriptAccess(user, q.path); return { ok: true, secrets: admin.getSecretState(user, q.path) }; }
+            if (asset === "system-credentials") { requireScriptAccess(user, q.path); return { ok: true, systemCredentials: admin.getSystemCredentialState(user, q.path) }; }
             if (asset === "results") {
                 return context.approval.list(user, { type: "myscripts", status: q.status || "", q: q.q || "", page: Number(q.page) || 1, perPage: Math.min(500, Number(q.perPage) || 100) })
-                    .then(function (value) { value.ok = true; return value; });
+                    .then(function (value) {
+                        value.rows = (value.rows || []).filter(function (request) {
+                            var scriptPath = request && request.payload && request.payload.scriptPath;
+                            return scriptPath && folderAccess.canAccess(user, folderRules(), folderAccess.rootKey(scriptPath));
+                        });
+                        value.ok = true;
+                        return value;
+                    });
             }
             if (asset === "settings") return { ok: true, settings: context.settings.read().modules.myscripts || {}, scriptsRoot: root };
             throw new Error("Unknown My Scripts action.");
@@ -101,27 +132,31 @@ module.exports.createModule = function (context) {
         apiPost: function (asset, req, user) {
             if (!allowed(user)) throw new Error("Permission denied.");
             var value = req && req.body || {};
-            if (asset === "refresh") { library.invalidate(); return { ok: true, tree: library.getTree() }; }
-            if (asset === "source") { requireAdmin(user); return { ok: true, script: library.saveSource(value.path, value.text), tree: library.getTree() }; }
+            if (asset === "refresh") { library.invalidate(); return { ok: true, tree: visibleTree(user) }; }
+            if (asset === "source") { requireAdmin(user); requireScriptAccess(user, value.path); return { ok: true, script: library.saveSource(value.path, value.text), tree: visibleTree(user) }; }
             if (asset === "definition") {
+                requireScriptAccess(user, value.path);
                 var saved = admin.saveDefinition(user, value.path, value.definition);
                 saved.ok = true;
-                saved.tree = library.getTree();
+                saved.tree = visibleTree(user);
                 return saved;
             }
-            if (asset === "script-secrets") return { ok: true, secrets: admin.saveSecrets(user, value.path, value.values, value.clearNames) };
-            if (asset === "system-credentials") return { ok: true, systemCredentials: admin.saveSystemCredentials(user, value.path, value.selected) };
+            if (asset === "script-secrets") { requireScriptAccess(user, value.path); return { ok: true, secrets: admin.saveSecrets(user, value.path, value.values, value.clearNames) }; }
+            if (asset === "system-credentials") { requireScriptAccess(user, value.path); return { ok: true, systemCredentials: admin.saveSystemCredentials(user, value.path, value.selected) }; }
             if (asset === "request") {
+                requireScriptAccess(user, value.scriptPath);
                 var requestedScript = library.getScript(value.scriptPath, false);
                 if (!requestedScript) throw new Error("Script not found.");
                 if (requestedScript.confirmExecution === true && value.confirmedExecution !== true) throw new Error("Execution confirmation is required for this script.");
                 var levels = normalizeApprovalLevels(requestedScript.approvalLevels);
                 if (!levels.length && !allowNoApproval()) levels = [1];
+                var language = String(value.language || "en").toLowerCase() === "pl" ? "pl" : "en";
+                var locale = requestedScript.locales && requestedScript.locales[language] || {};
                 var payload = {
                     scriptPath: requestedScript.path,
                     scriptHash: requestedScript.hash,
-                    label: requestedScript.label || requestedScript.name,
-                    description: requestedScript.description || "",
+                    label: locale.label || requestedScript.label || requestedScript.name,
+                    description: locale.description || requestedScript.description || "",
                     approvalLevels: levels,
                     confirmedExecution: requestedScript.confirmExecution === true,
                     variableValues: value.variableValues && typeof value.variableValues === "object" && !Array.isArray(value.variableValues) ? shared.copy(value.variableValues) : {}
@@ -132,11 +167,13 @@ module.exports.createModule = function (context) {
                 requireAdmin(user);
                 return context.settings.update(function (current) {
                     current.modules.myscripts.accessGroupIds = Array.isArray(value.accessGroupIds) ? value.accessGroupIds.map(String) : [];
+                    current.modules.myscripts.folderPermissions = folderAccess.normalizeRules(value.folderPermissions, folderKeys(), shared.getUserGroups(context.parent).map(function (group) { return group.id; }));
                     current.modules.myscripts.runTimeoutSeconds = Math.max(30, Math.min(3600, Number(value.runTimeoutSeconds) || 600));
                     return current;
                 }).then(function () { return { ok: true }; });
             }
             throw new Error("Unknown My Scripts action.");
-        }
+        },
+        getFolderSettings: folderSettings
     };
 };

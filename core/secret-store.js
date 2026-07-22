@@ -17,14 +17,29 @@ module.exports.createSecretStore = function (options) {
         return { version: 1, iv: iv.toString("base64"), tag: cipher.getAuthTag().toString("base64"), data: data.toString("base64") };
     }
     function decrypt(value) {
-        if (!value || value.version !== 1) return {};
-        var decipher = crypto.createDecipheriv("aes-256-gcm", key(), Buffer.from(value.iv, "base64"));
-        decipher.setAuthTag(Buffer.from(value.tag, "base64"));
-        return JSON.parse(Buffer.concat([decipher.update(Buffer.from(value.data, "base64")), decipher.final()]).toString("utf8"));
+        if (!value || value.version !== 1 || typeof value.iv !== "string" || typeof value.tag !== "string" || typeof value.data !== "string") {
+            throw new Error("Invalid MyCompany encrypted secret store.");
+        }
+        var iv = Buffer.from(value.iv, "base64");
+        var tag = Buffer.from(value.tag, "base64");
+        var encrypted = Buffer.from(value.data, "base64");
+        if (iv.length !== 12 || tag.length !== 16) throw new Error("Invalid MyCompany encrypted secret store.");
+        var decipher = crypto.createDecipheriv("aes-256-gcm", key(), iv);
+        decipher.setAuthTag(tag);
+        var result = JSON.parse(Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8"));
+        if (!result || typeof result !== "object" || Array.isArray(result)) throw new Error("Invalid MyCompany encrypted secret store.");
+        return result;
     }
     function readAll() {
         if (cache) return shared.copy(cache);
-        try { cache = decrypt(shared.readJson(fs, dataPath, {})); } catch (error) { cache = {}; }
+        if (!fs.existsSync(dataPath)) cache = {};
+        else {
+            try {
+                cache = decrypt(JSON.parse(fs.readFileSync(dataPath, "utf8").replace(/^\uFEFF/, "")));
+            } catch (error) {
+                throw new Error("Cannot read MyCompany secret store: " + String(error && error.message || error));
+            }
+        }
         return shared.copy(cache);
     }
     function writeAll(value) {

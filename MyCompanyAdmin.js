@@ -3,9 +3,21 @@
 var fs = require("fs");
 var path = require("path");
 var shared = require("./core/shared.js");
+var pluginAdminFactory = require("./core/plugin-admin-service.js");
+var serverAdminFactory = require("./core/server-admin-service.js");
 
 module.exports.admin = function (plugin) {
     var obj = {}, root = __dirname;
+    var pluginAdmin = pluginAdminFactory.createPluginAdminService({
+        pluginHandler: plugin.parent,
+        fs: fs,
+        path: path,
+        protectedShortName: plugin.shortName
+    });
+    var serverAdmin = serverAdminFactory.createServerAdminService({
+        path: path,
+        meshRoot: path.dirname(path.dirname(plugin.parent.pluginPath))
+    });
     var assets = {
         "admin.css": ["web/admin.css", "text/css; charset=utf-8"],
         "admin-ui-enhancements.css": ["web/admin-ui-enhancements.css", "text/css; charset=utf-8"],
@@ -96,9 +108,18 @@ module.exports.admin = function (plugin) {
         return JSON.stringify(value).replace(/</g, slash + "u003c").replace(/>/g, slash + "u003e").replace(/&/g, slash + "u0026");
     }
 
+    function sameOrigin(req) {
+        var headers = req && req.headers || {};
+        var source = String(headers.origin || headers.referer || "");
+        if (!source) return true;
+        try { return new URL(source).host.toLowerCase() === String(headers.host || "").toLowerCase(); }
+        catch (error) { return false; }
+    }
+
     obj.req = function (req, res, user) {
         var asset = String(req && req.query && req.query.asset || "");
         var moduleName = String(req && req.query && req.query.module || "");
+        var action = String(req && req.query && req.query.action || "");
         if (serveVendorPortal(res, asset)) return;
         if (assets[asset]) { serve(res, asset); return; }
         if (asset === "bootstrap") { plugin.runtime.request("GET", "_runtime", "bootstrap", req, res, user); return; }
@@ -109,6 +130,22 @@ module.exports.admin = function (plugin) {
         }
         if (moduleName) { plugin.runtime.request("GET", moduleName, asset, req, res, user); return; }
         if (!shared.isSiteAdmin(user)) { shared.send(res, 403, "text/plain; charset=utf-8", "Forbidden"); return; }
+        if (action === "plugin-state") {
+            pluginAdmin.list(user).then(function (plugins) {
+                shared.sendJson(res, 200, { ok: true, plugins: plugins });
+            }).catch(function (error) {
+                shared.sendJson(res, 500, { ok: false, error: String(error && error.message || error) });
+            });
+            return;
+        }
+        if (action === "server-state") {
+            serverAdmin.services(user).then(function (services) {
+                shared.sendJson(res, 200, { ok: true, services: services });
+            }).catch(function (error) {
+                shared.sendJson(res, 500, { ok: false, error: String(error && error.message || error) });
+            });
+            return;
+        }
         var data = plugin.runtime.adminSnapshot(user);
         try {
             res.render("MyCompany", { title: "My Company", pluginShortName: String(req && req.query && req.query.pin || plugin.shortName || "MyCompany"), adminDataJson: safeAdminJson(data) });
@@ -142,6 +179,28 @@ module.exports.admin = function (plugin) {
                 secrets: shared.parseJsonObject(req && req.body && req.body.secrets, {})
             };
             plugin.runtime.saveAdminSettings(user, payload).then(function (snapshot) { shared.sendJson(res, 200, { ok: true, snapshot: snapshot }); }).catch(function (error) { shared.sendJson(res, 403, { ok: false, error: String(error && error.message || error) }); });
+            return;
+        }
+        if (action === "plugin-operation") {
+            if (!sameOrigin(req)) { shared.sendJson(res, 403, { ok: false, error: "Cross-origin request rejected." }); return; }
+            var pluginPayload = shared.parseJsonObject(req && req.body && req.body.payload, {});
+            pluginAdmin.operate(user, pluginPayload.operation, pluginPayload).then(function (result) {
+                return pluginAdmin.list(user).then(function (plugins) {
+                    shared.sendJson(res, 200, { ok: true, result: result, plugins: plugins });
+                });
+            }).catch(function (error) {
+                shared.sendJson(res, 400, { ok: false, error: String(error && error.message || error) });
+            });
+            return;
+        }
+        if (action === "server-restart") {
+            if (!sameOrigin(req)) { shared.sendJson(res, 403, { ok: false, error: "Cross-origin request rejected." }); return; }
+            var serverPayload = shared.parseJsonObject(req && req.body && req.body.payload, {});
+            serverAdmin.restart(user, serverPayload.serviceName).then(function (result) {
+                shared.sendJson(res, 202, { ok: true, result: result });
+            }).catch(function (error) {
+                shared.sendJson(res, 400, { ok: false, error: String(error && error.message || error) });
+            });
             return;
         }
         shared.sendJson(res, 400, { ok: false, error: "Unknown MyCompany action." });

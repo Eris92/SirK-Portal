@@ -147,6 +147,14 @@
             definition.viewMode = Number(definition.viewMode || VIEW_MODES[definition.key] || 960);
             var state = { page: null, pages: {}, tab: definition.defaultTab || "main", search: "", nodeId: "", bootstrap: null };
 
+            function syncCollapseControl(page) {
+                if (!page || !page.toolbar || !page.layout || !page.toolbar.buttons.collapse) return;
+                var collapsed = page.layout.isCollapsed();
+                var control = window.SharedToolbarConfig && window.SharedToolbarConfig.definitions.collapse || {};
+                page.toolbar.setIcon("collapse", collapsed ? control.expandIcon : control.icon);
+                page.toolbar.setTitle("collapse", collapsed ? "Expand" : "Collapse");
+            }
+
             function mountPage(host, mode) {
                 host.innerHTML = "";
                 var page = window.SharedPage.mount({
@@ -157,7 +165,7 @@
                     tabs: definition.tabs || [{ key: "main", title: definition.title }],
                     activeTab: state.tab,
                     handlers: {
-                        onCollapse: function () { page.layout.toggleCollapsed(); },
+                        onCollapse: function () { page.layout.toggleCollapsed(); syncCollapseControl(page); },
                         onRefresh: function () { state.page = page; if (definition.onRefresh) definition.onRefresh(api); else api.render(); },
                         onClear: function () { state.page = page; state.search = ""; page.toolbar.clearSearch(false); if (definition.onClear) definition.onClear(api); else api.render(); },
                         onSearch: function (value) { state.page = page; state.search = value || ""; if (definition.onSearch) definition.onSearch(state.search, api); else api.render(); },
@@ -170,6 +178,7 @@
                 });
                 state.pages[mode] = page;
                 state.page = page;
+                syncCollapseControl(page);
                 api.render();
                 return page;
             }

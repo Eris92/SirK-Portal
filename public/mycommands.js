@@ -276,6 +276,9 @@
 
     function filterItem(item) { return item.kind === "command" ? tools.state.favoritesOnly !== true : tools.filterScript(item); }
     function primary(shell, treeHost) {
+        if (!window.SharedCatalogView || typeof window.SharedCatalogView.mount !== "function") {
+            throw new Error("Commands catalog dependency is unavailable.");
+        }
         window.SharedCatalogView.mount({
             primaryContainer: shell.state.page.primary,
             treeContainer: treeHost,
@@ -350,6 +353,13 @@
             });
         }
     });
+
+    module.mountDeviceCommands = function (host, nodeId) {
+        mode = "commands";
+        status = "";
+        if (typeof module.onDeviceRefreshEnd === "function") module.onDeviceRefreshEnd(String(nodeId || ""));
+        return module.mount(host, "sirk-device-commands");
+    };
 
     window.MyCompanyModules.mycommands = module;
 }());

@@ -184,6 +184,11 @@ module.exports.createApprovalService = function (options) {
         payload = typeof provider.normalizePayload === "function" ? provider.normalizePayload(payload || {}, user) : shared.copy(payload || {});
         var levels = requiredLevels(provider, payload);
         var now = Date.now();
+        var idempotencyKey = shared.cleanText(submitOptions && submitOptions.idempotencyKey, 128).trim();
+        var apiClientId = shared.cleanText(submitOptions && submitOptions.apiClientId, 80).trim();
+        var externalIdempotencyKey = idempotencyKey && apiClientId
+            ? crypto.createHash("sha256").update(apiClientId + "\u0000" + type + "\u0000" + idempotencyKey).digest("hex")
+            : "";
         var request = {
             id: shared.randomId(12),
             type: type,
@@ -201,28 +206,48 @@ module.exports.createApprovalService = function (options) {
             updatedAt: now,
             executionId: shared.randomId(12)
         };
+        if (externalIdempotencyKey) request.externalIdempotencyKey = externalIdempotencyKey;
+        if (apiClientId) request.source = { kind: "api", clientId: apiClientId, name: shared.cleanText(submitOptions && submitOptions.apiClientName, 160) };
         return transact(function (rows) {
+            if (externalIdempotencyKey) {
+                var existing = rows.find(function (item) { return item.externalIdempotencyKey === externalIdempotencyKey; });
+                if (existing) return { request: shared.copy(existing), existing: true };
+            }
             rows.push(request);
-            return shared.copy(request);
-        }).then(function (saved) {
-            return levels.length ? saved : execute(saved.id);
+            return { request: shared.copy(request), existing: false };
+        }).then(function (result) {
+            if (result.existing || levels.length) return result.request;
+            return execute(result.request.id);
         });
     }
 
-    function decide(user, id, approved, note) {
+    function decide(user, id, approved, note, decisionOptions) {
         var executeId = "";
+        decisionOptions = decisionOptions || {};
+        var idempotencyKey = shared.cleanText(decisionOptions.idempotencyKey, 128).trim();
+        var apiClientId = shared.cleanText(decisionOptions.apiClientId, 80).trim();
+        var decisionIdempotencyKey = idempotencyKey && apiClientId
+            ? crypto.createHash("sha256").update(apiClientId + "\u0000decision\u0000" + String(id || "") + "\u0000" + idempotencyKey).digest("hex")
+            : "";
         return transact(function (rows) {
             var request = rows.find(function (item) { return item.id === String(id || ""); });
             if (!request) throw new Error("Approval request not found.");
+            var existingDecision = decisionIdempotencyKey && (request.approvalDecisions || []).find(function (item) {
+                return item.decisionIdempotencyKey === decisionIdempotencyKey;
+            });
+            if (existingDecision) return publicRequest(user, request);
             if (!canDecide(user, request)) throw new Error("Permission denied.");
             var level = currentLevel(request);
-            request.approvalDecisions.push({
+            var decision = {
                 level: level,
                 approved: approved === true,
                 note: shared.cleanText(note, 4000),
                 user: { id: user._id, name: shared.userName(user) },
                 decidedAt: Date.now()
-            });
+            };
+            if (decisionIdempotencyKey) decision.decisionIdempotencyKey = decisionIdempotencyKey;
+            if (apiClientId) decision.source = { kind: "api", clientId: apiClientId, name: shared.cleanText(decisionOptions.apiClientName, 160) };
+            request.approvalDecisions.push(decision);
             request.updatedAt = Date.now();
             if (approved !== true) request.status = "rejected";
             else if (currentLevel(request) === 0) {
@@ -241,9 +266,11 @@ module.exports.createApprovalService = function (options) {
         var perPage = Math.max(10, Math.min(200, Number(query.perPage) || 50));
         var status = String(query.status || "").toLowerCase();
         var type = String(query.type || "").toLowerCase();
+        var allowedTypes = Array.isArray(query.allowedTypes) ? query.allowedTypes.map(String) : [];
         var search = String(query.q || "").toLowerCase();
         var rows = readRows().filter(function (request) {
             if (!canSee(user, request)) return false;
+            if (allowedTypes.length && allowedTypes.indexOf(request.type) < 0) return false;
             if (status && request.status !== status) return false;
             if (type && request.type !== type) return false;
             if (search && [request.title, request.summary, request.requester && request.requester.name]
@@ -308,11 +335,14 @@ module.exports.createApprovalService = function (options) {
         if (!shared.isSiteAdmin(user)) throw new Error("Permission denied.");
         value = value || {};
         var plain = "mcac_" + shared.randomId(32);
+        var allowedScopes = ["providers:read", "requests:read", "requests:write", "requests:decide"];
+        var scopes = Array.isArray(value.scopes) ? value.scopes.map(String) : ["requests:write", "requests:read"];
+        scopes = scopes.filter(function (scope, index, all) { return allowedScopes.indexOf(scope) >= 0 && all.indexOf(scope) === index; });
         var token = {
             id: shared.randomId(10),
             name: shared.cleanText(value.name || "API token", 160),
             hash: crypto.createHash("sha256").update(plain).digest("hex"),
-            scopes: Array.isArray(value.scopes) ? value.scopes.map(String) : ["requests:write", "requests:read"],
+            scopes: scopes,
             providers: Array.isArray(value.providers) ? value.providers.map(String) : [],
             createdAt: Date.now(),
             createdBy: user._id,
@@ -344,15 +374,48 @@ module.exports.createApprovalService = function (options) {
         return token;
     }
 
-    function submitExternal(tokenText, type, payload) {
-        var token = authenticateApiToken(tokenText, "requests:write", type);
-        var user = shared.findUser(parent, token.createdBy) || {
-            _id: token.createdBy || ("api-token/" + token.id),
-            name: token.name,
-            realname: token.name,
-            siteadmin: 0xFFFFFFFF
-        };
-        return submit(type, user, payload, "External API", { source: "api" });
+    function getProviderResources(type, user, query) {
+        type = String(type || "").toLowerCase();
+        var provider = providers[type];
+        if (!provider || !providerEnabled(type)) return Promise.reject(new Error("Approval provider is unavailable."));
+        if (typeof provider.canSubmit === "function" && provider.canSubmit(user) !== true) {
+            return Promise.reject(new Error("Permission denied."));
+        }
+        if (typeof provider.getResources !== "function") return Promise.resolve({});
+        return Promise.resolve(provider.getResources(user, query || {}));
+    }
+
+    function externalContext(tokenText, scope, type) {
+        var token = authenticateApiToken(tokenText, scope, type);
+        var user = shared.findUser(parent, token.createdBy);
+        if (!user) throw new Error("API token owner no longer exists.");
+        return { token: token, user: user };
+    }
+
+    function submitExternal(tokenText, type, payload, note, idempotencyKey) {
+        var context = externalContext(tokenText, "requests:write", type);
+        return submit(type, context.user, payload, note || "External API", {
+            source: "api",
+            idempotencyKey: idempotencyKey,
+            apiClientId: context.token.id,
+            apiClientName: context.token.name
+        });
+    }
+
+    function decideExternal(tokenText, id, decision, note, idempotencyKey) {
+        var context = externalContext(tokenText, "requests:decide");
+        var request = readRows().find(function (item) { return item.id === String(id || ""); });
+        if (!request) throw new Error("Approval request not found.");
+        if ((context.token.providers || []).length && context.token.providers.indexOf(request.type) < 0) {
+            throw new Error("API token cannot use this provider.");
+        }
+        decision = String(decision || "").toLowerCase();
+        if (decision !== "approve" && decision !== "reject") throw new Error("Invalid decision.");
+        return decide(context.user, request.id, decision === "approve", note, {
+            idempotencyKey: idempotencyKey,
+            apiClientId: context.token.id,
+            apiClientName: context.token.name
+        });
     }
 
     function getSettings(user) {
@@ -409,8 +472,11 @@ module.exports.createApprovalService = function (options) {
 
     return {
         authenticateApiToken: authenticateApiToken,
+        externalContext: externalContext,
         createApiToken: createApiToken,
         decide: decide,
+        decideExternal: decideExternal,
+        getProviderResources: getProviderResources,
         getRequest: getRequest,
         getSettings: getSettings,
         initialize: initialize,

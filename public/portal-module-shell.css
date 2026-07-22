@@ -1,7 +1,7 @@
 /* Single visual system for every SirK Portal module. Modules provide data and actions only. */
 #sirkPortalRoot .mc-portal-module-shell {
-    --portal-primary-width: 220px;
-    --portal-secondary-width: 300px;
+    --portal-primary-width: 184px;
+    --portal-secondary-width: 236px;
     --portal-module-height: clamp(600px, calc(100dvh - 180px), 760px);
     display: flex;
     flex-direction: column;
@@ -13,6 +13,30 @@
     overflow: hidden;
     border: 1px solid var(--sirk-border, #dce3ec);
     border-radius: 10px;
+    background: var(--sirk-panel, #fff);
+    color: var(--sirk-text, #172033);
+    box-sizing: border-box;
+}
+
+#sirkPortalRoot .sirk-unified-content .mc-portal-module-shell {
+    --portal-accent: var(--sirk-active-accent, #3867d6);
+    height: 100%;
+    border: 0;
+    border-radius: 9px;
+}
+
+/* Empty modules use the same outer surface as implemented modules. */
+#sirkPortalRoot .mc-portal-placeholder-shell {
+    display: block;
+    height: 100%;
+}
+
+#sirkPortalRoot .mc-portal-placeholder-content {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    padding: 18px;
+    overflow: auto;
     background: var(--sirk-panel, #fff);
     color: var(--sirk-text, #172033);
     box-sizing: border-box;
@@ -107,8 +131,49 @@
     background: var(--sirk-panel, #fff);
 }
 
+#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-icon,
+#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-icon svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+}
+
+#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-icon svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button.is-active .mc-shared-toolbar-icon svg {
+    stroke-width: 2;
+}
+
+#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button.is-active[title*="Favorite"] {
+    color: #d18b00 !important;
+}
+
+#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button.is-active[title*="Favorite"] .mc-shared-toolbar-icon svg {
+    fill: currentColor;
+}
+
+/* The Portal owns column geometry. Legacy shared-ui and editor :has() rules
+   must never resize a mounted Portal view. */
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-module-layout,
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-module-layout:has(.mc-tree-script-actions:not(:empty)) {
+    grid-template-columns: var(--portal-primary-width) var(--portal-secondary-width) minmax(0, 1fr) !important;
+    resize: none !important;
+    overflow: hidden !important;
+}
+
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-module-layout.is-collapsed,
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-module-layout.is-collapsed:has(.mc-tree-script-actions:not(:empty)) {
+    grid-template-columns: 56px var(--portal-secondary-width) minmax(0, 1fr) !important;
+}
+
 #sirkPortalRoot .mc-portal-module-layout.is-collapsed {
-    grid-template-columns: 64px var(--portal-secondary-width) minmax(0, 1fr) !important;
+    grid-template-columns: 56px var(--portal-secondary-width) minmax(0, 1fr) !important;
 }
 
 #sirkPortalRoot .mc-portal-module-primary,
@@ -171,6 +236,7 @@
 #sirkPortalRoot .mc-portal-module-shell .sirk-management-item.active,
 #sirkPortalRoot .mc-portal-module-shell .sirk-management-item.is-active {
     background: rgba(96, 165, 250, .16);
+    box-shadow: inset 3px 0 0 var(--portal-accent, #60a5fa);
     font-weight: 700;
 }
 
@@ -181,7 +247,7 @@
     flex: 0 0 24px;
     width: 24px;
     height: 24px;
-    color: #60a5fa;
+    color: var(--portal-accent, #60a5fa);
 }
 
 #sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-icon svg,
@@ -238,7 +304,7 @@
     padding: 7px 13px;
     border: 1px solid transparent;
     border-radius: 7px;
-    background: #3867d6;
+    background: var(--portal-accent, #3867d6);
     color: #fff;
     font: 500 14px Segoe UI, Arial, sans-serif;
     box-shadow: none;
@@ -280,9 +346,9 @@
 }
 
 #sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary {
-    width: 64px;
-    min-width: 64px;
-    max-width: 64px;
+    width: 56px;
+    min-width: 56px;
+    max-width: 56px;
     padding: 8px 6px;
     overflow-x: hidden;
 }
@@ -312,8 +378,8 @@
 
 @media (max-width: 1100px) {
     #sirkPortalRoot .mc-portal-module-shell {
-        --portal-primary-width: 190px;
-        --portal-secondary-width: 260px;
+        --portal-primary-width: 170px;
+        --portal-secondary-width: 220px;
     }
 }
 

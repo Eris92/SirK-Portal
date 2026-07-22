@@ -1,6 +1,9 @@
-# Approval flow test v2 | Harmless script confirming that execution starts only after approval.
-# VariableRequired: $Message, Message
-# VariableSwitch: $IncludeEnvironment=false, Include execution context
+#PL Test procesu akceptacji v2 | Bezpieczny skrypt potwierdzający uruchomienie dopiero po akceptacji.
+#EN Approval flow test v2 | Harmless script confirming that execution starts only after approval.
+# VariableRequiredPL: $Message, Wiadomość | Tekst zwracany przez skrypt
+# VariableRequiredEN: $Message, Message | Text returned by the script
+# VariableSwitchPL: $IncludeEnvironment=false, Dołącz środowisko | Dołącza kontekst wykonania
+# VariableSwitchEN: $IncludeEnvironment=false, Include environment | Includes execution context
 # Approval_2: true
 
 $result = [ordered]@{

@@ -2,6 +2,15 @@
 
 var fs = require("fs");
 var path = require("path");
+var VERSION = require("./config.json").version;
+
+function isSiteAdmin(user) {
+    if (!user) return false;
+    var value = user.siteadmin;
+    var text = String(value).trim().toLowerCase();
+    return value === true || value === 0xFFFFFFFF || (Number(value) | 0) === -1 ||
+        text === "true" || text === "4294967295" || text === "-1" || text === "0xffffffff";
+}
 
 function errorText(error) {
     return String(
@@ -80,7 +89,11 @@ function fallbackPlugin(parent, shortName, error) {
 
     writeBootstrapLog(parent, "fallback-created", error);
 
-    obj.handleAdminReq = function (req, res) {
+    obj.handleAdminReq = function (req, res, user) {
+        if (!isSiteAdmin(user)) {
+            setResponse(res, 403, "text/plain; charset=utf-8", "Forbidden");
+            return;
+        }
         var body = [
             "<!doctype html>",
             "<html><head><meta charset=\"utf-8\">",
@@ -90,15 +103,14 @@ function fallbackPlugin(parent, shortName, error) {
             "pre{white-space:pre-wrap;border:1px solid #999;padding:12px}",
             "</style></head><body>",
             "<h2>MyCompany failed to initialize</h2>",
-            "<div>Version: 1.4.0</div>",
+            "<div>Version: ",
+            escapeHtml(VERSION),
+            "</div>",
             "<div>Loaded shortName: ",
             escapeHtml(shortName),
             "</div>",
-            "<div>Log: ",
-            escapeHtml(path.join(dataRoot(parent), "bootstrap.log")),
-            "</div>",
             "<pre>",
-            escapeHtml(message),
+            "Detailed diagnostics were written to the local MyCompany bootstrap log.",
             "</pre>",
             "</body></html>"
         ].join("");
@@ -111,14 +123,18 @@ function fallbackPlugin(parent, shortName, error) {
         );
     };
 
-    obj.handleAdminPostReq = function (req, res) {
+    obj.handleAdminPostReq = function (req, res, user) {
+        if (!isSiteAdmin(user)) {
+            setResponse(res, 403, "application/json; charset=utf-8", JSON.stringify({ ok: false, error: "Forbidden" }));
+            return;
+        }
         setResponse(
             res,
             503,
             "application/json; charset=utf-8",
             JSON.stringify({
                 ok: false,
-                error: message
+                error: "MyCompany failed to initialize. See the local bootstrap log."
             })
         );
     };
@@ -152,10 +168,14 @@ function registerAdminAlias(parent, plugin, shortName) {
     parent.plugins[alias] = {
         exports: [],
         handleAdminReq: function (req, res, user) {
-            return plugin.handleAdminReq(req, res, user);
+            var active = parent.plugins[shortName];
+            if (!active || typeof active.handleAdminReq !== "function") return;
+            return active.handleAdminReq(req, res, user);
         },
         handleAdminPostReq: function (req, res, user) {
-            return plugin.handleAdminPostReq(req, res, user);
+            var active = parent.plugins[shortName];
+            if (!active || typeof active.handleAdminPostReq !== "function") return;
+            return active.handleAdminPostReq(req, res, user);
         }
     };
     parent.exports[alias] = [];
@@ -167,14 +187,14 @@ function create(parent, shortName) {
     var plugin;
 
     try {
-        var implementation = require("./plugin-main-1.4.0.js");
+        var implementation = require("./plugin-main-standalone.js");
 
         if (
             !implementation ||
             typeof implementation.createPlugin !== "function"
         ) {
             throw new Error(
-                "plugin-main-1.4.0.js does not export createPlugin()."
+                "plugin-main-standalone.js does not export createPlugin()."
             );
         }
 

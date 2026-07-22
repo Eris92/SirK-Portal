@@ -26,21 +26,32 @@
 
     function splitDirective(item) {
         item = item || {};
-        var raw = text(item.value).trim();
-        var pieces = raw.split(",");
-        var name = text(pieces.shift()).trim().replace(/^[\s$%]+/, "");
+        function splitRaw(raw) {
+            var pieces = text(raw).trim().split(",");
+            var name = text(pieces.shift()).trim().replace(/^[\s$%]+/, "");
+            return { name: name, value: pieces.join(",").trim() };
+        }
+        var fallback = splitRaw(item.value);
+        var values = item.values && typeof item.values === "object" ? item.values : {};
         return {
             directive: text(item.directive || "Variable"),
-            name: name,
-            value: pieces.join(",").trim()
+            name: text(item.name || fallback.name),
+            pl: text(values.pl || fallback.value),
+            en: text(values.en || fallback.value)
         };
     }
 
     function directiveValue(row) {
         var name = text(row.name.value).trim().replace(/^[\s$%]+/, "");
-        var value = text(row.value.value).trim();
-        if (!name) return "";
-        return "$" + name + (value ? ", " + value : "");
+        if (!name) return null;
+        return {
+            directive: row.type.value,
+            name: name,
+            values: {
+                pl: text(row.pl.value).trim(),
+                en: text(row.en.value).trim()
+            }
+        };
     }
 
     function createSelect(values, selected) {
@@ -68,7 +79,7 @@
         var wrapper = element("div", "mc-definition-table-wrap");
         var table = element("table", "style1 mc-definition-table");
         var head = table.createTHead().insertRow();
-        ["Type", "Variable name", "Value / label / options", ""].forEach(function (name) {
+        ["Type", "Variable name", "PL — label | description | options", "EN — label | description | options", ""].forEach(function (name) {
             head.appendChild(element("th", "", name));
         });
         var body = table.createTBody();
@@ -78,24 +89,29 @@
         var controls = [];
 
         function addRow(value) {
-            value = value || { directive: emptyType, name: "", value: "" };
+            value = value || { directive: emptyType, name: "", pl: "", en: "" };
             var tr = body.insertRow();
             var type = createSelect(types, types.indexOf(value.directive) >= 0 ? value.directive : emptyType);
             var name = element("input", "mc-definition-input");
             name.type = "text";
             name.value = value.name || "";
             name.placeholder = "ApiToken";
-            var description = element("input", "mc-definition-input");
-            description.type = "text";
-            description.value = value.value || "";
-            description.placeholder = "API token";
+            var pl = element("input", "mc-definition-input");
+            pl.type = "text";
+            pl.value = value.pl || "";
+            pl.placeholder = "Polska nazwa | Polski opis";
+            var en = element("input", "mc-definition-input");
+            en.type = "text";
+            en.value = value.en || "";
+            en.placeholder = "English name | English description";
             var remove = element("button", "btn btn-secondary btn-sm mc-definition-remove", "×");
             remove.type = "button";
             tr.insertCell().appendChild(type);
             tr.insertCell().appendChild(name);
-            tr.insertCell().appendChild(description);
+            tr.insertCell().appendChild(pl);
+            tr.insertCell().appendChild(en);
             tr.insertCell().appendChild(remove);
-            var record = { row: tr, type: type, name: name, value: description };
+            var record = { row: tr, type: type, name: name, pl: pl, en: en };
             controls.push(record);
             remove.onclick = function () {
                 var index = controls.indexOf(record);
@@ -119,8 +135,7 @@
             },
             values: function () {
                 return controls.map(function (row) {
-                    var value = directiveValue(row);
-                    return value ? { directive: row.type.value, value: value } : null;
+                    return directiveValue(row);
                 }).filter(Boolean);
             }
         };
@@ -219,17 +234,27 @@
                 var card = shell.card("Edit: " + (value.label || script.label || script.name), value.path || script.path);
                 card.classList.add("mc-script-definition-card", "mc-script-definition-form");
 
-                var name = element("input", "mc-definition-input");
-                name.type = "text";
-                name.value = value.label || script.label || script.name || "";
-
-                var description = element("textarea", "mc-definition-input");
-                description.rows = 3;
-                description.value = value.description || "";
+                var locales = value.locales || {};
+                var plLocale = locales.pl || {};
+                var enLocale = locales.en || {};
+                var namePl = element("input", "mc-definition-input");
+                namePl.type = "text";
+                namePl.value = plLocale.label || value.label || script.label || script.name || "";
+                var descriptionPl = element("textarea", "mc-definition-input");
+                descriptionPl.rows = 3;
+                descriptionPl.value = plLocale.description || value.description || "";
+                var nameEn = element("input", "mc-definition-input");
+                nameEn.type = "text";
+                nameEn.value = enLocale.label || value.label || script.label || script.name || "";
+                var descriptionEn = element("textarea", "mc-definition-input");
+                descriptionEn.rows = 3;
+                descriptionEn.value = enLocale.description || value.description || "";
 
                 var top = element("div", "mc-definition-top-grid");
-                top.appendChild(field("Name", name));
-                top.appendChild(field("Description", description));
+                top.appendChild(field("Nazwa (PL)", namePl));
+                top.appendChild(field("Opis (PL)", descriptionPl));
+                top.appendChild(field("Name (EN)", nameEn));
+                top.appendChild(field("Description (EN)", descriptionEn));
                 card.appendChild(top);
 
                 var approval = element("section", "mc-definition-section mc-definition-approval");
@@ -299,7 +324,7 @@
                     var added = 0;
                     detectExternalVariables(source.value).forEach(function (variableName) {
                         if (existing.indexOf(variableName.toLowerCase()) >= 0) return;
-                        variables.addRow({ directive: "VariableRequired", name: variableName, value: variableName });
+                        variables.addRow({ directive: "VariableRequired", name: variableName, pl: variableName, en: variableName });
                         existing.push(variableName.toLowerCase());
                         added++;
                     });
@@ -329,8 +354,10 @@
                         shell.post("definition", {
                             path: script.path,
                             definition: {
-                                label: name.value,
-                                description: description.value,
+                                locales: {
+                                    pl: { label: namePl.value, description: descriptionPl.value },
+                                    en: { label: nameEn.value, description: descriptionEn.value }
+                                },
                                 approvalLevels: Array.prototype.map.call(approvalBoxes.querySelectorAll("input:checked"), function (box) { return Number(box.value); }),
                                 variables: variables.values(),
                                 secretVariables: secrets.values(),
@@ -368,7 +395,7 @@
                 actions.appendChild(cancel);
                 card.appendChild(actions);
                 host.appendChild(card);
-                name.focus();
+                namePl.focus();
             }).catch(function (error) {
                 shell.error(shell.state.page.details, error);
             });

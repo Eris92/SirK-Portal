@@ -4,8 +4,9 @@
     if (window.__myCompanyPortalFolderCollapseLoaded) return;
     window.__myCompanyPortalFolderCollapseLoaded = true;
 
-    var STORAGE_KEY = "mycompany.portal.management.expandedFolders.v1";
-    var expanded = loadState();
+    var expanded = {};
+    var activeShell = null;
+    var activeRoot = "";
     var scheduled = false;
 
     function ensureStyle() {
@@ -15,27 +16,10 @@
         style.textContent = [
             "#sirkPortalRoot .sirk-folder-heading{cursor:pointer;user-select:none;border-radius:7px;outline:0}",
             "#sirkPortalRoot .sirk-folder-heading:hover,#sirkPortalRoot .sirk-folder-heading:focus-visible{background:rgba(96,165,250,.10)}",
-            "#sirkPortalRoot .sirk-folder-chevron{display:grid;place-items:center;flex:0 0 16px;width:16px;height:24px;color:var(--sirk-muted,#657187)}",
-            "#sirkPortalRoot .sirk-folder-chevron svg{display:block;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s ease}",
-            "#sirkPortalRoot .sirk-folder-heading.is-expanded>.sirk-folder-chevron svg{transform:rotate(90deg)}",
-            "#sirkPortalRoot .sirk-folder-heading.is-collapsed>.sirk-folder-chevron svg{transform:rotate(0deg)}",
+            "#sirkPortalRoot .sirk-folder-heading.is-active{background:rgba(96,165,250,.16);box-shadow:inset 3px 0 0 var(--portal-accent,#60a5fa);color:var(--sirk-text,#172033);font-weight:700}",
             "#sirkPortalRoot .is-folder-child-hidden{display:none!important}"
         ].join("");
         (document.head || document.documentElement).appendChild(style);
-    }
-
-    function loadState() {
-        try {
-            var value = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "{}");
-            return value && typeof value === "object" ? value : {};
-        } catch (error) {
-            return {};
-        }
-    }
-
-    function saveState() {
-        try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(expanded)); }
-        catch (error) {}
     }
 
     function depth(node) {
@@ -57,26 +41,21 @@
         return String(selected && selected.getAttribute("data-management-root") || "root");
     }
 
-    function chevron() {
-        var host = document.createElement("span");
-        host.className = "sirk-folder-chevron";
-        host.setAttribute("aria-hidden", "true");
-        host.innerHTML = '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>';
-        return host;
-    }
-
     function assignKeys(shell, list) {
         var stack = [];
         var occurrence = Object.create(null);
         var root = rootKey(shell);
+        var managementHost = shell.closest(".mycompany-management-host");
+        var openPath = String(managementHost && managementHost.getAttribute("data-management-open-path") || "");
 
         Array.prototype.forEach.call(list.children, function (node) {
             if (!node.classList.contains("sirk-folder-heading")) return;
             var level = depth(node);
             var label = text(node) || "folder";
+            var folderPath = String(node.getAttribute("data-folder-path") || "");
             stack.length = level;
             stack[level] = label;
-            var base = root + "|" + stack.slice(0, level + 1).join("/");
+            var base = root + "|" + (folderPath || stack.slice(0, level + 1).join("/"));
             occurrence[base] = (occurrence[base] || 0) + 1;
             var key = base + "#" + occurrence[base];
             node.setAttribute("data-folder-collapse-key", key);
@@ -84,15 +63,14 @@
             node.setAttribute("role", "button");
             node.setAttribute("tabindex", "0");
 
-            if (!node.querySelector(":scope > .sirk-folder-chevron")) {
-                node.insertBefore(chevron(), node.firstChild);
-            }
-
-            var isExpanded = expanded[key] !== false;
+            var opensLinkedScript = folderPath && openPath && openPath.indexOf(folderPath + "/") === 0;
+            if (opensLinkedScript) expanded[key] = true;
+            var isExpanded = expanded[key] === true;
             node.classList.toggle("is-expanded", isExpanded);
             node.classList.toggle("is-collapsed", !isExpanded);
             node.setAttribute("aria-expanded", isExpanded ? "true" : "false");
         });
+        if (managementHost && openPath) managementHost.removeAttribute("data-management-open-path");
     }
 
     function applyVisibility(list) {
@@ -118,6 +96,12 @@
         ensureStyle();
         var list = shell.querySelector('.sirk-management-workspace > .sirk-management-column:nth-child(2) > .sirk-management-list');
         if (!list) return;
+        var currentRoot = rootKey(shell);
+        if (shell !== activeShell || currentRoot !== activeRoot) {
+            expanded = {};
+            activeShell = shell;
+            activeRoot = currentRoot;
+        }
         assignKeys(shell, list);
         applyVisibility(list);
     }
@@ -136,9 +120,12 @@
         if (!key) return;
         var next = heading.getAttribute("aria-expanded") === "false";
         expanded[key] = next;
-        saveState();
         heading.classList.toggle("is-expanded", next);
         heading.classList.toggle("is-collapsed", !next);
+        Array.prototype.forEach.call(heading.parentElement.querySelectorAll(":scope > .sirk-folder-heading.is-active"), function (node) {
+            node.classList.toggle("is-active", node === heading);
+        });
+        heading.classList.add("is-active");
         heading.setAttribute("aria-expanded", next ? "true" : "false");
         var list = heading.parentElement;
         if (list) applyVisibility(list);

@@ -6,8 +6,9 @@ var secretsFactory = require("./secret-store.js");
 var approvalFactory = require("./approval-service.js");
 var deviceFactory = require("./device-service.js");
 var integrationFactory = require("./integration-service.js");
+var folderAccess = require("./folder-access.js");
 
-var VERSION = "1.3.1";
+var VERSION = require("../config.json").version;
 var DEFAULTS = {
     schemaVersion: 3,
     modules: {
@@ -210,14 +211,14 @@ module.exports.createRuntime = function (options) {
                     key: descriptor.key,
                     name: descriptor.name,
                     version: VERSION,
-                    loadError: message
+                    loadError: true
                 };
             },
             getAccess: function () {
                 return {
                     allowed: false,
                     siteAdmin: false,
-                    error: message
+                    error: true
                 };
             },
             initialize: function () {
@@ -252,9 +253,32 @@ module.exports.createRuntime = function (options) {
     });
 
     function initialize() {
-        return Promise.all(Object.keys(modules).map(function (key) {
-            return Promise.resolve(modules[key].initialize());
-        }));
+        function hasLegacyRules(rules) {
+            return rules && typeof rules === "object" && Object.keys(rules).some(function (key) {
+                var rule = rules[key];
+                return rule && typeof rule === "object" && !Array.isArray(rule) && !Object.prototype.hasOwnProperty.call(rule, "allowAll");
+            });
+        }
+        var snapshot = settings.read();
+        var snapshotModules = snapshot.modules || {};
+        var needsMigration = ["myscripts", "mycommands"].some(function (key) {
+            return hasLegacyRules((snapshotModules[key] || {}).folderPermissions);
+        }) || hasLegacyRules((snapshotModules.portal || {}).views);
+        var migration = needsMigration ? settings.update(function (current) {
+            var moduleSettings = current.modules || {};
+            ["myscripts", "mycommands"].forEach(function (key) {
+                var module = moduleSettings[key] || {};
+                folderAccess.migrateLegacyRules(module.folderPermissions);
+            });
+            var portal = moduleSettings.portal || {};
+            folderAccess.migrateLegacyRules(portal.views);
+            return current;
+        }) : Promise.resolve();
+        return migration.then(function () {
+            return Promise.all(Object.keys(modules).map(function (key) {
+                return Promise.resolve(modules[key].initialize());
+            }));
+        });
     }
 
     function diagnostics(user) {
@@ -268,7 +292,7 @@ module.exports.createRuntime = function (options) {
                 enabled: config.enabled !== false,
                 builtIn: true,
                 ready: !module.__loadError,
-                error: module.__loadError || null,
+                error: module.__loadError ? (shared.isSiteAdmin(user) ? module.__loadError : "Module failed to load.") : null,
                 access: module.getAccess(user)
             };
         });
@@ -280,8 +304,8 @@ module.exports.createRuntime = function (options) {
             result[key] = {
                 enabled: settings.isModuleEnabled(key),
                 ready: !modules[key].__loadError,
-                error: modules[key].__loadError || null,
-                config: modules[key].clientConfig(),
+                error: modules[key].__loadError ? (shared.isSiteAdmin(user) ? modules[key].__loadError : "Module failed to load.") : null,
+                config: modules[key].clientConfig(user),
                 access: modules[key].getAccess(user)
             };
         });
@@ -310,8 +334,7 @@ module.exports.createRuntime = function (options) {
         if (module.__loadError) {
             shared.sendJson(res, 503, {
                 ok: false,
-                error: "Module failed to load.",
-                detail: module.__loadError
+                error: "Module failed to load."
             });
             return;
         }
@@ -401,6 +424,19 @@ module.exports.createRuntime = function (options) {
 
     function adminSnapshot(user) {
         if (!shared.isSiteAdmin(user)) return null;
+        function moduleFolders(key) {
+            var module = modules[key];
+            return module && !module.__loadError && typeof module.getFolderSettings === "function" ? module.getFolderSettings() : [];
+        }
+        function diagnosticTail(filePath) {
+            try {
+                if (!fs.existsSync(filePath)) return "";
+                var lines = String(fs.readFileSync(filePath, "utf8") || "").split(/\r?\n/);
+                return lines.slice(-200).join("\n").slice(-64000);
+            } catch (error) {
+                return "Diagnostic file could not be read.";
+            }
+        }
         return {
             plugin: {
                 name: "My Company",
@@ -408,6 +444,10 @@ module.exports.createRuntime = function (options) {
             },
             modules: diagnostics(user),
             moduleSettings: settings.read().modules,
+            folderPermissions: {
+                myscripts: moduleFolders("myscripts"),
+                mycommands: moduleFolders("mycommands")
+            },
             integrations: integrations.publicSettings(user),
             migration: {
                 completed: true,
@@ -415,6 +455,10 @@ module.exports.createRuntime = function (options) {
                 message: "Legacy migration is disabled. Script libraries are read directly from the MyCompany seed directory."
             },
             moduleLoadErrors: shared.copy(moduleLoadErrors),
+            diagnostics: {
+                logs: diagnosticTail(nativePath.join(dataRoot, "bootstrap.log")),
+                errors: diagnosticTail(nativePath.join(dataRoot, "plugin-load-error.log"))
+            },
             generatedAt: new Date().toISOString()
         };
     }

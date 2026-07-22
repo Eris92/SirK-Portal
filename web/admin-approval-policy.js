@@ -21,8 +21,11 @@
 
     function inject() {
         Array.prototype.forEach.call(
-            root.querySelectorAll(".mc-admin-card"),
+            root.querySelectorAll(".mc-admin-settings-panel .mc-admin-card"),
             function (card) {
+                var panel = card.closest(".mc-admin-settings-panel");
+                var panelHeading = panel && panel.querySelector(".mc-admin-section-header h3");
+                if (!panelHeading || !/^approval\s*center$/i.test(String(panelHeading.textContent || "").trim())) return;
                 var heading = card.querySelector("h3");
                 var type = heading && titleMap[String(heading.textContent || "").trim()];
                 if (!type || card.querySelector('[data-mycompany-noapproval="' + type + '"]')) return;
@@ -49,7 +52,7 @@
     function selectedPolicies() {
         var result = {};
         Array.prototype.forEach.call(
-            root.querySelectorAll("[data-mycompany-noapproval]"),
+            root.querySelectorAll(".mc-admin-settings-panel [data-mycompany-noapproval]"),
             function (label) {
                 var type = label.getAttribute("data-mycompany-noapproval");
                 var input = label.querySelector('input[type="checkbox"]');

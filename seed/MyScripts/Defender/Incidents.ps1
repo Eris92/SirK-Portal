@@ -1,4 +1,5 @@
-# Incidents | Load recent Microsoft Defender XDR incidents from Microsoft Graph.
+#PL Incydenty | Pobiera ostatnie incydenty Microsoft Defender XDR z Microsoft Graph.
+#EN Incidents | Loads recent Microsoft Defender XDR incidents from Microsoft Graph.
 $ErrorActionPreference = 'Stop'
 $tenantId = [Environment]::GetEnvironmentVariable('MYSCRIPTS_ENTRA_TENANT_ID')
 $clientId = [Environment]::GetEnvironmentVariable('MYSCRIPTS_ENTRA_CLIENT_ID')

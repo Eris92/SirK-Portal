@@ -1,4 +1,5 @@
-# Advanced Hunting | Open Microsoft Defender XDR Advanced Hunting.
+#PL Zaawansowane wyszukiwanie | Otwiera Advanced Hunting w Microsoft Defender XDR.
+#EN Advanced Hunting | Opens Microsoft Defender XDR Advanced Hunting.
 $result = [ordered]@{
     meshPortal = $true
     title = 'Advanced Hunting'

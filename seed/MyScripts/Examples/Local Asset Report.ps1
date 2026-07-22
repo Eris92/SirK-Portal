@@ -1,4 +1,5 @@
-# Local asset report | Jira-style local inventory test without a Jira connection
+#PL Lokalny raport zasobu | Test lokalnej inwentaryzacji w stylu Jira bez połączenia z Jira.
+#EN Local asset report | Jira-style local inventory test without a Jira connection.
 $getInfo = Get-Command Get-CimInstance -ErrorAction SilentlyContinue
 if ($getInfo) {
     $computer = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue

@@ -1,6 +1,9 @@
-# List AD users | Retrieves up to 100 Active Directory users and returns structured JSON suitable for a web table.
-# VariableSelectRequired: $Limit=100,20=20 users|50=50 users|100=100 users
-# Variable: $Search, Optional name or login filter
+#PL Lista użytkowników AD | Pobiera użytkowników Active Directory i zwraca tabelę danych.
+#EN List AD users | Retrieves Active Directory users and returns structured table data.
+# VariableSelectRequiredPL: $Limit=100, Limit | Maksymalna liczba użytkowników |20=20 użytkowników|50=50 użytkowników|100=100 użytkowników
+# VariableSelectRequiredEN: $Limit=100, Limit | Maximum number of users |20=20 users|50=50 users|100=100 users
+# VariablePL: $Search, Filtr | Opcjonalny filtr nazwy lub loginu
+# VariableEN: $Search, Filter | Optional name or login filter
 
 Import-Module ActiveDirectory -ErrorAction Stop
 

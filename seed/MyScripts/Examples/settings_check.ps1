@@ -1,4 +1,5 @@
-# Test-DirectoryToolsSettings.ps1
+#PL Test ustawień Directory Tools | Sprawdza lokalną konfigurację integracji Directory Tools.
+#EN Directory Tools settings test | Checks the local Directory Tools integration configuration.
 
 param(
     [string]$PluginRoot = "C:\Program Files\Open Source\MeshCentral\meshcentral-data\plugins\directorytools",

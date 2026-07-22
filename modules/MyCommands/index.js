@@ -3,6 +3,7 @@
 var shared = require("../../core/shared.js");
 var libraryFactory = require("../../core/script-confirmation-library.js");
 var adminFactory = require("../../core/script-admin-service.js");
+var folderAccess = require("../../core/folder-access.js");
 
 module.exports.createModule = function (context) {
     var root = context.path.join(context.pluginRoot, "seed", "MyCommands");
@@ -47,10 +48,40 @@ module.exports.createModule = function (context) {
     };
 
     function allowed(user) {
+        if (!user) return false;
         if (shared.isSiteAdmin(user)) return true;
         var groups = (context.settings.read().modules.mycommands || {}).accessGroupIds;
         groups = Array.isArray(groups) ? groups : [];
         return !groups.length || shared.isUserInAnyGroup(user, groups);
+    }
+    function folderRules() { return (context.settings.read().modules.mycommands || {}).folderPermissions || {}; }
+    function folderKeys() { return ["@menu/scripts"].concat(Object.keys(catalog).map(function (key) { return "@menu/" + key; })); }
+    function canUseScripts(user) { return folderAccess.canAccess(user, folderRules(), "@menu/scripts"); }
+    function requireScriptAccess(user) { if (!canUseScripts(user)) throw new Error("Folder access denied."); }
+    function requireCommandAccess(user, commandId) {
+        var found = findCatalogCommand(commandId);
+        if (!found || !folderAccess.canAccess(user, folderRules(), "@menu/" + found.category.key)) throw new Error("Folder access denied.");
+        return found;
+    }
+    function visibleTree(user) {
+        var value = library.getTree();
+        if (!canUseScripts(user)) value.children = [];
+        return value;
+    }
+    function visibleCatalog(user) {
+        return publicCatalog().filter(function (category) { return folderAccess.canAccess(user, folderRules(), "@menu/" + category.key); });
+    }
+    function folderSettings() {
+        var rules = folderRules();
+        return [{ key: "@menu/scripts", label: "Scripts", locales: { pl: { label: "Skrypty" }, en: { label: "Scripts" } } }].concat(Object.keys(catalog).map(function (key) {
+            return { key: "@menu/" + key, label: catalog[key].title, locales: catalog[key].locales || {} };
+        })).map(function (item) {
+            var rule = rules[item.key];
+            item.enabled = !rule || rule.enabled !== false;
+            item.allowAll = !!(rule && rule.allowAll === true);
+            item.groupIds = rule && Array.isArray(rule.groupIds) ? rule.groupIds : [];
+            return item;
+        });
     }
     function requireAdmin(user) { if (!shared.isSiteAdmin(user)) throw new Error("Permission denied."); }
     function allowNoApproval() {
@@ -190,7 +221,11 @@ module.exports.createModule = function (context) {
     function execute(payload, request) {
         var user = shared.findUser(context.parent, request.requester && request.requester.id) || { _id: request.requester && request.requester.id, name: request.requester && request.requester.name };
         var command;
-        try { command = buildCommand(payload); } catch (error) { return Promise.reject(error); }
+        try {
+            if (payload.scriptPath) requireScriptAccess(user);
+            if (payload.commandId) requireCommandAccess(user, payload.commandId);
+            command = buildCommand(payload);
+        } catch (error) { return Promise.reject(error); }
         return context.device.resolveNode(user, payload.nodeId, { requireCommandRights: true }).then(function (node) {
             var id = "mycompany-" + shared.randomId(10);
             return context.device.sendRunCommands(node, command, id, null).then(function (state) {
@@ -215,7 +250,15 @@ module.exports.createModule = function (context) {
         return context.approval.list(user, { type: "mycommands", status: query.status || "", q: query.q || "", page: Number(query.page) || 1, perPage: Math.min(200, Number(query.perPage) || 100) }).then(function (value) {
             var byId = Object.create(null);
             executionRows().forEach(function (row) { byId[String(row.id || "")] = row; });
-            value.rows = (value.rows || []).map(function (request) { var id = request.result && request.result.id; if (id && byId[String(id)]) request.result = shared.copy(byId[String(id)]); return request; });
+            value.rows = (value.rows || []).filter(function (request) {
+                var payload = request && request.payload || {};
+                if (payload.scriptPath) return canUseScripts(user);
+                if (payload.commandId) {
+                    var found = findCatalogCommand(payload.commandId);
+                    return !!found && folderAccess.canAccess(user, folderRules(), "@menu/" + found.category.key);
+                }
+                return true;
+            }).map(function (request) { var id = request.result && request.result.id; if (id && byId[String(id)]) request.result = shared.copy(byId[String(id)]); return request; });
             value.ok = true;
             return value;
         });
@@ -228,6 +271,7 @@ module.exports.createModule = function (context) {
 
     function multiExecute(user, value) {
         value = value || {};
+        requireScriptAccess(user);
         var settings = context.settings.read().modules.mycommands || {};
         var maxMultiHostNodes = Math.max(1, Math.min(1000, Number(settings.maxMultiHostNodes) || 200));
         var multiHostConcurrency = Math.max(1, Math.min(64, Number(settings.multiHostConcurrency) || 8));
@@ -262,7 +306,14 @@ module.exports.createModule = function (context) {
         type: "mycommands", moduleKey: "mycommands", title: "My Commands", tabTitle: "Commands", description: "Direct and multi-device command execution.", columns: ["createdAt", "title", "requester", "status"], normalizePayload: normalizePayload,
         getTitle: function (payload) { return payload.label || payload.scriptPath || payload.commandId || "Command"; },
         getSummary: function (payload) { return "Device: " + (payload.nodeName || payload.nodeId || "unknown"); },
-        getApprovalLevels: function (payload) { return payload.approvalLevels || []; }, canSubmit: allowed, execute: execute
+        getApprovalLevels: function (payload) { return payload.approvalLevels || []; },
+        canSubmit: allowed,
+        getResources: function (user, query) {
+            if (query && query.scriptPath) requireScriptAccess(user);
+            var script = query && query.scriptPath ? library.getScript(query.scriptPath, true) : null;
+            return { tree: visibleTree(user), catalog: visibleCatalog(user), script: script || null };
+        },
+        execute: execute
     };
 
     return {
@@ -288,13 +339,13 @@ module.exports.createModule = function (context) {
         apiGet: function (asset, req, user) {
             if (!allowed(user)) throw new Error("Permission denied.");
             var query = req && req.query || {};
-            if (asset === "scripts") return { ok: true, tree: library.getTree(), catalog: publicCatalog(), scriptsRoot: shared.isSiteAdmin(user) ? root : "" };
-            if (asset === "catalog") return { ok: true, catalog: publicCatalog() };
-            if (asset === "script") { var script = library.getScript(query.path, true); if (!script) throw new Error("Script not found."); return { ok: true, script: script }; }
-            if (asset === "source") { requireAdmin(user); var source = library.getSource(query.path); if (!source) throw new Error("Script not found."); return { ok: true, source: source }; }
-            if (asset === "definition") return { ok: true, definition: admin.getDefinition(user, query.path) };
-            if (asset === "script-secrets") return { ok: true, secrets: admin.getSecretState(user, query.path) };
-            if (asset === "system-credentials") return { ok: true, systemCredentials: admin.getSystemCredentialState(user, query.path) };
+            if (asset === "scripts") return { ok: true, tree: visibleTree(user), catalog: visibleCatalog(user), scriptsRoot: shared.isSiteAdmin(user) ? root : "" };
+            if (asset === "catalog") return { ok: true, catalog: visibleCatalog(user) };
+            if (asset === "script") { requireScriptAccess(user); var script = library.getScript(query.path, true); if (!script) throw new Error("Script not found."); return { ok: true, script: script }; }
+            if (asset === "source") { requireAdmin(user); requireScriptAccess(user); var source = library.getSource(query.path); if (!source) throw new Error("Script not found."); return { ok: true, source: source }; }
+            if (asset === "definition") { requireScriptAccess(user); return { ok: true, definition: admin.getDefinition(user, query.path) }; }
+            if (asset === "script-secrets") { requireScriptAccess(user); return { ok: true, secrets: admin.getSecretState(user, query.path) }; }
+            if (asset === "system-credentials") { requireScriptAccess(user); return { ok: true, systemCredentials: admin.getSystemCredentialState(user, query.path) }; }
             if (asset === "output") return outputForUser(user, query.id);
             if (asset === "results") return approvalResults(user, query);
             if (asset === "settings") return { ok: true, settings: context.settings.read().modules.mycommands || {}, scriptsRoot: root };
@@ -303,13 +354,17 @@ module.exports.createModule = function (context) {
         apiPost: function (asset, req, user) {
             if (!allowed(user)) throw new Error("Permission denied.");
             var value = req && req.body || {};
-            if (asset === "execute") return context.approval.submit("mycommands", user, value, value.note).then(function (request) { return { ok: true, request: request }; });
+            if (asset === "execute") {
+                if (value.scriptPath) requireScriptAccess(user);
+                if (value.commandId) requireCommandAccess(user, value.commandId);
+                return context.approval.submit("mycommands", user, value, value.note).then(function (request) { return { ok: true, request: request }; });
+            }
             if (asset === "multi-execute") return multiExecute(user, value);
-            if (asset === "refresh") { library.invalidate(); return { ok: true, tree: library.getTree(), catalog: publicCatalog() }; }
-            if (asset === "source") { requireAdmin(user); return { ok: true, script: library.saveSource(value.path, value.text), tree: library.getTree() }; }
-            if (asset === "definition") { var saved = admin.saveDefinition(user, value.path, value.definition); saved.ok = true; saved.tree = library.getTree(); return saved; }
-            if (asset === "script-secrets") return { ok: true, secrets: admin.saveSecrets(user, value.path, value.values, value.clearNames) };
-            if (asset === "system-credentials") return { ok: true, systemCredentials: admin.saveSystemCredentials(user, value.path, value.selected) };
+            if (asset === "refresh") { library.invalidate(); return { ok: true, tree: visibleTree(user), catalog: visibleCatalog(user) }; }
+            if (asset === "source") { requireAdmin(user); requireScriptAccess(user); return { ok: true, script: library.saveSource(value.path, value.text), tree: visibleTree(user) }; }
+            if (asset === "definition") { requireScriptAccess(user); var saved = admin.saveDefinition(user, value.path, value.definition); saved.ok = true; saved.tree = visibleTree(user); return saved; }
+            if (asset === "script-secrets") { requireScriptAccess(user); return { ok: true, secrets: admin.saveSecrets(user, value.path, value.values, value.clearNames) }; }
+            if (asset === "system-credentials") { requireScriptAccess(user); return { ok: true, systemCredentials: admin.saveSystemCredentials(user, value.path, value.selected) }; }
             if (asset === "settings") {
                 requireAdmin(user);
                 return context.settings.update(function (current) {
@@ -317,12 +372,14 @@ module.exports.createModule = function (context) {
                     config.showInMenu = false;
                     config.showOnDevice = value.showOnDevice !== false;
                     config.accessGroupIds = Array.isArray(value.accessGroupIds) ? value.accessGroupIds.map(String) : [];
+                    config.folderPermissions = folderAccess.normalizeRules(value.folderPermissions, folderKeys(), shared.getUserGroups(context.parent).map(function (group) { return group.id; }));
                     config.maxMultiHostNodes = Math.max(1, Math.min(1000, Number(value.maxMultiHostNodes) || 200));
                     config.multiHostConcurrency = Math.max(1, Math.min(64, Number(value.multiHostConcurrency) || 8));
                     return current;
                 }).then(function () { return { ok: true }; });
             }
             throw new Error("Unknown My Commands action.");
-        }
+        },
+        getFolderSettings: folderSettings
     };
 };

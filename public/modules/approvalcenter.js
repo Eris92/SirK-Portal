@@ -28,12 +28,12 @@
         mycommands: svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m7 10 3 2-3 2M12 15h5"/>'),
         myscripts: svg('<path d="M6 3h9l3 3v15H6V3Z"/><path d="M9 11h6M9 15h6"/>'),
         all: svg('<path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h8"/>'),
-        pending: svg('<path d="M6 2h12M6 22h12M8 2v5l4 5-4 5v5M16 2v5l-4 5 4 5v5"/>'),
-        executing: svg('<path d="m8 5 11 7-11 7V5Z"/>'),
-        approved: svg('<path d="m4 12 5 5L20 6"/>'),
-        completed: svg('<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>'),
-        failed: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 17h.01"/>'),
-        rejected: svg('<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>')
+        pending: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+        executing: svg('<circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4V8Z"/>'),
+        approved: svg('<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16.5 9"/>'),
+        completed: svg('<path d="M4 5h16v14H4z"/><path d="m8 12 2.5 2.5L16 9"/>'),
+        failed: svg('<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>'),
+        rejected: svg('<circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/>')
     };
 
     function ordered(rows) {

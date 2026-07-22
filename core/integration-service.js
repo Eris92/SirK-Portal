@@ -23,6 +23,19 @@ function array(value) {
     return Array.isArray(value) ? value : [];
 }
 
+var HEALTH_STATES = ["ok", "warning", "critical"];
+var HEALTH_NAMES = ["ad", "entra", "jira", "defender", "zabbix"];
+
+function normalizeHealth(value) {
+    value = object(value);
+    var status = String(value.status || "ok").toLowerCase();
+    return {
+        status: HEALTH_STATES.indexOf(status) >= 0 ? status : "ok",
+        messagePl: text(value.messagePl, 300),
+        messageEn: text(value.messageEn, 300)
+    };
+}
+
 module.exports.createIntegrationService = function (options) {
     var settings = options.settings;
     var secrets = options.secrets;
@@ -65,6 +78,12 @@ module.exports.createIntegrationService = function (options) {
             defenderClientSecret: !!secretValue.defenderClientSecret,
             zabbixPassword: !!secretValue.zabbixPassword,
             zabbixToken: !!secretValue.zabbixToken,
+            ad: !!(
+                current.ad && current.ad.domain && current.ad.login && secretValue.adPassword
+            ),
+            entra: !!(
+                current.entra && current.entra.tenantId && current.entra.clientId && secretValue.entraClientSecret
+            ),
             jira: !!(
                 current.jira && current.jira.url && current.jira.email &&
                 current.jira.projectKey && secretValue.jiraToken
@@ -72,8 +91,39 @@ module.exports.createIntegrationService = function (options) {
             defender: !!(
                 current.defender && current.defender.tenantId &&
                 current.defender.clientId && secretValue.defenderClientSecret
+            ),
+            zabbix: !!(
+                current.zabbix && current.zabbix.url &&
+                (secretValue.zabbixToken || (current.zabbix.username && secretValue.zabbixPassword))
             )
         };
+    }
+
+    function healthSummary() {
+        var current = readSettings();
+        var readiness = configured();
+        var weight = { ok: 0, warning: 1, critical: 2 };
+        var status = "ok";
+        var items = HEALTH_NAMES.map(function (name) {
+            var health = normalizeHealth(object(current[name]).health);
+            var isConfigured = readiness[name] === true;
+            if (!isConfigured) {
+                health = {
+                    status: "critical",
+                    messagePl: "Integracja nie jest w pełni skonfigurowana.",
+                    messageEn: "The integration is not fully configured."
+                };
+            }
+            if (weight[health.status] > weight[status]) status = health.status;
+            return {
+                key: name,
+                configured: isConfigured,
+                status: health.status,
+                messagePl: health.messagePl,
+                messageEn: health.messageEn
+            };
+        });
+        return { status: status, items: items };
     }
 
     function publicSettings(user) {
@@ -102,11 +152,13 @@ module.exports.createIntegrationService = function (options) {
 
         result.ad = {
             domain: text(ad.domain, 300),
-            login: text(ad.login, 500)
+            login: text(ad.login, 500),
+            health: normalizeHealth(ad.health)
         };
         result.entra = {
             tenantId: text(entra.tenantId, 200),
-            clientId: text(entra.clientId, 200)
+            clientId: text(entra.clientId, 200),
+            health: normalizeHealth(entra.health)
         };
         result.jira = {
             url: text(jira.url, 1000).replace(/\/+$/, ""),
@@ -121,7 +173,8 @@ module.exports.createIntegrationService = function (options) {
             verifyTls: asBoolean(jira.verifyTls, true),
             cmdbEnabled: asBoolean(jira.cmdbEnabled, true),
             approvalTransitionId: text(jira.approvalTransitionId, 100),
-            closeTransitionId: text(jira.closeTransitionId, 100)
+            closeTransitionId: text(jira.closeTransitionId, 100),
+            health: normalizeHealth(jira.health)
         };
         result.defender = {
             tenantId: text(defender.tenantId, 200),
@@ -139,12 +192,14 @@ module.exports.createIntegrationService = function (options) {
                 email: normalizeGroups(object(defender.permissions).email, knownGroups),
                 trusted: normalizeGroups(object(defender.permissions).trusted, knownGroups),
                 hunting: normalizeGroups(object(defender.permissions).hunting, knownGroups)
-            }
+            },
+            health: normalizeHealth(defender.health)
         };
         result.zabbix = {
             url: text(zabbix.url, 1000).replace(/\/+$/, ""),
             username: text(zabbix.username, 500),
-            verifyTls: asBoolean(zabbix.verifyTls, true)
+            verifyTls: asBoolean(zabbix.verifyTls, true),
+            health: normalizeHealth(zabbix.health)
         };
 
         if (result.jira.url && !/^https:\/\//i.test(result.jira.url)) {
@@ -226,6 +281,7 @@ module.exports.createIntegrationService = function (options) {
     return {
         configured: configured,
         get: get,
+        healthSummary: healthSummary,
         importValues: importValues,
         publicSettings: publicSettings,
         readSettings: readSettings,

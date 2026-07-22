@@ -284,29 +284,11 @@
     function ensureInlineSaveActions(panel) {
         var bar = globalSaveBar(panel);
         if (!bar) return;
-
-        if (panelIsApprovalCenter(panel)) {
-            var labels = {
-                "General": "Save General",
-                "Move Requests": "Save Move Requests",
-                "My Commands": "Save My Commands",
-                "My Scripts": "Save My Scripts"
-            };
-            panel.querySelectorAll(".mc-admin-card").forEach(function (card) {
-                var title = cardTitle(card);
-                if (labels[title]) addSaveProxy(card, panel, labels[title]);
-            });
-            bar.style.display = "none";
-            bar.setAttribute("aria-hidden", "true");
-            return;
-        }
-
-        if (/^my\s*commands$/i.test(panelTitle(panel))) {
-            var cards = panel.querySelectorAll(".mc-admin-card");
-            if (cards.length) addSaveProxy(cards[cards.length - 1], panel, "Save My Commands");
-            bar.style.display = "none";
-            bar.setAttribute("aria-hidden", "true");
-        }
+        panel.querySelectorAll("[data-mycompany-save-proxy]").forEach(function (proxy) {
+            proxy.remove();
+        });
+        bar.style.display = "flex";
+        bar.removeAttribute("aria-hidden");
     }
 
     function makeCollapsible(card) {
@@ -345,9 +327,8 @@
     function enhance() {
         scheduled = false;
         var panels = content.querySelectorAll(".mc-admin-settings-panel");
-        if (!panels.length) panels = [content];
+        if (!panels.length) return;
         Array.prototype.forEach.call(panels, function (panel) {
-            addMissingProviders(panel);
             ensureInlineSaveActions(panel);
             panel.querySelectorAll(".mc-admin-card").forEach(makeCollapsible);
         });

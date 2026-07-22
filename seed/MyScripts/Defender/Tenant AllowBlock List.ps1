@@ -1,4 +1,5 @@
-# Tenant Allow/Block List | Open the Microsoft Defender Tenant Allow/Block List.
+#PL Lista dozwolonych i blokowanych | Otwiera listę dozwolonych i blokowanych elementów dzierżawy w Microsoft Defender.
+#EN Tenant Allow/Block List | Opens the Microsoft Defender Tenant Allow/Block List.
 $result = [ordered]@{
     meshPortal = $true
     title = 'Tenant Allow/Block List'

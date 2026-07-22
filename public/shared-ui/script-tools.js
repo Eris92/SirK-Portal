@@ -305,7 +305,7 @@
             }
 
             return {
-                state: state, isFavorite: isFavorite, copyText: copyText,
+                state: state, isFavorite: isFavorite, toggleFavorite: toggleFavorite, copyText: copyText,
                 selectedDevices: selectedDevices,
                 filterScript: function (script) { return !state.favoritesOnly || isFavorite(script.path); },
                 saveTreeState: function (treeState) { savePreferences({ selectedRoot: text(treeState && treeState.selectedRoot) }); },

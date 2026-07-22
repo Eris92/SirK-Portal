@@ -6,6 +6,23 @@
     var core = window.MyCompanyCore;
     core.assetVersion = String(window.__MYCOMPANY_PORTAL_VERSION__ || "1.5.0");
 
+    core.redirectToLogin = function () {
+        if (core.loginRedirectPending) return;
+        core.loginRedirectPending = true;
+        try {
+            window.sessionStorage.setItem("mycompanyPortalReturnHash", window.location.hash || "#overview");
+        } catch (error) {}
+        var login = new URL("login?return=portal", window.location.href);
+        window.location.replace(login.href);
+    };
+
+    function authenticationError() {
+        var error = new Error("Authentication required.");
+        error.name = "AuthenticationError";
+        error.status = 401;
+        return error;
+    }
+
     core.assetUrl = function (moduleName, assetName, parameters) {
         var endpoint = new URL(String(window.__MYCOMPANY_API_BASE__ || "pluginadmin.ashx"), window.location.href);
         endpoint.searchParams.set("pin", "MyCompany");
@@ -24,9 +41,17 @@
         request.cache = "no-store";
         return window.fetch(core.assetUrl(moduleName, assetName, parameters), request).then(function (response) {
             return response.text().then(function (text) {
+                if (response.status === 401) {
+                    core.redirectToLogin();
+                    throw authenticationError();
+                }
                 var result = {};
                 try { result = text ? JSON.parse(text) : {}; }
-                catch (error) { throw new Error("HTTP " + response.status + ": invalid JSON response."); }
+                catch (error) {
+                    var invalid = new Error("HTTP " + response.status + ": invalid JSON response.");
+                    invalid.status = response.status;
+                    throw invalid;
+                }
                 if (!response.ok || result.ok === false) throw new Error(result.error || "HTTP " + response.status);
                 return result;
             });

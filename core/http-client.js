@@ -24,8 +24,19 @@ function responseError(statusCode, parsed, text, prefix) {
     return error;
 }
 
+function removeSensitiveHeaders(headers) {
+    var result = {};
+    Object.keys(headers || {}).forEach(function (name) {
+        if (!/^(authorization|cookie|proxy-authorization)$/i.test(name)) result[name] = headers[name];
+    });
+    return result;
+}
+
 function requestOnce(options, redirectsLeft) {
     var endpoint = options.url instanceof URL ? options.url : new URL(options.url);
+    if (endpoint.protocol !== "http:" && endpoint.protocol !== "https:") {
+        return Promise.reject(new Error("Unsupported HTTP protocol: " + endpoint.protocol));
+    }
     var transport = endpoint.protocol === "https:" ? https : http;
     var body = Object.prototype.hasOwnProperty.call(options, "body") ? options.body : options.json;
     if (body != null && typeof body !== "string" && !Buffer.isBuffer(body)) {
@@ -57,9 +68,13 @@ function requestOnce(options, redirectsLeft) {
                 redirectsLeft > 0
             ) {
                 response.resume();
-                var redirected = Object.assign({}, options, {
-                    url: new URL(response.headers.location, endpoint).href
-                });
+                var redirectedUrl = new URL(response.headers.location, endpoint);
+                if (endpoint.protocol === "https:" && redirectedUrl.protocol !== "https:") {
+                    reject(new Error("HTTPS redirect downgrade is not allowed."));
+                    return;
+                }
+                var redirected = Object.assign({}, options, { url: redirectedUrl.href });
+                if (redirectedUrl.origin !== endpoint.origin) redirected.headers = removeSensitiveHeaders(options.headers);
                 requestOnce(redirected, redirectsLeft - 1).then(resolve, reject);
                 return;
             }

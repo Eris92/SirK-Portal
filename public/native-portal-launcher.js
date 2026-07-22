@@ -15,7 +15,7 @@
         var runtime = window.MyCompanyRuntime;
         var bootstrap = runtime && runtime.state && runtime.state.bootstrap;
         var portal = bootstrap && bootstrap.modules && bootstrap.modules.portal;
-        return !!(portal && portal.enabled && portal.ready !== false && (!portal.config || portal.config.showLauncher !== false));
+        return !!(portal && portal.enabled && portal.ready !== false && portal.config && portal.config.showLauncher === true);
     }
 
     function ensureLauncher() {

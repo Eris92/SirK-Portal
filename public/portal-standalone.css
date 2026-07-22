@@ -112,6 +112,120 @@ body {
     gap: 5px;
 }
 
+.sirk-standalone-controls .sirk-theme-moon path {
+    fill: currentColor;
+    stroke: none;
+}
+
+.sirk-standalone-controls .sirk-theme-moon .sirk-theme-star {
+    fill: #fbbf24;
+}
+
+.sirk-standalone-controls [data-action="sidebar"] svg {
+    transform: rotate(0deg);
+}
+
+.sirk-standalone-root.is-collapsed .sirk-standalone-controls [data-action="sidebar"] svg {
+    transform: rotate(180deg);
+}
+
+.sirk-standalone-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 68px;
+    padding: 10px 22px;
+}
+
+.sirk-user-menu {
+    position: relative;
+}
+
+.sirk-user-menu[hidden] {
+    display: none;
+}
+
+.sirk-user-tile {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 44px;
+    padding: 5px 7px 5px 14px;
+    border: 1px solid var(--sirk-border, #dce3ec);
+    border-radius: 12px;
+    background: var(--sirk-panel, #fff);
+    color: var(--sirk-text, #172033);
+    font: 600 14px Segoe UI, Arial, sans-serif;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, .08);
+}
+
+.sirk-user-tile:hover,
+.sirk-user-tile:focus-visible,
+.sirk-user-menu.is-open .sirk-user-tile {
+    border-color: #6b83dd;
+    background: var(--sirk-sidebar-active, #e8edfb);
+    color: #fff;
+    outline: 0;
+}
+
+.sirk-user-tile img {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #d7deea;
+}
+
+.sirk-user-dropdown {
+    position: absolute;
+    top: calc(100% + 7px);
+    right: 0;
+    z-index: 40;
+    min-width: 180px;
+    padding: 6px;
+    border: 1px solid var(--sirk-border, #dce3ec);
+    border-radius: 10px;
+    background: var(--sirk-panel, #fff);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, .18);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition: opacity .14s ease, transform .14s ease, visibility .14s ease;
+}
+
+.sirk-user-menu.is-open .sirk-user-dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.sirk-user-dropdown button {
+    width: 100%;
+    padding: 9px 11px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--sirk-text, #172033);
+    text-align: left;
+    font: 500 14px Segoe UI, Arial, sans-serif;
+    cursor: pointer;
+}
+
+.sirk-user-dropdown button:hover,
+.sirk-user-dropdown button:focus-visible {
+    background: rgba(80, 120, 200, .16);
+    outline: 0;
+}
+
+.sirk-standalone-nav button[hidden] {
+    display: none !important;
+}
+
 .sirk-standalone-nav button,
 .sirk-standalone-native {
     display: flex;
@@ -142,7 +256,11 @@ body {
 }
 
 .sirk-standalone-nav button.is-active {
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06);
+    box-shadow: inset 3px 0 0 var(--sirk-view-accent, #4d6bd8), inset 0 0 0 1px rgba(255, 255, 255, .06);
+}
+
+.sirk-standalone-nav button.is-personalized > span {
+    color: var(--sirk-view-accent, #55b8ff);
 }
 
 .sirk-standalone-nav button > span,
@@ -221,7 +339,53 @@ body {
     max-width: none;
 }
 
+/* Every Portal view except Devices uses one shared surface contract. */
+.sirk-standalone-content.sirk-unified-content {
+    --sirk-primary: var(--sirk-active-accent, #4d6bd8);
+}
+
+.sirk-standalone-content.sirk-unified-content > .sirk-standalone-view-scroll,
+.sirk-standalone-content.sirk-unified-content > .mycompany-management-host,
+.sirk-standalone-content.sirk-unified-content > .sirk-portal-view-host,
+.sirk-standalone-content.sirk-unified-content > .mc-shared-page,
+.sirk-standalone-content.sirk-unified-content > .mc-portal-module-shell,
+.sirk-standalone-content.sirk-unified-content > .sirk-standalone-settings-frame {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    border: 1px solid var(--sirk-border, #dce3ec);
+    border-radius: 10px;
+    background: var(--sirk-panel, #fff);
+    color: var(--sirk-text, #172033);
+    box-shadow: none;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.sirk-standalone-content.sirk-unified-content > .sirk-standalone-view-scroll {
+    padding: 14px;
+    overflow: auto;
+}
+
+.sirk-standalone-content.sirk-unified-content > .mycompany-management-host,
+.sirk-standalone-content.sirk-unified-content > .sirk-portal-view-host,
+.sirk-standalone-content.sirk-unified-content > .mc-shared-page,
+.sirk-standalone-content.sirk-unified-content > .mc-portal-module-shell {
+    padding: 0;
+}
+
+/* Management already owns the shared outer surface; remove its legacy inset. */
+#sirkPortalRoot .sirk-standalone-content.sirk-unified-content > .mycompany-management-host {
+    padding: 0;
+    overflow: hidden;
+    background: var(--sirk-panel, #fff);
+}
+
 .sirk-standalone-content > .mc-shared-page,
+.sirk-standalone-content > .sirk-portal-view-host,
 .sirk-standalone-content > .mycompany-management-host,
 .sirk-standalone-content .mc-portal-module-shell {
     flex: 1 1 auto;
@@ -231,6 +395,37 @@ body {
     min-height: 0 !important;
     max-height: none !important;
     margin: 0 !important;
+}
+
+.sirk-portal-view-host > .mc-shared-page,
+.sirk-portal-view-host > .mc-portal-module-shell {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.sirk-portal-view-management > .mycompany-management-host {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: var(--sirk-panel, #fff);
+    box-sizing: border-box;
+}
+
+.sirk-portal-view-management > .mycompany-management-host > .sirk-management-shell {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
 }
 
 .sirk-standalone-card,
@@ -317,9 +512,29 @@ body {
     width: 100%;
     height: 100%;
     min-height: 0;
-    border: 0;
+    border: 1px solid var(--sirk-border, #dce3ec);
     border-radius: 10px;
     background: var(--sirk-panel, #fff);
+}
+
+.sirk-settings-module-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--sirk-border, #dce3ec);
+}
+
+.sirk-settings-module-workspace {
+    overflow: hidden;
+}
+
+.sirk-settings-module-workspace > .sirk-standalone-settings-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
 }
 
 .sirk-standalone-loading {
@@ -351,6 +566,16 @@ body {
 .sirk-standalone-error pre {
     white-space: pre-wrap;
 }
+
+.sirk-health-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
+.sirk-health-badge.is-ok{background:#dcfce7;color:#166534}
+.sirk-health-badge.is-warning{background:#fef3c7;color:#92400e}
+.sirk-health-badge.is-critical{background:#fee2e2;color:#991b1b}
+.sirk-health-badge.is-unknown{background:#e5e7eb;color:#4b5563}
+.sirk-overview-health ul{display:grid;gap:7px;margin:12px 0 0;padding:0;list-style:none;color:var(--sirk-muted,#667085)}
+.sirk-overview-health li{display:grid;grid-template-columns:minmax(110px,1fr) auto;align-items:center;gap:5px 10px}
+.sirk-overview-health li small{grid-column:1/-1}
+.sirk-overview-health li .sirk-health-badge{font-size:10px;padding:2px 7px}
 
 .sirk-standalone-root.is-collapsed {
     grid-template-columns: 76px minmax(0, 1fr);

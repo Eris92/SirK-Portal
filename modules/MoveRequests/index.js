@@ -114,6 +114,16 @@ module.exports.createModule = function (context) {
         canSubmit: function (user) {
             return !!user;
         },
+        getResources: function (user, query) {
+            return Promise.resolve(context.device.visibleNodes(user)).then(function (value) {
+                var nodeId = String(query && query.nodeId || "");
+                var nodes = value && value.nodes || [];
+                return {
+                    nodes: nodeId ? nodes.filter(function (node) { return String(node._id || node.nodeid || node.id || "") === nodeId; }) : nodes,
+                    meshes: value && value.meshes || []
+                };
+            });
+        },
         execute: moveNode
     };
 
