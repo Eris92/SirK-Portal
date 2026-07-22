@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>SirK Portal</title>
+  <link rel="stylesheet" href="__ASSET_BASE__/vendor/sirk-portal/sirk-portal.css?v=__VERSION__">
+  <link rel="stylesheet" href="__ASSET_BASE__/portal.css?v=__VERSION__">
+  <link rel="stylesheet" href="__ASSET_BASE__/portal-standalone.css?v=__VERSION__">
+</head>
+<body>
+  <div id="sirkStandaloneRoot" class="sirk-standalone-root">
+    <aside class="sirk-standalone-sidebar">
+      <div class="sirk-standalone-brand"><span class="sirk-brand-mark">S</span><strong>SirK Portal</strong></div>
+      <button type="button" class="sirk-standalone-collapse" data-action="sidebar" title="Zwiń menu" aria-label="Zwiń menu">‹</button>
+      <nav class="sirk-standalone-nav" aria-label="Nawigacja główna">
+        <button type="button" data-view="overview" class="is-active"><span>⌂</span><b>Przegląd</b></button>
+        <button type="button" data-view="devices"><span>▣</span><b>Urządzenia</b></button>
+        <button type="button" data-view="approvals"><span>✓</span><b>Akceptacje</b></button>
+        <button type="button" data-view="automation"><span>⚙</span><b>Automatyzacja</b></button>
+        <button type="button" data-view="monitoring"><span>⌁</span><b>Monitoring</b></button>
+        <button type="button" data-view="assets"><span>◇</span><b>Zasoby</b></button>
+        <button type="button" data-view="management"><span>☷</span><b>Zarządzanie</b></button>
+        <button type="button" data-view="reports"><span>▥</span><b>Raporty</b></button>
+        <button type="button" data-view="security"><span>◈</span><b>Security</b></button>
+        <button type="button" data-view="settings"><span>⚙</span><b>Ustawienia</b></button>
+      </nav>
+      <a class="sirk-standalone-native" href="__NATIVE_URL__"><span>↗</span><b>MeshCentral</b></a>
+    </aside>
+    <main class="sirk-standalone-main">
+      <header class="sirk-standalone-header"><strong id="sirkStandaloneTitle">Przegląd</strong></header>
+      <section id="sirkStandaloneContent" class="sirk-standalone-content" aria-live="polite"></section>
+    </main>
+  </div>
+  <script>
+    window.__MYCOMPANY_API_BASE__ = __API_BASE_JSON__;
+    window.__MYCOMPANY_ASSET_BASE__ = __ASSET_BASE_JSON__;
+    window.__MYCOMPANY_NATIVE_URL__ = __NATIVE_URL_JSON__;
+    window.__MYCOMPANY_PORTAL_VERSION__ = __VERSION_JSON__;
+  </script>
+  <script src="__ASSET_BASE__/core.js?v=__VERSION__"></script>
+  <script src="__ASSET_BASE__/portal-standalone.js?v=__VERSION__"></script>
+</body>
+</html>
