@@ -1,12 +1,13 @@
-/* Single shared SirK Portal module style. Modules supply only data and actions. */
+/* Single visual system for every SirK Portal module. Modules provide data and actions only. */
 #sirkPortalRoot .mc-portal-module-shell {
     --portal-primary-width: 220px;
     --portal-secondary-width: 300px;
+    --portal-module-height: clamp(600px, calc(100dvh - 180px), 760px);
     display: flex;
     flex-direction: column;
     width: 100%;
     min-width: 0;
-    height: clamp(560px, calc(100dvh - 150px), 820px);
+    height: var(--portal-module-height);
     min-height: 0;
     margin: 0;
     overflow: hidden;
@@ -45,27 +46,31 @@
     box-sizing: border-box;
 }
 
-#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button {
-    display: grid;
-    place-items: center;
-    width: 34px;
-    min-width: 34px;
-    height: 34px;
-    min-height: 34px;
-    margin: 0;
-    padding: 0;
-    border: 1px solid transparent;
-    border-radius: 7px;
-    background: transparent;
-    color: var(--sirk-text, #172033);
-    box-shadow: none;
+/* Toolbar always has one neutral style, regardless of legacy btn classes. */
+#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button,
+#sirkPortalRoot .mc-portal-module-toolbar button.mc-shared-toolbar-button,
+#sirkPortalRoot .mc-portal-module-toolbar button.btn.mc-shared-toolbar-button,
+#sirkPortalRoot .mc-portal-module-toolbar button.btn-secondary.mc-shared-toolbar-button {
+    display: grid !important;
+    place-items: center !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid transparent !important;
+    border-radius: 7px !important;
+    background: transparent !important;
+    color: var(--sirk-text, #172033) !important;
+    box-shadow: none !important;
     cursor: pointer;
 }
 
 #sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button:hover,
 #sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button.is-active {
-    border-color: rgba(96, 165, 250, .2);
-    background: rgba(96, 165, 250, .14);
+    border-color: rgba(96, 165, 250, .2) !important;
+    background: rgba(96, 165, 250, .14) !important;
     outline: 0;
 }
 
@@ -131,10 +136,10 @@
     overscroll-behavior: contain;
 }
 
+/* One navigation item component for all modules. */
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-item,
 #sirkPortalRoot .mc-portal-module-shell .mc-shared-nav-item,
-#sirkPortalRoot .mc-portal-module-shell .sirk-management-item,
-#sirkPortalRoot .mc-portal-module-shell .mc-approval-provider,
-#sirkPortalRoot .mc-portal-module-shell .mc-approval-status {
+#sirkPortalRoot .mc-portal-module-shell .sirk-management-item {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -154,25 +159,46 @@
     box-sizing: border-box;
 }
 
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-item:hover,
 #sirkPortalRoot .mc-portal-module-shell .mc-shared-nav-item:hover,
-#sirkPortalRoot .mc-portal-module-shell .sirk-management-item:hover,
-#sirkPortalRoot .mc-portal-module-shell .mc-approval-provider:hover,
-#sirkPortalRoot .mc-portal-module-shell .mc-approval-status:hover {
+#sirkPortalRoot .mc-portal-module-shell .sirk-management-item:hover {
     background: rgba(96, 165, 250, .09);
 }
 
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-item.active,
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-item.is-active,
 #sirkPortalRoot .mc-portal-module-shell .mc-shared-nav-item.active,
 #sirkPortalRoot .mc-portal-module-shell .sirk-management-item.active,
-#sirkPortalRoot .mc-portal-module-shell .sirk-management-item.is-active,
-#sirkPortalRoot .mc-portal-module-shell .mc-approval-provider.active,
-#sirkPortalRoot .mc-portal-module-shell .mc-approval-status.active {
+#sirkPortalRoot .mc-portal-module-shell .sirk-management-item.is-active {
     background: rgba(96, 165, 250, .16);
     font-weight: 700;
 }
 
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-icon,
+#sirkPortalRoot .mc-portal-module-shell .sirk-management-item-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+    color: #60a5fa;
+}
+
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-icon svg,
+#sirkPortalRoot .mc-portal-module-shell .sirk-management-item-icon svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* One card component for all modules. */
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-card,
 #sirkPortalRoot .mc-portal-module-shell .mc-shared-card,
-#sirkPortalRoot .mc-portal-module-shell .sirk-card,
-#sirkPortalRoot .mc-portal-module-shell .mc-approval-request-card {
+#sirkPortalRoot .mc-portal-module-shell .sirk-card {
     margin: 0 0 10px;
     padding: 14px;
     border: 1px solid var(--sirk-border, #dce3ec);
@@ -183,6 +209,7 @@
     box-sizing: border-box;
 }
 
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-card-grid,
 #sirkPortalRoot .mc-portal-module-shell .mc-approval-card-grid,
 #sirkPortalRoot .mc-portal-module-shell .sirk-approval-card-grid {
     display: grid;
@@ -191,8 +218,16 @@
     align-items: start;
 }
 
-#sirkPortalRoot .mc-portal-module-shell button.btn,
-#sirkPortalRoot .mc-portal-module-shell .sirk-primary-button,
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 12px;
+}
+
+/* One button component; toolbar buttons are explicitly excluded. */
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-button,
+#sirkPortalRoot .mc-portal-module-shell button.btn:not(.mc-shared-toolbar-button),
 #sirkPortalRoot .mc-portal-module-shell .mc-results-view-button,
 #sirkPortalRoot .mc-portal-module-shell .mc-results-copy-button {
     display: inline-flex;
@@ -210,8 +245,8 @@
     cursor: pointer;
 }
 
-#sirkPortalRoot .mc-portal-module-shell button.btn-secondary,
-#sirkPortalRoot .mc-portal-module-shell .sirk-danger-button {
+#sirkPortalRoot .mc-portal-module-shell .mc-portal-button-danger,
+#sirkPortalRoot .mc-portal-module-shell button.btn-secondary:not(.mc-shared-toolbar-button) {
     border-color: #ef4444;
     background: transparent;
     color: #dc2626;
@@ -252,15 +287,20 @@
     overflow-x: hidden;
 }
 
+#sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary .mc-portal-nav-item,
 #sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary .mc-shared-nav-item,
-#sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary .sirk-management-item,
-#sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary .mc-approval-provider {
+#sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary .sirk-management-item {
     width: 100%;
     min-width: 0;
     max-width: 100%;
     justify-content: center;
     padding: 8px 0;
     overflow: hidden;
+}
+
+#sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary .mc-portal-nav-label,
+#sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary .mc-approval-nav-label {
+    display: none;
 }
 
 #sirkPortalRoot.sirk-theme-dark .mc-portal-module-shell {
