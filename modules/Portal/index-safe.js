@@ -44,6 +44,7 @@ function disableEarlyOverlay(context) {
 module.exports.createModule = function (context) {
     var module = originalFactory.createModule(context);
     var originalInitialize = module.initialize;
+    var originalApiGet = module.apiGet;
     var originalApiPost = module.apiPost;
     var originalClientConfig = module.clientConfig;
 
@@ -54,6 +55,29 @@ module.exports.createModule = function (context) {
             return value;
         }, function (error) {
             // Always fail open: never leave the login page hidden because the Portal failed.
+            disableEarlyOverlay(context);
+            throw error;
+        });
+    };
+
+    module.apiGet = function (asset, req, user) {
+        disableEarlyOverlay(context);
+        if (asset === "devices") {
+            if (!user) return Promise.reject(new Error("Permission denied."));
+            return Promise.resolve(context.device.visibleNodes(user)).then(function (value) {
+                disableEarlyOverlay(context);
+                return {
+                    ok: true,
+                    nodes: value && value.nodes || [],
+                    meshes: value && value.meshes || []
+                };
+            });
+        }
+        return Promise.resolve(originalApiGet.call(module, asset, req, user)).then(function (value) {
+            disableEarlyOverlay(context);
+            if (value && value.vendor) value.vendor.earlyOverlay = false;
+            return value;
+        }, function (error) {
             disableEarlyOverlay(context);
             throw error;
         });
