@@ -198,6 +198,10 @@
         bridge = null;
         bridgeSequence += 1;
         if (!current) return;
+        if (current.closeMenuListener) {
+            document.removeEventListener("click", current.closeMenuListener);
+            current.closeMenuListener = null;
+        }
         if (current.timer) clearInterval(current.timer);
         if (current.timeout) clearTimeout(current.timeout);
         try {
@@ -493,6 +497,7 @@
             if (type === "desktop") {
                 var connectDropdown = document.getElementById("sirkNativeConnectDropdown");
                 var connectMenu = document.getElementById("sirkNativeConnectMenu");
+                var buttonGroup = connectDropdown.closest(".sirk-native-bridge-button-group");
                 
                 connectDropdown.addEventListener("click", function (event) {
                     event.stopPropagation();
@@ -514,12 +519,15 @@
                     connectNative(2);
                 });
                 
-                document.addEventListener("click", function (event) {
-                    if (!event.target.closest("#sirkNativeConnectDropdown") && !event.target.closest("#sirkNativeConnectMenu")) {
+                var closeMenuOnClickOutside = function (event) {
+                    if (buttonGroup && !buttonGroup.contains(event.target)) {
                         connectMenu.hidden = true;
                         connectDropdown.setAttribute("aria-expanded", "false");
                     }
-                });
+                };
+                document.addEventListener("click", closeMenuOnClickOutside);
+                
+                if (bridge) bridge.closeMenuListener = closeMenuOnClickOutside;
             }
             
             document.getElementById("sirkNativeDisconnect").addEventListener("click", disconnectNative);
