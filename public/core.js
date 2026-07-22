@@ -2,7 +2,7 @@
     "use strict";
     window.MyCompanyCore = window.MyCompanyCore || {};
     var core = window.MyCompanyCore;
-    core.assetVersion = "1.5.3";
+    core.assetVersion = "1.5.4";
 
     function svgData(svg) {
         return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
