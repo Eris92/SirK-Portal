@@ -1,7 +1,7 @@
 "use strict";
 
 var createAdmin = require("./MyCompanyAdmin.js").admin;
-var VERSION = "1.5.6";
+var VERSION = "1.5.7";
 
 function cleanError(error) {
     return String(error && (error.stack || error.message) || error || "Unknown MyCompany load error.");
@@ -81,11 +81,16 @@ function createPlugin(parent, shortName) {
     obj.onWebUIStartupEnd = function () {
         if (typeof window === "undefined" || typeof document === "undefined") return;
 
+        // MeshCentral serializes this function and executes it in the browser.
+        // Do not reference Node.js closure variables such as VERSION or obj here.
+        var browserVersion = "1.5.7";
+        var browserPin = "MyCompany";
+
         function asset(name) {
             var url = new URL("pluginadmin.ashx", window.location.href);
-            url.searchParams.set("pin", obj.shortName || "MyCompany");
+            url.searchParams.set("pin", browserPin);
             url.searchParams.set("asset", name);
-            url.searchParams.set("v", VERSION);
+            url.searchParams.set("v", browserVersion);
             return url.href;
         }
         function load(id, source) {
@@ -134,7 +139,12 @@ function createPlugin(parent, shortName) {
             .then(function () { return load("mycompany-shared-page", asset("shared-ui/page.js")); })
             .then(function () { return load("mycompany-module-shell-script", asset("module-shell.js")); })
             .then(function () { return load("mycompany-runtime-script", asset("runtime.js")); })
-            .then(function () { return window.MyCompanyRuntime.initialize(); })
+            .then(function () {
+                if (!window.MyCompanyRuntime || typeof window.MyCompanyRuntime.initialize !== "function") {
+                    throw new Error("MyCompany runtime was not loaded.");
+                }
+                return window.MyCompanyRuntime.initialize();
+            })
             .catch(function (error) {
                 if (window.console) console.error("MyCompany browser startup failed", error);
             });
