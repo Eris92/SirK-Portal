@@ -1,7 +1,7 @@
 "use strict";
 
 var createAdmin = require("./MyCompanyAdmin.js").admin;
-var VERSION = "1.5.21";
+var VERSION = "1.5.22";
 
 function cleanError(error) {
     return String(error && (error.stack || error.message) || error || "Unknown MyCompany load error.");
@@ -81,7 +81,7 @@ function createPlugin(parent, shortName) {
     obj.onWebUIStartupEnd = function () {
         if (typeof window === "undefined" || typeof document === "undefined") return;
 
-        var browserVersion = "1.5.21";
+        var browserVersion = "1.5.22";
         var browserPin = "MyCompany";
         document.documentElement.classList.add("mycompany-native-ui");
 
