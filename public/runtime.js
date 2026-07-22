@@ -14,19 +14,7 @@
         myscripts: "myscripts.js"
     };
     var order = ["approvalcenter", "moverequests", "mycommands", "myjira", "defendertools", "myscripts"];
-    var viewModes = {
-        myscripts: 101,
-        mycommands: 102,
-        myjira: 103,
-        defendertools: 104,
-        approvalcenter: 105,
-        moverequests: 106
-    };
-
-    function requestedViewMode() {
-        try { return Number(new URL(window.location.href).searchParams.get("viewmode") || 0); }
-        catch (error) { return 0; }
-    }
+    var viewModes = { myscripts: 101, mycommands: 102, myjira: 103, defendertools: 104, approvalcenter: 105, moverequests: 106 };
 
     function installCredentialsActions() {
         if (!window.SharedScriptTools || window.__myCompanyCredentialsActions) return;
@@ -38,13 +26,8 @@
             tools.scriptActions = function (script, config) {
                 config = config || {};
                 var actions = originalActions.call(tools, script, config) || [];
-                var hasCredentials = !!(script && (
-                    (Array.isArray(script.secretVariables) && script.secretVariables.length) ||
-                    (Array.isArray(script.secretDefinitions) && script.secretDefinitions.length)
-                ));
-                if (hasCredentials && config.canEdit === true && !actions.some(function (action) {
-                    return action && action.key === "credentials";
-                })) {
+                var hasCredentials = !!(script && ((Array.isArray(script.secretVariables) && script.secretVariables.length) || (Array.isArray(script.secretDefinitions) && script.secretDefinitions.length)));
+                if (hasCredentials && config.canEdit === true && !actions.some(function (action) { return action && action.key === "credentials"; })) {
                     actions.unshift({
                         key: "credentials",
                         icon: "🔑",
@@ -68,9 +51,7 @@
             var module = window.MyCompanyModules[key];
             if (module && typeof module[method] === "function") {
                 try { module[method].apply(module, args); }
-                catch (error) {
-                    if (window.console) console.error("MyCompany " + key + " " + method + " failed", error);
-                }
+                catch (error) { if (window.console) console.error("MyCompany " + key + " " + method + " failed", error); }
             }
         });
     }
@@ -80,68 +61,41 @@
         module.api.definition.viewMode = viewModes[key] || module.api.definition.viewMode || 960;
     }
 
-    function openRequestedModule() {
-        var target = requestedViewMode();
-        if (!target) return;
-        Object.keys(viewModes).some(function (key) {
-            if (viewModes[key] !== target) return false;
-            var module = window.MyCompanyModules[key];
-            if (module && typeof module.open === "function") {
-                window.setTimeout(function () { module.open(); }, 0);
-                return true;
-            }
-            return false;
-        });
-    }
-
     runtime.initialize = function () {
         if (runtime.state.initializePromise) return runtime.state.initializePromise;
         runtime.state.initializePromise = core.api("", "bootstrap").then(function (bootstrap) {
             runtime.state.bootstrap = bootstrap;
-            var chain = core.loadScript(
-                "mycompany-shared-directory-tree",
-                core.assetUrl("", "shared-ui/tree.js")
-            ).then(function () {
-                return core.loadScript("mycompany-shared-catalog-view", core.assetUrl("", "shared-ui/catalog.js"));
-            }).then(function () {
-                return core.loadScript("mycompany-shared-results-view", core.assetUrl("", "shared-ui/results.js"));
-            }).then(function () {
-                return core.loadScript("mycompany-shared-result-layout", core.assetUrl("", "shared-ui/result-layout.js"));
-            }).then(function () {
-                return core.loadScript("mycompany-shared-script-tools", core.assetUrl("", "shared-ui/script-tools.js"));
-            }).then(function () {
-                return core.loadScript("mycompany-shared-script-definition-form", core.assetUrl("", "shared-ui/script-definition-form.js"));
-            }).then(function () {
-                return core.loadScript("mycompany-shared-confirm-execution-form", core.assetUrl("", "shared-ui/confirm-execution-form.js"));
-            }).then(function () {
-                installCredentialsActions();
-                return core.loadScript("mycompany-shared-script-edit-actions", core.assetUrl("", "shared-ui/script-edit-actions.js"));
-            }).then(function () {
-                return core.loadScript("mycompany-shared-system-credentials-form", core.assetUrl("", "shared-ui/system-credentials-form.js"));
-            }).then(function () {
-                return core.loadScript("mycompany-portal-icon-data", core.assetUrl("", "portal-icon-data.js"));
-            });
+            var chain = core.loadScript("mycompany-shared-directory-tree", core.assetUrl("", "shared-ui/tree.js"))
+                .then(function () { return core.loadScript("mycompany-shared-catalog-view", core.assetUrl("", "shared-ui/catalog.js")); })
+                .then(function () { return core.loadScript("mycompany-shared-results-view", core.assetUrl("", "shared-ui/results.js")); })
+                .then(function () { return core.loadScript("mycompany-shared-result-layout", core.assetUrl("", "shared-ui/result-layout.js")); })
+                .then(function () { return core.loadScript("mycompany-shared-script-tools", core.assetUrl("", "shared-ui/script-tools.js")); })
+                .then(function () { return core.loadScript("mycompany-shared-script-definition-form", core.assetUrl("", "shared-ui/script-definition-form.js")); })
+                .then(function () { return core.loadScript("mycompany-shared-confirm-execution-form", core.assetUrl("", "shared-ui/confirm-execution-form.js")); })
+                .then(function () { installCredentialsActions(); return core.loadScript("mycompany-shared-script-edit-actions", core.assetUrl("", "shared-ui/script-edit-actions.js")); })
+                .then(function () { return core.loadScript("mycompany-shared-system-credentials-form", core.assetUrl("", "shared-ui/system-credentials-form.js")); })
+                .then(function () { return core.loadScript("mycompany-portal-icon-data", core.assetUrl("", "portal-icon-data.js")); });
 
             order.forEach(function (key) {
                 var state = bootstrap.modules[key];
                 if (!state || !state.enabled || state.ready === false) return;
-                chain = chain.then(function () {
-                    return core.loadScript("mycompany-module-" + key, core.assetUrl("", files[key]));
-                }).then(function () {
+                chain = chain.then(function () { return core.loadScript("mycompany-module-" + key, core.assetUrl("", files[key])); }).then(function () {
                     var module = window.MyCompanyModules[key];
                     configureModule(key, module);
                     if (!module || typeof module.initialize !== "function") return null;
                     return Promise.resolve(module.initialize(state)).then(function () {
-                        if (runtime.state.nodeId && typeof module.onDeviceRefreshEnd === "function") {
-                            module.onDeviceRefreshEnd(runtime.state.nodeId);
-                        }
+                        if (runtime.state.nodeId && typeof module.onDeviceRefreshEnd === "function") module.onDeviceRefreshEnd(runtime.state.nodeId);
                     });
                 });
             });
 
-            return chain.then(function () {
-                openRequestedModule();
-            });
+            var portal = bootstrap.modules && bootstrap.modules.portal;
+            if (portal && portal.enabled && portal.ready !== false) {
+                chain = chain.then(function () {
+                    return core.loadScript("mycompany-native-portal-launcher", core.assetUrl("", "native-portal-launcher.js"));
+                });
+            }
+            return chain;
         }).catch(function (error) {
             runtime.state.initializePromise = null;
             throw error;
@@ -153,17 +107,7 @@
         if (core.workspaceState && Number(view) !== Number(window.xxcurrentView)) core.restoreWorkspace();
         notify("onNativePageStart", view);
     };
-
-    runtime.onNativePageEnd = function (view) {
-        notify("onNativePageEnd", view);
-    };
-
-    runtime.onDeviceRefreshEnd = function (nodeId) {
-        runtime.state.nodeId = String(nodeId || "");
-        notify("onDeviceRefreshEnd", runtime.state.nodeId);
-    };
-
-    runtime.commandResult = function (message) {
-        notify("commandResult", message);
-    };
+    runtime.onNativePageEnd = function (view) { notify("onNativePageEnd", view); };
+    runtime.onDeviceRefreshEnd = function (nodeId) { runtime.state.nodeId = String(nodeId || ""); notify("onDeviceRefreshEnd", runtime.state.nodeId); };
+    runtime.commandResult = function (message) { notify("commandResult", message); };
 }());
