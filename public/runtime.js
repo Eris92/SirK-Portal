@@ -93,13 +93,17 @@
                 });
             });
 
-            // Native MeshCentral only receives a small link launcher to the standalone Portal.
-            // No Portal layout, theme or standalone renderer is loaded here.
+            // Native MeshCentral only receives an optional launcher to the standalone Portal.
+            // Portal layout, theme and standalone renderers are never loaded here.
             var portal = bootstrap.modules && bootstrap.modules.portal;
-            if (portal && portal.enabled && portal.ready !== false) {
+            var showLauncher = !!(portal && portal.enabled && portal.ready !== false && (!portal.config || portal.config.showLauncher !== false));
+            if (showLauncher) {
                 chain = chain.then(function () {
                     return core.loadScript("mycompany-native-portal-launcher", core.assetUrl("", "native-portal-launcher.js"));
                 });
+            } else {
+                var existingLauncher = document.getElementById("myCompanyPortalLauncher");
+                if (existingLauncher && existingLauncher.parentNode) existingLauncher.parentNode.removeChild(existingLauncher);
             }
             return chain;
         }).catch(function (error) {
