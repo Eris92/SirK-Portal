@@ -16,6 +16,11 @@
     var order = ["approvalcenter", "moverequests", "mycommands", "myjira", "defendertools", "myscripts"];
     var viewModes = { myscripts: 101, mycommands: 102, myjira: 103, defendertools: 104, approvalcenter: 105, moverequests: 106 };
 
+    function isCustomView(view) {
+        view = Number(view);
+        return Object.keys(viewModes).some(function (key) { return viewModes[key] === view; });
+    }
+
     function installCredentialsActions() {
         if (!window.SharedScriptTools || window.__myCompanyCredentialsActions) return;
         window.__myCompanyCredentialsActions = true;
@@ -104,10 +109,13 @@
     };
 
     runtime.onNativePageStart = function (view) {
-        if (core.workspaceState && Number(view) !== Number(window.xxcurrentView)) core.restoreWorkspace();
+        if (core.workspaceState && !isCustomView(view)) core.restoreWorkspace();
         notify("onNativePageStart", view);
     };
-    runtime.onNativePageEnd = function (view) { notify("onNativePageEnd", view); };
+    runtime.onNativePageEnd = function (view) {
+        if (core.workspaceState && !isCustomView(view)) core.restoreWorkspace();
+        notify("onNativePageEnd", view);
+    };
     runtime.onDeviceRefreshEnd = function (nodeId) { runtime.state.nodeId = String(nodeId || ""); notify("onDeviceRefreshEnd", runtime.state.nodeId); };
     runtime.commandResult = function (message) { notify("commandResult", message); };
 }());
