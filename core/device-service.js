@@ -3,7 +3,28 @@ var shared = require("./shared.js");
 
 module.exports.createDeviceService = function (options) {
     var parent = options.parent, source = options.source;
+
     function getWebServer() { return shared.getWebServer(parent); }
+
+    function getServerCandidates() {
+        var web = getWebServer();
+        return [
+            web,
+            web && web.parent,
+            parent && parent.parent,
+            parent && parent.parent && parent.parent.parent,
+            parent && parent.parent && parent.parent.parent && parent.parent.parent.parent
+        ].filter(Boolean);
+    }
+
+    function getDatabase() {
+        var candidates = getServerCandidates();
+        for (var i = 0; i < candidates.length; i++) {
+            if (candidates[i].db && typeof candidates[i].db.GetAllTypeNoTypeFieldMeshFiltered === "function") return candidates[i].db;
+        }
+        return null;
+    }
+
     function resolveNode(user, nodeId, settings) {
         settings = settings || {};
         return new Promise(function (resolve, reject) {
@@ -32,12 +53,14 @@ module.exports.createDeviceService = function (options) {
             });
         });
     }
+
     function getMeshes() {
         var web = getWebServer(), mesh = parent && parent.parent;
         var sources = [web && web.meshes, mesh && mesh.meshes, mesh && mesh.parent && mesh.parent.meshes];
         for (var i = 0; i < sources.length; i++) if (sources[i] && typeof sources[i] === "object") return sources[i];
         return {};
     }
+
     function visibleMeshes(user) {
         var web = getWebServer(), all = getMeshes(), visible = {};
         try {
@@ -55,6 +78,95 @@ module.exports.createDeviceService = function (options) {
         });
         return visible;
     }
+
+    function connectivity(nodeId, node) {
+        var candidates = getServerCandidates();
+        for (var i = 0; i < candidates.length; i++) {
+            if (typeof candidates[i].GetConnectivityState !== "function") continue;
+            try {
+                var state = candidates[i].GetConnectivityState(nodeId);
+                if (state) {
+                    if (state.connectivity != null) return Number(state.connectivity) || 0;
+                    if (state.conn != null) return Number(state.conn) || 0;
+                }
+            } catch (error) {}
+        }
+        var web = getWebServer();
+        var agents = web && (web.wsagents || web.parent && web.parent.wsagents) || {};
+        if (agents[nodeId] && agents[nodeId].authenticated === 2) return 1;
+        return Number(node && (node.conn != null ? node.conn : node.connectivity)) || 0;
+    }
+
+    function publicMeshRows(meshes) {
+        return Object.keys(meshes).map(function (id) {
+            var mesh = meshes[id] || {};
+            return {
+                id: String(mesh._id || id),
+                name: shared.cleanText(mesh.name || mesh.mname || mesh.desc || id, 300)
+            };
+        }).sort(function (a, b) { return a.name.localeCompare(b.name, "pl", { sensitivity: "base" }); });
+    }
+
+    function publicNode(node) {
+        var id = String(node && (node._id || node.nodeid || node.id) || "");
+        return {
+            id: id,
+            meshId: String(node && (node.meshid || node.meshId || node.groupid) || ""),
+            name: shared.cleanText(node && (node.name || node.hostname || node.host || id.split("/").pop()) || "Unknown device", 300),
+            os: shared.cleanText(node && (node.osdesc || node.osDescription || node.os || node.platform || node.agent && node.agent.name) || "", 500),
+            ip: shared.cleanText(node && (node.ip || node.ipaddr || node.ipAddress || node.host) || "", 200),
+            lastSeen: node && (node.lastseen || node.lastSeen || node.lastconnect || node.lastConnect) || null,
+            agentVersion: shared.cleanText(node && (node.agentversion || node.agentVersion || node.agent && (node.agent.ver || node.agent.version)) || "", 100),
+            conn: connectivity(id, node)
+        };
+    }
+
+    function memoryNodes(meshIds) {
+        var candidates = getServerCandidates();
+        var result = Object.create(null);
+        candidates.forEach(function (candidate) {
+            [candidate.nodes, candidate.meshNodes, candidate.allNodes].forEach(function (collection) {
+                if (!collection || typeof collection !== "object") return;
+                Object.keys(collection).forEach(function (key) {
+                    var node = collection[key];
+                    var meshId = String(node && (node.meshid || node.meshId || node.groupid) || "");
+                    var id = String(node && (node._id || node.nodeid || node.id) || key);
+                    if (id && meshIds.indexOf(meshId) >= 0) result[id] = node;
+                });
+            });
+        });
+        return Object.keys(result).map(function (id) { return result[id]; });
+    }
+
+    function visibleNodes(user) {
+        var meshes = visibleMeshes(user);
+        var meshIds = Object.keys(meshes);
+        var domain = shared.getDomain(parent, user);
+        var domainId = String(domain && domain.id || user && user.domain || "");
+        var responseBase = { meshes: publicMeshRows(meshes), nodes: [] };
+        if (!meshIds.length || !domainId) return Promise.resolve(responseBase);
+
+        var db = getDatabase();
+        if (!db) {
+            responseBase.nodes = memoryNodes(meshIds).map(publicNode).sort(function (a, b) { return a.name.localeCompare(b.name, "pl", { sensitivity: "base" }); });
+            return Promise.resolve(responseBase);
+        }
+
+        return new Promise(function (resolve, reject) {
+            try {
+                db.GetAllTypeNoTypeFieldMeshFiltered(meshIds, domainId, "node", null, function (error, rows) {
+                    if (error) { reject(error); return; }
+                    responseBase.nodes = (Array.isArray(rows) ? rows : []).map(publicNode).sort(function (a, b) {
+                        return a.name.localeCompare(b.name, "pl", { sensitivity: "base" });
+                    });
+                    resolve(responseBase);
+                });
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
     function sendRunCommands(context, command, responseId, sessionId) {
         return new Promise(function (resolve, reject) {
             var node = context.node, type = Number(command.type) || 1;
@@ -86,6 +198,7 @@ module.exports.createDeviceService = function (options) {
             reject(new Error("Device agent is not connected."));
         });
     }
+
     function auditCommand(context, user, command) {
         shared.dispatch(parent, source, ["*", "server-users", context.nodeId, user && user._id], {
             etype: "node", action: "runcommands", nodeid: context.nodeId,
@@ -95,6 +208,14 @@ module.exports.createDeviceService = function (options) {
                 String(command.label || "command") + '".', plugin: "MyCompany"
         });
     }
-    return { auditCommand: auditCommand, getMeshes: getMeshes, getWebServer: getWebServer,
-        resolveNode: resolveNode, sendRunCommands: sendRunCommands, visibleMeshes: visibleMeshes };
+
+    return {
+        auditCommand: auditCommand,
+        getMeshes: getMeshes,
+        getWebServer: getWebServer,
+        resolveNode: resolveNode,
+        sendRunCommands: sendRunCommands,
+        visibleMeshes: visibleMeshes,
+        visibleNodes: visibleNodes
+    };
 };
