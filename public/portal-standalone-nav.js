@@ -31,6 +31,19 @@
         return true;
     }
 
+    function loadTerminalConnect() {
+        if (document.getElementById("mycompany-portal-terminal-connect")) return;
+        var base = String(window.__MYCOMPANY_ASSET_BASE__ || "").replace(/\/$/, "");
+        if (!base) return;
+        var script = document.createElement("script");
+        script.id = "mycompany-portal-terminal-connect";
+        script.src = base + "/portal-terminal-connect.js?v=" + encodeURIComponent(String(window.__MYCOMPANY_PORTAL_VERSION__ || ""));
+        script.async = false;
+        (document.head || document.documentElement).appendChild(script);
+    }
+
+    loadTerminalConnect();
+
     if (!bind()) {
         var attempts = 0;
         var timer = window.setInterval(function () {
