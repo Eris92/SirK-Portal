@@ -3,7 +3,7 @@
 var fs = require("fs");
 var path = require("path");
 var shared = require("./core/shared.js");
-var pluginAdminFactory = require("./core/plugin-admin-service-rollback.js");
+var pluginAdminFactory = require("./core/plugin-admin-service-backup-discovery.js");
 var serverAdminFactory = require("./core/server-admin-service.js");
 
 module.exports.admin = function (plugin) {
