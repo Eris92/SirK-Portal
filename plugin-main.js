@@ -1,7 +1,7 @@
 "use strict";
 
 var createAdmin = require("./MyCompanyAdmin.js").admin;
-var VERSION = "1.5.22";
+var VERSION = "1.5.23";
 
 function cleanError(error) {
     return String(error && (error.stack || error.message) || error || "Unknown MyCompany load error.");
@@ -81,7 +81,7 @@ function createPlugin(parent, shortName) {
     obj.onWebUIStartupEnd = function () {
         if (typeof window === "undefined" || typeof document === "undefined") return;
 
-        var browserVersion = "1.5.22";
+        var browserVersion = "1.5.23";
         var browserPin = "MyCompany";
         document.documentElement.classList.add("mycompany-native-ui");
 
@@ -140,14 +140,10 @@ function createPlugin(parent, shortName) {
             .then(function () { return load("mycompany-module-shell-script", asset("module-shell.js")); })
             .then(function () { return load("mycompany-runtime-script", asset("runtime.js")); })
             .then(function () {
-                if (!window.MyCompanyRuntime || typeof window.MyCompanyRuntime.initialize !== "function") {
-                    throw new Error("MyCompany runtime was not loaded.");
-                }
+                if (!window.MyCompanyRuntime || typeof window.MyCompanyRuntime.initialize !== "function") throw new Error("MyCompany runtime was not loaded.");
                 return window.MyCompanyRuntime.initialize();
             })
-            .catch(function (error) {
-                if (window.console) console.error("MyCompany browser startup failed", error);
-            });
+            .catch(function (error) { if (window.console) console.error("MyCompany browser startup failed", error); });
     };
 
     obj.goPageStart = function (view) {
