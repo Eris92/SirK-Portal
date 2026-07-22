@@ -8,32 +8,28 @@
 
     var scheduled = false;
 
-    function data() {
-        return window.MyCompanyAdminData || {};
-    }
-
-    function pluginPin() {
-        return root.getAttribute("data-plugin") || "MyCompany";
-    }
-
+    function data() { return window.MyCompanyAdminData || {}; }
+    function pluginPin() { return root.getAttribute("data-plugin") || "MyCompany"; }
     function element(tag, className, text) {
         var node = document.createElement(tag);
         if (className) node.className = className;
         if (text != null) node.textContent = text;
         return node;
     }
-
     function moduleRecord() {
-        return (data().modules || []).find(function (module) {
-            return module && module.key === "portal";
-        }) || { key: "portal", name: "SirK Portal", enabled: false, ready: true };
+        return (data().modules || []).find(function (module) { return module && module.key === "portal"; }) ||
+            { key: "portal", name: "SirK Portal", enabled: false, ready: true };
     }
-
     function moduleSettings() {
         var settings = data().moduleSettings || {};
-        return settings.portal || { enabled: false, defaultView: "overview", showLauncher: true };
+        return settings.portal || {
+            enabled: false,
+            defaultView: "overview",
+            showLauncher: true,
+            showNativeLink: true,
+            loginPanel: false
+        };
     }
-
     function checkbox(host, labelText, checked, description) {
         var label = element("label", "mc-admin-check");
         var input = element("input");
@@ -47,16 +43,13 @@
         host.appendChild(label);
         return input;
     }
-
     function select(host, labelText, value) {
         var wrapper = element("div", "mc-admin-field");
         wrapper.appendChild(element("label", "mc-admin-field-label", labelText));
         var field = element("select", "mc-admin-input");
         [
-            ["overview", "Przegląd"],
-            ["devices", "Urządzenia"],
-            ["management", "Zarządzanie / MyScripts"],
-            ["approvals", "Akceptacje / Approval Center"],
+            ["overview", "Przegląd"], ["devices", "Urządzenia"],
+            ["management", "Zarządzanie / MyScripts"], ["approvals", "Akceptacje / Approval Center"],
             ["settings", "Ustawienia"]
         ].forEach(function (entry) {
             var option = element("option", "", entry[1]);
@@ -68,7 +61,6 @@
         host.appendChild(wrapper);
         return field;
     }
-
     function post(values) {
         var url = new URL("pluginadmin.ashx", window.location.href);
         url.searchParams.set("pin", pluginPin());
@@ -91,18 +83,14 @@
             });
         });
     }
-
     function reloadMeshCentral() {
         window.setTimeout(function () {
             try {
                 if (window.top && window.top.location) window.top.location.reload();
                 else window.location.reload();
-            } catch (error) {
-                window.location.reload();
-            }
+            } catch (error) { window.location.reload(); }
         }, 700);
     }
-
     function renderPanel(panel, button) {
         var record = moduleRecord();
         var current = moduleSettings();
@@ -110,29 +98,25 @@
 
         var header = element("div", "mc-admin-section-header");
         header.appendChild(element("h3", "", "SirK Portal"));
-        header.appendChild(element("p", "", "Opcjonalny nowy interfejs korzystający z tych samych modułów, sesji i uprawnień MyCompany."));
+        header.appendChild(element("p", "", "Niezależny frontend korzystający z sesji, uprawnień i backendu MyCompany."));
         panel.appendChild(header);
 
         var card = element("section", "mc-admin-card");
         card.appendChild(element("h3", "", "Portal interface"));
-        card.appendChild(element("div", "mc-admin-card-description", "Włączenie portalu zmienia frontend po zalogowaniu. Wyłączenie pozostawia natywny interfejs MeshCentral."));
+        card.appendChild(element("div", "mc-admin-card-description", "Każdy element nawigacji i ekran logowania można włączyć niezależnie."));
 
-        var enabled = checkbox(
-            card,
-            "Enable SirK Portal",
-            current.enabled === true || record.enabled === true,
-            "Po zapisaniu karta MeshCentral zostanie przeładowana automatycznie. Dane MyCompany nie są usuwane."
-        );
+        var enabled = checkbox(card, "Enable SirK Portal", current.enabled === true || record.enabled === true,
+            "Udostępnia portal pod adresem /sirkportal/. Wyłączenie nie usuwa danych MyCompany.");
         var defaultView = select(card, "Default start view", current.defaultView || "overview");
-        var showLauncher = checkbox(
-            card,
-            "Show Portal launcher in native Mesh",
-            current.showLauncher !== false,
-            "Pozwala wrócić do portalu po wybraniu pozycji Mesh."
-        );
+        var showNativeLink = checkbox(card, "Show MeshCentral link in SirK Portal", current.showNativeLink !== false,
+            "Pokazuje link MeshCentral na dole menu SirK Portal. Po wyłączeniu portal jest dostępny tylko przez znany adres.");
+        var showLauncher = checkbox(card, "Show SirK Portal launcher in native Mesh", current.showLauncher !== false,
+            "Pokazuje przycisk SirK Portal w natywnym interfejsie MeshCentral.");
+        var loginPanel = checkbox(card, "Enable SirK Portal login screen", current.loginPanel === true,
+            "Zmienia wyłącznie wygląd logowania. Formularz, MFA, SSO i sesja nadal są obsługiwane przez MeshCentral.");
 
         var notice = element("div", "mc-admin-notice");
-        notice.textContent = "Nie uruchamiaj równolegle osobnej wtyczki SirKPortal. Stara wtyczka rejestruje własny globalny shell i domain.customFiles.";
+        notice.textContent = "Zmiana ekranu logowania wymaga restartu usługi MeshCentral. Nie uruchamiaj równolegle starej wtyczki SirKPortal.";
         card.appendChild(notice);
 
         var actions = element("div", "mc-admin-inline-actions");
@@ -146,14 +130,15 @@
             post({
                 enabled: enabled.checked,
                 defaultView: defaultView.value,
-                showLauncher: showLauncher.checked
+                showNativeLink: showNativeLink.checked,
+                showLauncher: showLauncher.checked,
+                loginPanel: loginPanel.checked
             }).then(function (result) {
                 var state = result.module || {};
                 data().moduleSettings = data().moduleSettings || {};
                 data().moduleSettings.portal = state;
-                var module = moduleRecord();
-                module.enabled = state.enabled === true;
-                status.textContent = "Saved — reload the MeshCentral tab...";
+                moduleRecord().enabled = state.enabled === true;
+                status.textContent = "Saved — restart MeshCentral when login screen setting changed.";
                 reloadMeshCentral();
             }).catch(function (error) {
                 status.className = "mc-admin-save-status mc-admin-error";
@@ -165,23 +150,14 @@
         actions.appendChild(status);
         card.appendChild(actions);
         panel.appendChild(card);
-
-        panel.querySelectorAll(".mc-admin-card").forEach(function (item) {
-            item.dataset.portalSettingsCard = "1";
-        });
+        card.dataset.portalSettingsCard = "1";
         button.classList.add("active");
     }
-
     function install() {
         scheduled = false;
-
-        // admin-layout.js przenosi navigation z content do .mc-admin-tabs.
-        // Szukamy jej w całym root, a panel nadal pozostaje w content.
-        var navigation = root.querySelector(".mc-admin-settings-subnav") ||
-            root.querySelector(".mc-admin-settings-nav");
+        var navigation = root.querySelector(".mc-admin-settings-subnav") || root.querySelector(".mc-admin-settings-nav");
         var panel = content.querySelector(".mc-admin-settings-panel");
         if (!navigation || !panel) return;
-
         var button = navigation.querySelector("[data-mycompany-portal-settings]");
         if (!button) {
             button = element("button", "", "SirK Portal");
@@ -189,20 +165,16 @@
             button.setAttribute("data-mycompany-portal-settings", "1");
             navigation.insertBefore(button, navigation.firstChild);
             button.onclick = function () {
-                navigation.querySelectorAll("button").forEach(function (item) {
-                    item.classList.remove("active");
-                });
+                navigation.querySelectorAll("button").forEach(function (item) { item.classList.remove("active"); });
                 renderPanel(panel, button);
             };
         }
     }
-
     function schedule() {
         if (scheduled) return;
         scheduled = true;
         window.requestAnimationFrame(install);
     }
-
     new MutationObserver(schedule).observe(root, { childList: true, subtree: true });
     root.addEventListener("click", function () { window.setTimeout(schedule, 0); });
     window.setInterval(schedule, 1000);
