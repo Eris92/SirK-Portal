@@ -1,8 +1,8 @@
 (function () {
     "use strict";
 
-    if (window.__myCompanyDeviceTabsV10Loaded) return;
-    window.__myCompanyDeviceTabsV10Loaded = true;
+    if (window.__myCompanyDeviceTabsV11Loaded) return;
+    window.__myCompanyDeviceTabsV11Loaded = true;
 
     var STORAGE_KEY = "mycompany.sirkportal.deviceTabs";
     var CHILD_PARAM = "sirkWorkspaceChild";
@@ -48,7 +48,6 @@
         }
         if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", openNode, { once: true });
         else openNode();
-        return;
     }
 
     if (isChildWorkspace()) {
@@ -61,13 +60,14 @@
         main: null,
         content: null,
         bar: null,
-        cache: null,
+        layer: null,
         panes: Object.create(null),
         active: "all",
         restored: false,
         restoreActive: "all",
         bound: false,
-        observer: null
+        observer: null,
+        resizeObserver: null
     };
 
     function currentView() {
@@ -75,18 +75,6 @@
         return active ? String(active.getAttribute("data-view") || "") : "";
     }
     function devicesActive() { return currentView() === "devices"; }
-
-    function createStore(key) {
-        var store = document.createElement("div");
-        store.className = "sirk-device-tab-store";
-        store.setAttribute("data-device-tab-store", key);
-        return store;
-    }
-
-    function moveChildren(source, target) {
-        if (!source || !target) return;
-        while (source.firstChild) target.appendChild(source.firstChild);
-    }
 
     function readPersisted() {
         try {
@@ -97,7 +85,7 @@
 
     function persist() {
         try {
-            var tabs = Object.keys(state.panes).filter(function (key) { return key !== "all"; }).map(function (key) {
+            var tabs = Object.keys(state.panes).map(function (key) {
                 var pane = state.panes[key];
                 return { key: pane.key, nodeId: pane.nodeId, name: pane.name };
             });
@@ -111,14 +99,15 @@
         url.searchParams.set(NODE_PARAM, pane.nodeId);
         url.searchParams.set(NAME_PARAM, pane.name);
         url.searchParams.delete("sirkNative");
-        url.hash = "";
+        url.hash = "devices";
         return url.href;
     }
 
     function createHostFrame(pane) {
         var wrapper = document.createElement("div");
-        wrapper.className = "sirk-device-isolated-workspace";
+        wrapper.className = "sirk-device-session-pane";
         wrapper.setAttribute("data-device-isolated-key", pane.key);
+        wrapper.setAttribute("aria-hidden", "true");
 
         var frame = document.createElement("iframe");
         frame.className = "sirk-device-isolated-frame";
@@ -132,21 +121,20 @@
     function ensurePane(key, nodeId, name, createFrame) {
         var pane = state.panes[key];
         if (!pane) {
-            pane = { key: key, nodeId: nodeId || "", name: name || nodeId || key, store: createStore(key), frameCreated: false };
-            state.cache.appendChild(pane.store);
+            pane = { key: key, nodeId: nodeId || "", name: name || nodeId || key, element: null };
             state.panes[key] = pane;
         }
         if (nodeId) pane.nodeId = nodeId;
         if (name) pane.name = name;
-        if (createFrame && key !== "all" && !pane.frameCreated) {
-            pane.store.appendChild(createHostFrame(pane));
-            pane.frameCreated = true;
+        if (createFrame && !pane.element && state.layer) {
+            pane.element = createHostFrame(pane);
+            state.layer.appendChild(pane.element);
         }
         return pane;
     }
 
     function restoreMetadata() {
-        if (state.restored || !state.cache) return;
+        if (state.restored) return;
         state.restored = true;
         var saved = readPersisted();
         (Array.isArray(saved.tabs) ? saved.tabs : []).forEach(function (item) {
@@ -157,6 +145,16 @@
             ensurePane(key, nodeId, name || nodeId, false);
         });
         state.restoreActive = state.panes[saved.active] ? saved.active : "all";
+        state.active = state.restoreActive;
+    }
+
+    function updateLayerBounds() {
+        if (!state.main || !state.content || !state.layer) return;
+        state.main.style.position = "relative";
+        state.layer.style.left = state.content.offsetLeft + "px";
+        state.layer.style.top = state.content.offsetTop + "px";
+        state.layer.style.width = state.content.offsetWidth + "px";
+        state.layer.style.height = state.content.offsetHeight + "px";
     }
 
     function ensureInfrastructure() {
@@ -171,25 +169,22 @@
 
         document.querySelectorAll(".sirk-standalone-sidebar .sirk-device-tabs,.sirk-standalone-nav .sirk-device-tabs").forEach(function (wrong) { wrong.remove(); });
 
-        if (!state.cache || !state.cache.isConnected) {
-            state.cache = document.createElement("div");
-            state.cache.className = "sirk-device-tab-cache";
-            state.cache.hidden = true;
-            state.cache.setAttribute("aria-hidden", "true");
-            shell.appendChild(state.cache);
-        }
         if (!state.bar || !state.bar.isConnected) {
             state.bar = document.createElement("div");
             state.bar.className = "sirk-device-tabs sirk-device-tabs-standalone";
             state.bar.setAttribute("role", "tablist");
             main.insertBefore(state.bar, content);
         }
-        if (!state.panes.all) {
-            state.panes.all = { key: "all", nodeId: "", name: allLabel(), store: createStore("all"), frameCreated: true };
-            state.cache.appendChild(state.panes.all.store);
+        if (!state.layer || !state.layer.isConnected) {
+            state.layer = document.createElement("div");
+            state.layer.className = "sirk-device-session-layer";
+            state.layer.setAttribute("aria-hidden", "true");
+            main.appendChild(state.layer);
         }
+
         restoreMetadata();
         bind();
+        updateLayerBounds();
         sync();
         return true;
     }
@@ -198,62 +193,74 @@
         return !!(state.content && state.content.querySelector("[data-device-id],#sirkDevicesHost,.sirk-device-groups"));
     }
 
-    function stashActive() {
-        if (!state.content || !state.content.childNodes.length) return;
-        var pane = state.panes[state.active];
-        if (!pane) return;
-        moveChildren(state.content, pane.store);
-    }
-
     function showPane(key) {
-        var pane = state.panes[key];
-        if (!pane || !state.content) return false;
-        if (state.active !== key) stashActive();
-        if (key !== "all" && !pane.frameCreated) {
-            pane.store.appendChild(createHostFrame(pane));
-            pane.frameCreated = true;
-        }
-        if (!pane.store.childNodes.length) return false;
-        moveChildren(pane.store, state.content);
+        if (!state.content || !state.layer) return false;
+        if (key !== "all" && !state.panes[key]) return false;
+
         state.active = key;
+        var hostVisible = devicesActive() && key !== "all";
+
+        Object.keys(state.panes).forEach(function (paneKey) {
+            var pane = state.panes[paneKey];
+            if (!pane.element) return;
+            var active = hostVisible && paneKey === key;
+            pane.element.classList.toggle("is-active", active);
+            pane.element.setAttribute("aria-hidden", active ? "false" : "true");
+        });
+
+        state.layer.classList.toggle("is-active", hostVisible);
+        state.layer.setAttribute("aria-hidden", hostVisible ? "false" : "true");
+        state.content.style.visibility = hostVisible ? "hidden" : "";
+        state.content.style.pointerEvents = hostVisible ? "none" : "";
+
         renderTabs();
         persist();
+        updateLayerBounds();
         window.dispatchEvent(new Event("resize"));
         return true;
     }
 
     function activate(key) {
-        if (!state.panes[key]) return;
+        if (key === "all") {
+            showPane("all");
+            return;
+        }
+        var pane = state.panes[key];
+        if (!pane) return;
+        ensurePane(key, pane.nodeId, pane.name, true);
         showPane(key);
     }
 
     function activateAll() { activate("all"); }
 
     function closeTab(key) {
-        if (key === "all" || !state.panes[key]) return;
+        if (!state.panes[key]) return;
         var pane = state.panes[key];
         var wasActive = state.active === key;
-        if (wasActive) stashActive();
-        pane.store.querySelectorAll("iframe").forEach(function (frame) { frame.src = "about:blank"; });
-        pane.store.remove();
-        delete state.panes[key];
-        if (wasActive) {
-            state.active = "all";
-            showPane("all");
+        if (pane.element) {
+            pane.element.querySelectorAll("iframe").forEach(function (frame) { frame.src = "about:blank"; });
+            pane.element.remove();
         }
-        renderTabs();
-        persist();
+        delete state.panes[key];
+        if (wasActive) showPane("all");
+        else {
+            renderTabs();
+            persist();
+        }
     }
 
     function renderTabs() {
         if (!state.bar) return;
-        state.panes.all.name = allLabel();
-        var signature = Object.keys(state.panes).map(function (key) { return key + ":" + state.panes[key].name; }).join("|") + "@" + state.active;
+        var keys = ["all"].concat(Object.keys(state.panes));
+        var signature = keys.map(function (key) {
+            return key === "all" ? "all:" + allLabel() : key + ":" + state.panes[key].name;
+        }).join("|") + "@" + state.active;
         if (state.bar.getAttribute("data-tabs-signature") === signature) return;
         state.bar.setAttribute("data-tabs-signature", signature);
         state.bar.textContent = "";
-        Object.keys(state.panes).forEach(function (key) {
-            var pane = state.panes[key];
+
+        keys.forEach(function (key) {
+            var pane = key === "all" ? { name: allLabel() } : state.panes[key];
             var tab = document.createElement("button");
             tab.type = "button";
             tab.className = "sirk-device-tab" + (state.active === key ? " is-active" : "");
@@ -261,10 +268,12 @@
             tab.setAttribute("aria-selected", state.active === key ? "true" : "false");
             tab.setAttribute("data-device-workspace-key", key);
             tab.title = pane.name;
+
             var label = document.createElement("span");
             label.className = "sirk-device-tab-label";
             label.textContent = pane.name;
             tab.appendChild(label);
+
             if (key !== "all") {
                 var close = document.createElement("span");
                 close.className = "sirk-device-tab-close";
@@ -291,6 +300,7 @@
 
     function intercept(event) {
         if (!ensureInfrastructure()) return;
+
         var close = event.target && event.target.closest && event.target.closest("[data-device-tab-close]");
         if (close && state.bar.contains(close)) {
             event.preventDefault();
@@ -299,6 +309,7 @@
             closeTab(close.getAttribute("data-device-tab-close"));
             return;
         }
+
         var tab = event.target && event.target.closest && event.target.closest(".sirk-device-tab[data-device-workspace-key]");
         if (tab && state.bar.contains(tab)) {
             event.preventDefault();
@@ -307,14 +318,13 @@
             activate(tab.getAttribute("data-device-workspace-key"));
             return;
         }
+
         var info = hostInfo(event.target);
         if (!info) return;
         event.preventDefault();
         event.stopPropagation();
         if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
-        if (state.panes.all.store.childNodes.length === 0) moveChildren(state.content, state.panes.all.store);
         ensurePane(info.key, info.nodeId, info.name, true);
-        state.active = "all";
         showPane(info.key);
     }
 
@@ -322,30 +332,48 @@
         if (state.bound) return;
         state.bound = true;
         window.addEventListener("click", intercept, true);
+        window.addEventListener("resize", updateLayerBounds);
         window.addEventListener("sirkportal:languagechange", function () { renderTabs(); });
+        if (window.ResizeObserver) {
+            state.resizeObserver = new ResizeObserver(updateLayerBounds);
+            if (state.main) state.resizeObserver.observe(state.main);
+            if (state.content) state.resizeObserver.observe(state.content);
+        }
     }
 
     function sync() {
-        if (!state.bar) return;
+        if (!state.bar || !state.layer || !state.content) return;
         var visible = devicesActive();
         state.bar.hidden = !visible;
         state.bar.style.display = visible ? "flex" : "none";
-        if (visible && state.active === "all" && contentIsDeviceList()) {
-            state.panes.all.name = allLabel();
-            renderTabs();
-            if (state.restoreActive !== "all" && state.panes[state.restoreActive]) {
-                var restore = state.restoreActive;
-                state.restoreActive = "all";
-                window.setTimeout(function () { activate(restore); }, 0);
-            }
+
+        if (!visible) {
+            state.layer.classList.remove("is-active");
+            state.layer.setAttribute("aria-hidden", "true");
+            state.content.style.visibility = "";
+            state.content.style.pointerEvents = "";
+            Object.keys(state.panes).forEach(function (key) {
+                if (state.panes[key].element) state.panes[key].element.classList.remove("is-active");
+            });
+            return;
         }
+
+        if (state.active !== "all" && state.panes[state.active]) {
+            ensurePane(state.active, state.panes[state.active].nodeId, state.panes[state.active].name, true);
+            showPane(state.active);
+        } else if (contentIsDeviceList()) {
+            showPane("all");
+        }
+        updateLayerBounds();
     }
 
     function start() {
         ensureInfrastructure();
-        state.observer = new MutationObserver(function () { window.setTimeout(function () { ensureInfrastructure(); sync(); }, 0); });
-        state.observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden"] });
-        window.setInterval(sync, 1000);
+        state.observer = new MutationObserver(function () {
+            window.setTimeout(function () { ensureInfrastructure(); sync(); }, 0);
+        });
+        state.observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden", "data-active-view"] });
+        window.setInterval(sync, 500);
     }
 
     window.MyCompanyDeviceTabs = {
@@ -354,9 +382,12 @@
         activate: activate,
         close: closeTab,
         debug: function () {
-            var result = { active: state.active, mode: "isolated-iframes", stores: {} };
+            var result = { active: state.active, mode: "persistent-session-layer", panes: {} };
             Object.keys(state.panes).forEach(function (key) {
-                result.stores[key] = { children: state.panes[key].store.childElementCount, frame: !!state.panes[key].store.querySelector("iframe") || !!(state.content && state.content.querySelector('[data-device-isolated-key="' + key.replace(/"/g, "\\\"") + '"] iframe')) };
+                result.panes[key] = {
+                    mounted: !!(state.panes[key].element && state.panes[key].element.isConnected),
+                    active: !!(state.panes[key].element && state.panes[key].element.classList.contains("is-active"))
+                };
             });
             return result;
         }
