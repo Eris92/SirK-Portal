@@ -2,12 +2,11 @@
 
 var fs = require("fs");
 var path = require("path");
-var shared = require("./core/shared.js");
-var pluginAdminFactory = require("./core/plugin-admin-service-backup-discovery.js");
-var serverAdminFactory = require("./core/server-admin-service.js");
+var shared = require("./server/core/shared.js");
+var pluginAdminFactory = require("./server/core/plugin-admin-service-backup-discovery.js");
+var serverAdminFactory = require("./server/core/server-admin-service.js");
 
 module.exports.admin = function (plugin) {
-    var obj = {};
     var root = __dirname;
     var pluginAdmin = pluginAdminFactory.createPluginAdminService({
         pluginHandler: plugin.parent,
@@ -109,19 +108,23 @@ module.exports.admin = function (plugin) {
         }
         var type = /\.css$/i.test(name) ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8";
         fs.readFile(path.join(root, "public", "vendor", "sirk-portal", name), function (error, data) {
-            if (error) shared.send(res, 404, "text/plain; charset=utf-8", "SirK Portal vendor asset unavailable");
+            if (error) shared.send(res, 404, "text/plain; charset=utf-8", "SIRK Portal vendor asset unavailable");
             else shared.send(res, 200, type, data);
         });
         return true;
     }
 
     function moduleObject(moduleName) {
-        return plugin.runtime && plugin.runtime.modules && plugin.runtime.modules[String(moduleName || "").toLowerCase()];
+        return plugin.runtime && plugin.runtime.modules &&
+            plugin.runtime.modules[String(moduleName || "").toLowerCase()];
     }
 
     function safeAdminJson(value) {
         var slash = String.fromCharCode(92);
-        return JSON.stringify(value).replace(/</g, slash + "u003c").replace(/>/g, slash + "u003e").replace(/&/g, slash + "u0026");
+        return JSON.stringify(value)
+            .replace(/</g, slash + "u003c")
+            .replace(/>/g, slash + "u003e")
+            .replace(/&/g, slash + "u0026");
     }
 
     function sameOrigin(req) {
@@ -132,60 +135,84 @@ module.exports.admin = function (plugin) {
         catch (error) { return false; }
     }
 
-    obj.req = function (req, res, user) {
+    function get(req, res, user) {
         var asset = String(req && req.query && req.query.asset || "");
         var moduleName = String(req && req.query && req.query.module || "");
         var action = String(req && req.query && req.query.action || "");
+
         if (serveVendorPortal(res, asset)) return;
         if (assets[asset]) { serve(res, asset); return; }
-        if (asset === "bootstrap") { plugin.runtime.request("GET", "_runtime", "bootstrap", req, res, user); return; }
+        if (asset === "bootstrap") {
+            plugin.runtime.request("GET", "_runtime", "bootstrap", req, res, user);
+            return;
+        }
         if (moduleName === "myscripts" && asset === "folder-icon") {
-            if (plugin.runtime.modules && plugin.runtime.modules.myscripts && typeof plugin.runtime.modules.myscripts.serveIcon === "function") plugin.runtime.modules.myscripts.serveIcon(req, res, user);
+            var automation = plugin.runtime.modules && plugin.runtime.modules.myscripts;
+            if (automation && typeof automation.serveIcon === "function") automation.serveIcon(req, res, user);
             else shared.send(res, 404, "text/plain; charset=utf-8", "Folder icon unavailable");
             return;
         }
-        if (moduleName) { plugin.runtime.request("GET", moduleName, asset, req, res, user); return; }
-        if (!shared.isSiteAdmin(user)) { shared.send(res, 403, "text/plain; charset=utf-8", "Forbidden"); return; }
+        if (moduleName) {
+            plugin.runtime.request("GET", moduleName, asset, req, res, user);
+            return;
+        }
+        if (!shared.isSiteAdmin(user)) {
+            shared.send(res, 403, "text/plain; charset=utf-8", "Forbidden");
+            return;
+        }
         if (action === "plugin-state") {
-            pluginAdmin.list(user).then(function (plugins) { shared.sendJson(res, 200, { ok: true, plugins: plugins }); })
-                .catch(function (error) { shared.sendJson(res, 500, { ok: false, error: String(error && error.message || error) }); });
+            pluginAdmin.list(user)
+                .then(function (plugins) { shared.sendJson(res, 200, { ok: true, plugins: plugins }); })
+                .catch(function (error) { shared.sendJson(res, 500, { ok: false, error: errorText(error) }); });
             return;
         }
         if (action === "server-state") {
-            serverAdmin.services(user).then(function (services) { shared.sendJson(res, 200, { ok: true, services: services }); })
-                .catch(function (error) { shared.sendJson(res, 500, { ok: false, error: String(error && error.message || error) }); });
+            serverAdmin.services(user)
+                .then(function (services) { shared.sendJson(res, 200, { ok: true, services: services }); })
+                .catch(function (error) { shared.sendJson(res, 500, { ok: false, error: errorText(error) }); });
             return;
         }
         try {
-            res.render("MyCompany", {
-                title: "My Company",
-                pluginShortName: String(req && req.query && req.query.pin || plugin.shortName || "MyCompany"),
+            res.render("SIRK-Portal", {
+                title: "SIRK Management Platform",
+                pluginShortName: String(req && req.query && req.query.pin || plugin.shortName || "SIRK-Portal"),
                 adminDataJson: safeAdminJson(plugin.runtime.adminSnapshot(user))
             });
         } catch (error) {
-            console.error("MyCompany admin render failed", error);
+            console.error("SIRK Platform admin render failed", error);
             shared.send(res, 500, "text/plain; charset=utf-8", "Internal error");
         }
-    };
+    }
 
-    obj.post = function (req, res, user) {
+    function errorText(error) {
+        return String(error && error.message || error || "Unknown error.");
+    }
+
+    function post(req, res, user) {
         var moduleName = String(req && req.query && req.query.module || "");
         var asset = String(req && req.query && req.query.asset || "");
         var action = String(req && req.query && req.query.action || "");
+
         if (moduleName) {
-            if (req && req.body && typeof req.body.payload === "string") req.body = shared.parseJsonObject(req.body.payload, {});
+            if (req && req.body && typeof req.body.payload === "string") {
+                req.body = shared.parseJsonObject(req.body.payload, {});
+            }
             var module = moduleObject(moduleName);
-            if (asset === "settings" && shared.isSiteAdmin(user) && module && !module.__loadError && typeof module.apiPost === "function") {
+            if (asset === "settings" && shared.isSiteAdmin(user) && module &&
+                !module.__loadError && typeof module.apiPost === "function") {
                 try {
                     Promise.resolve(module.apiPost(asset, req, user))
                         .then(function (value) { shared.sendJson(res, 200, value || { ok: true }); })
-                        .catch(function (error) { shared.sendJson(res, 400, { ok: false, error: String(error && error.message || error) }); });
-                } catch (error) { shared.sendJson(res, 400, { ok: false, error: String(error && error.message || error) }); }
+                        .catch(function (error) { shared.sendJson(res, 400, { ok: false, error: errorText(error) }); });
+                } catch (error) {
+                    shared.sendJson(res, 400, { ok: false, error: errorText(error) });
+                }
                 return;
             }
             plugin.runtime.request("POST", moduleName, asset, req, res, user);
             return;
         }
+
         if (action === "save-settings" || action === "save-modules") {
             var payload = {
                 modules: shared.parseJsonObject(req && req.body && req.body.modules, {}),
@@ -195,27 +222,40 @@ module.exports.admin = function (plugin) {
             };
             plugin.runtime.saveAdminSettings(user, payload)
                 .then(function (snapshot) { shared.sendJson(res, 200, { ok: true, snapshot: snapshot }); })
-                .catch(function (error) { shared.sendJson(res, 403, { ok: false, error: String(error && error.message || error) }); });
+                .catch(function (error) { shared.sendJson(res, 403, { ok: false, error: errorText(error) }); });
             return;
         }
+
         if (action === "plugin-operation") {
-            if (!sameOrigin(req)) { shared.sendJson(res, 403, { ok: false, error: "Cross-origin request rejected." }); return; }
+            if (!sameOrigin(req)) {
+                shared.sendJson(res, 403, { ok: false, error: "Cross-origin request rejected." });
+                return;
+            }
             var pluginPayload = shared.parseJsonObject(req && req.body && req.body.payload, {});
-            pluginAdmin.operate(user, pluginPayload.operation, pluginPayload).then(function (result) {
-                return pluginAdmin.list(user).then(function (plugins) { shared.sendJson(res, 200, { ok: true, result: result, plugins: plugins }); });
-            }).catch(function (error) { shared.sendJson(res, 400, { ok: false, error: String(error && error.message || error) }); });
+            pluginAdmin.operate(user, pluginPayload.operation, pluginPayload)
+                .then(function (result) {
+                    return pluginAdmin.list(user).then(function (plugins) {
+                        shared.sendJson(res, 200, { ok: true, result: result, plugins: plugins });
+                    });
+                })
+                .catch(function (error) { shared.sendJson(res, 400, { ok: false, error: errorText(error) }); });
             return;
         }
+
         if (action === "server-restart") {
-            if (!sameOrigin(req)) { shared.sendJson(res, 403, { ok: false, error: "Cross-origin request rejected." }); return; }
+            if (!sameOrigin(req)) {
+                shared.sendJson(res, 403, { ok: false, error: "Cross-origin request rejected." });
+                return;
+            }
             var serverPayload = shared.parseJsonObject(req && req.body && req.body.payload, {});
             serverAdmin.restart(user, serverPayload.serviceName)
                 .then(function (result) { shared.sendJson(res, 202, { ok: true, result: result }); })
-                .catch(function (error) { shared.sendJson(res, 400, { ok: false, error: String(error && error.message || error) }); });
+                .catch(function (error) { shared.sendJson(res, 400, { ok: false, error: errorText(error) }); });
             return;
         }
-        shared.sendJson(res, 400, { ok: false, error: "Unknown MyCompany action." });
-    };
 
-    return obj;
+        shared.sendJson(res, 400, { ok: false, error: "Unknown SIRK Platform action." });
+    }
+
+    return { req: get, post: post };
 };
