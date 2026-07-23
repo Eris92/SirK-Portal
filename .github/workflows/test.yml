@@ -49,12 +49,16 @@ jobs:
             contents: read
 
           jobs:
-            validate:
-              strategy:
-                fail-fast: false
-                matrix:
-                  os: [windows-latest, ubuntu-latest]
-              runs-on: ${{ matrix.os }}
+            validate-linux:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-node@v4
+                  with:
+                    node-version: '24'
+                - run: npm test
+            validate-windows:
+              runs-on: windows-latest
               steps:
                 - uses: actions/checkout@v4
                 - uses: actions/setup-node@v4
