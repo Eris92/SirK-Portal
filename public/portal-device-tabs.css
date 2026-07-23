@@ -49,3 +49,7 @@ html.sirk-device-workspace-child #sirkStandaloneContent canvas{max-height:calc(1
 #sirkPortalRoot .sirk-management-workspace>.sirk-management-column:first-child .sirk-management-item:nth-child(8) .sirk-management-item-icon,#sirkPortalRoot .mc-shared-primary .mc-shared-nav-item:nth-child(8) .mc-nav-icon{color:#2878c7}
 #sirkPortalRoot .sirk-management-workspace>.sirk-management-column:first-child .sirk-management-item:nth-child(9) .sirk-management-item-icon,#sirkPortalRoot .mc-shared-primary .mc-shared-nav-item:nth-child(9) .mc-nav-icon{color:#7b61e8}
 #sirkPortalRoot .sirk-management-workspace>.sirk-management-column:first-child .sirk-management-item:nth-child(10) .sirk-management-item-icon,#sirkPortalRoot .mc-shared-primary .mc-shared-nav-item:nth-child(10) .mc-nav-icon{color:#248d83}
+
+/* Management edit mode: widen the real second grid track in both primary-column states. */
+#sirkPortalRoot .mycompany-management-host.is-management-edit-mode .sirk-management-shell.mc-portal-module-shell .sirk-management-workspace.mc-portal-module-layout{grid-template-columns:var(--portal-primary-width,184px) 440px minmax(0,1fr)!important}
+#sirkPortalRoot .mycompany-management-host.is-management-edit-mode.is-management-collapsed .sirk-management-shell.mc-portal-module-shell .sirk-management-workspace.mc-portal-module-layout{grid-template-columns:56px 440px minmax(0,1fr)!important}
