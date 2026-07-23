@@ -66,11 +66,21 @@ jobs:
         if: steps.cleanup.outcome == 'success'
         shell: bash
         run: |
-          set -o pipefail
-          git diff --check
-          npm test 2>&1 | tee finalize-test-output.log
-          find . -type f -name '*.js' -not -path './node_modules/*' -print0 |
-            xargs -0 -n1 node --check
+          set +e
+          : > finalize-test-output.log
+          git diff --check >> finalize-test-output.log 2>&1
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            npm test >> finalize-test-output.log 2>&1
+            status=$?
+          fi
+          if [ "$status" -eq 0 ]; then
+            find . -type f -name '*.js' -not -path './node_modules/*' -print0 |
+              xargs -0 -n1 node --check >> finalize-test-output.log 2>&1
+            status=$?
+          fi
+          cat finalize-test-output.log
+          exit "$status"
       - name: Upload validation output
         if: always()
         uses: actions/upload-artifact@v4
