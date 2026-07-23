@@ -8,12 +8,45 @@
     (function prepareInitialView() {
         var root = document.getElementById("sirkStandaloneRoot");
         var content = document.getElementById("sirkStandaloneContent");
+        var nav = root && root.querySelector(".sirk-standalone-nav");
         var child = false;
         var savedActive = "all";
+        var menuTimer = 0;
+        var menuTimeout = 0;
 
         try {
             child = new URL(window.location.href).searchParams.get("sirkWorkspaceChild") === "1";
         } catch (error) {}
+
+        // The static HTML contains all possible menu entries. Keep only the menu
+        // list hidden until bootstrap applies permissions and Portal view settings.
+        // The sidebar, brand and controls stay visible and never flash.
+        if (!child && nav) {
+            nav.style.visibility = "hidden";
+            nav.style.pointerEvents = "none";
+            nav.setAttribute("aria-busy", "true");
+            menuTimer = window.setInterval(function () {
+                var runtime = window.MyCompanyRuntime;
+                var ready = runtime && runtime.state && runtime.state.bootstrap;
+                if (!ready) return;
+                window.clearInterval(menuTimer);
+                menuTimer = 0;
+                window.requestAnimationFrame(function () {
+                    nav.style.visibility = "";
+                    nav.style.pointerEvents = "";
+                    nav.removeAttribute("aria-busy");
+                });
+            }, 25);
+            menuTimeout = window.setTimeout(function () {
+                if (menuTimer) {
+                    window.clearInterval(menuTimer);
+                    menuTimer = 0;
+                }
+                nav.style.visibility = "";
+                nav.style.pointerEvents = "";
+                nav.removeAttribute("aria-busy");
+            }, 3000);
+        }
 
         try {
             var saved = JSON.parse(localStorage.getItem("mycompany.sirkportal.deviceTabs") || "{}");
@@ -43,14 +76,13 @@
         var title = document.getElementById("sirkStandaloneTitle");
         if (title && requestedButton) title.textContent = requestedButton.textContent;
 
-        // Never hide the complete Portal. The menu and header must be available
-        // immediately after F5. Only a child host workspace may be hidden briefly
-        // while its previously selected sub-tab is restored.
+        // Never hide the child document or its content. The child starts with the
+        // stable loading surface already present in HTML, then replaces it with the
+        // restored host workspace. Hiding it caused a full white flash on every F5.
         if (child && content && restoreHost) {
             document.documentElement.classList.add("sirk-device-restore-pending");
-            content.style.visibility = "hidden";
-            content.style.pointerEvents = "none";
             content.setAttribute("aria-busy", "true");
+            content.setAttribute("data-device-tab-restore-pending", "1");
         }
 
         var finished = false;
