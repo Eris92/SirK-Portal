@@ -1,12 +1,12 @@
 (function () {
     "use strict";
 
-    if (window.__myCompanyStandaloneDeviceTabsV5Loaded) return;
-    window.__myCompanyStandaloneDeviceTabsV5Loaded = true;
+    if (window.__myCompanyDeviceTabsV6Loaded) return;
+    window.__myCompanyDeviceTabsV6Loaded = true;
 
     var STORAGE_KEY = "mycompany.sirkportal.deviceTabs";
     var state = {
-        root: null,
+        shell: null,
         main: null,
         content: null,
         bar: null,
@@ -17,23 +17,21 @@
         observer: null,
         finalizeTimer: 0,
         restoreTimer: 0,
-        restored: false,
+        metadataRestored: false,
         restoreActive: "all"
     };
 
-    function text(value) { return String(value || "").replace(/\s+/g, " ").trim(); }
-    function safeKey(value) { return text(value).replace(/[^a-z0-9._:-]/gi, "_").slice(0, 180); }
+    function clean(value) { return String(value || "").replace(/\s+/g, " ").trim(); }
+    function safeKey(value) { return clean(value).replace(/[^a-z0-9._:-]/gi, "_").slice(0, 180); }
     function language() {
         try { return localStorage.getItem("sirkPortal.language") === "en" ? "en" : "pl"; }
         catch (error) { return document.documentElement.lang === "en" ? "en" : "pl"; }
     }
     function allLabel() { return language() === "en" ? "All" : "Wszystkie"; }
-
     function currentView() {
         var active = document.querySelector('.sirk-standalone-nav button.is-active[data-view]');
         return active ? String(active.getAttribute("data-view") || "") : "";
     }
-
     function devicesActive() { return currentView() === "devices"; }
 
     function createStore(key) {
@@ -66,13 +64,13 @@
     }
 
     function restoreMetadata() {
-        if (state.restored || !state.cache) return;
-        state.restored = true;
+        if (state.metadataRestored || !state.cache) return;
+        state.metadataRestored = true;
         var saved = readPersisted();
         (Array.isArray(saved.tabs) ? saved.tabs : []).forEach(function (item) {
-            var nodeId = text(item && item.nodeId);
-            var name = text(item && item.name);
-            var key = text(item && item.key) || (nodeId ? "node:" + safeKey(nodeId) : "");
+            var nodeId = clean(item && item.nodeId);
+            var name = clean(item && item.name);
+            var key = clean(item && item.key) || (nodeId ? "node:" + safeKey(nodeId) : "");
             if (!key || !nodeId || state.panes[key]) return;
             var pane = { key: key, nodeId: nodeId, name: name || nodeId, store: createStore(key), loaded: false };
             state.cache.appendChild(pane.store);
@@ -82,12 +80,12 @@
     }
 
     function ensureInfrastructure() {
-        var root = document.getElementById("sirkPortalRoot");
+        var shell = document.getElementById("sirkStandaloneRoot");
         var content = document.getElementById("sirkStandaloneContent");
         var main = content && content.closest(".sirk-standalone-main");
-        if (!root || !content || !main) return false;
+        if (!shell || !content || !main) return false;
 
-        state.root = root;
+        state.shell = shell;
         state.content = content;
         state.main = main;
 
@@ -98,7 +96,7 @@
             state.cache.className = "sirk-device-tab-cache";
             state.cache.hidden = true;
             state.cache.setAttribute("aria-hidden", "true");
-            root.appendChild(state.cache);
+            shell.appendChild(state.cache);
         }
 
         if (!state.bar || !state.bar.isConnected) {
@@ -109,9 +107,10 @@
         }
 
         if (!state.panes.all) {
-            state.panes.all = { key: "all", name: allLabel(), nodeId: "", store: createStore("all"), loaded: true };
+            state.panes.all = { key: "all", name: allLabel(), nodeId: "", store: createStore("all"), loaded: false };
             state.cache.appendChild(state.panes.all.store);
         }
+
         restoreMetadata();
         updateLanguage();
         syncVisibility();
@@ -134,31 +133,44 @@
         state.bar.style.display = visible ? "flex" : "none";
     }
 
-    function stashActive() {
+    function contentIsDeviceList() {
+        return !!(state.content && state.content.querySelector("[data-device-id],#sirkDevicesHost,.sirk-device-groups"));
+    }
+
+    function contentIsWorkspace() {
+        return !!(state.content && state.content.querySelector(".sirk-device-workspace"));
+    }
+
+    function stashCurrent() {
         var pane = state.panes[state.active];
-        if (!pane || !pane.store || !state.content) return;
+        if (!pane || !state.content) return;
+        if (!state.content.childNodes.length) return;
         moveChildren(state.content, pane.store);
         pane.loaded = pane.store.childNodes.length > 0;
     }
 
     function showStored(key) {
         var pane = state.panes[key];
-        if (!pane || !pane.store || !state.content) return false;
+        if (!pane || !state.content || !pane.store.childNodes.length) return false;
         state.content.textContent = "";
         moveChildren(pane.store, state.content);
-        pane.loaded = state.content.childNodes.length > 0;
-        return pane.loaded;
-    }
-
-    function activateAll() {
-        if (!state.content || !state.panes.all) return;
-        if (state.active !== "all") stashActive();
-        state.active = "all";
-        state.pending = null;
-        showStored("all");
+        pane.loaded = true;
+        state.active = key;
         renderTabs();
         persist();
         window.dispatchEvent(new Event("resize"));
+        return true;
+    }
+
+    function activateAll() {
+        if (!state.panes.all || !state.content) return;
+        if (state.active !== "all") stashCurrent();
+        state.pending = null;
+        if (!showStored("all")) {
+            state.active = "all";
+            renderTabs();
+            persist();
+        }
     }
 
     function findDeviceRow(nodeId) {
@@ -174,17 +186,16 @@
         return null;
     }
 
-    function openPaneFromAll(pane) {
+    function openUnloadedPane(pane) {
         if (!pane || !state.content || !state.panes.all) return;
-        if (state.active !== "all") {
-            stashActive();
-            state.active = "all";
-            showStored("all");
-        }
+        if (state.active !== "all") stashCurrent();
+        if (!showStored("all")) return;
         var row = findDeviceRow(pane.nodeId);
         if (!row) return;
-        state.pending = { key: pane.key, nodeId: pane.nodeId, name: pane.name, existing: true };
+        state.pending = { key: pane.key, nodeId: pane.nodeId, name: pane.name };
         row.click();
+        window.clearTimeout(state.finalizeTimer);
+        state.finalizeTimer = window.setTimeout(finalizeOpen, 80);
     }
 
     function activate(key) {
@@ -192,26 +203,18 @@
         if (!pane || !state.content) return;
         if (key === "all") { activateAll(); return; }
         if (state.active === key) return;
-        if (state.active !== "all") stashActive();
-        else if (state.panes.all.store.childNodes.length === 0) stashActive();
-        state.active = key;
         if (pane.loaded && pane.store.childNodes.length) {
+            stashCurrent();
             showStored(key);
-            renderTabs();
-            persist();
-            window.dispatchEvent(new Event("resize"));
             return;
         }
-        state.active = "all";
-        showStored("all");
-        renderTabs();
-        openPaneFromAll(pane);
+        openUnloadedPane(pane);
     }
 
     function disconnectPane(pane) {
         if (!pane || !pane.store) return;
         pane.store.querySelectorAll("button").forEach(function (button) {
-            var label = text(button.textContent).toLowerCase();
+            var label = clean(button.textContent).toLowerCase();
             if (label === "rozłącz" || label === "disconnect") {
                 try { button.click(); } catch (error) {}
             }
@@ -223,7 +226,7 @@
         if (key === "all" || !state.panes[key]) return;
         var pane = state.panes[key];
         var wasActive = state.active === key;
-        if (wasActive) stashActive();
+        if (wasActive) stashCurrent();
         disconnectPane(pane);
         delete state.panes[key];
         if (wasActive) {
@@ -232,7 +235,6 @@
         }
         renderTabs();
         persist();
-        window.dispatchEvent(new Event("resize"));
     }
 
     function renderTabs() {
@@ -245,17 +247,20 @@
             tab.className = "sirk-device-tab" + (state.active === key ? " is-active" : "");
             tab.setAttribute("role", "tab");
             tab.setAttribute("aria-selected", state.active === key ? "true" : "false");
+            tab.setAttribute("data-device-workspace-key", key);
             tab.title = pane.name;
 
             var label = document.createElement("span");
             label.className = "sirk-device-tab-label";
             label.textContent = pane.name;
             tab.appendChild(label);
+
             tab.addEventListener("click", function (event) {
                 event.preventDefault();
                 event.stopPropagation();
+                if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
                 activate(key);
-            });
+            }, true);
 
             if (key !== "all") {
                 var close = document.createElement("span");
@@ -266,59 +271,53 @@
                 close.addEventListener("click", function (event) {
                     event.preventDefault();
                     event.stopPropagation();
+                    if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
                     closeTab(key);
-                });
+                }, true);
                 tab.appendChild(close);
             }
             state.bar.appendChild(tab);
         });
     }
 
-    function attributeValue(element) {
-        if (!element) return "";
-        var names = ["data-device-id", "data-node-id", "data-nodeid", "data-deviceid", "data-node", "data-device"];
-        var nodes = [element].concat(Array.prototype.slice.call(element.querySelectorAll ? element.querySelectorAll("[data-device-id],[data-node-id],[data-nodeid],[data-deviceid],[data-node],[data-device],a[href]") : []));
-        for (var n = 0; n < nodes.length; n++) {
-            for (var i = 0; i < names.length; i++) {
-                var value = nodes[n].getAttribute && nodes[n].getAttribute(names[i]);
-                if (value) return value;
-            }
-        }
-        return "";
-    }
-
     function candidate(target) {
         if (!devicesActive() || state.active !== "all" || !state.content || !target || !target.closest) return null;
-        var element = target.closest('[data-device-id],.sirk-device-row');
-        if (!element || !state.root.contains(element)) return null;
-        var nodeId = attributeValue(element);
-        var nameNode = element.querySelector && element.querySelector('.sirk-device-primary strong,[data-device-name],.sirk-device-name,.device-name,strong');
-        var name = text(nameNode && nameNode.textContent || element.getAttribute("data-device-name") || "");
+        var row = target.closest("[data-device-id],.sirk-device-row");
+        if (!row || !state.shell.contains(row)) return null;
+        var nodeId = clean(row.getAttribute("data-device-id"));
+        var nameNode = row.querySelector(".sirk-device-primary strong,[data-device-name],.sirk-device-name,strong");
+        var name = clean(nameNode && nameNode.textContent || "");
         if (!nodeId || !name) return null;
         return { key: "node:" + safeKey(nodeId), nodeId: nodeId, name: name.slice(0, 64) };
     }
 
     function beginOpen(info, event) {
-        if (state.panes[info.key] && state.panes[info.key].loaded) {
+        var existing = state.panes[info.key];
+        if (existing && existing.loaded && existing.store.childNodes.length) {
             event.preventDefault();
             event.stopPropagation();
             if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
             activate(info.key);
             return;
         }
-        if (state.panes.all.store.childNodes.length === 0) moveChildren(state.content, state.panes.all.store);
-        state.pending = { key: info.key, nodeId: info.nodeId, name: info.name, existing: !!state.panes[info.key] };
+
+        if (state.panes.all.store.childNodes.length === 0 && contentIsDeviceList()) {
+            moveChildren(state.content, state.panes.all.store);
+            state.panes.all.loaded = true;
+        }
+
+        state.pending = info;
         window.clearTimeout(state.finalizeTimer);
         state.finalizeTimer = window.setTimeout(finalizeOpen, 80);
     }
 
     function finalizeOpen() {
         if (!state.pending || !state.content) return;
-        var workspace = state.content.querySelector(".sirk-device-workspace");
-        if (!workspace) {
+        if (!contentIsWorkspace()) {
             state.finalizeTimer = window.setTimeout(finalizeOpen, 100);
             return;
         }
+
         var info = state.pending;
         state.pending = null;
         var pane = state.panes[info.key];
@@ -336,31 +335,38 @@
         window.dispatchEvent(new Event("resize"));
     }
 
+    function captureInitialList() {
+        if (!devicesActive() || state.active !== "all" || !contentIsDeviceList()) return;
+        if (state.panes.all.store.childNodes.length) return;
+        state.panes.all.loaded = true;
+    }
+
     function scheduleRestore() {
-        if (!state.restored || state.restoreActive === "all" || !devicesActive()) return;
+        if (!state.metadataRestored || state.restoreActive === "all" || !devicesActive()) return;
         var pane = state.panes[state.restoreActive];
-        if (!pane) { state.restoreActive = "all"; return; }
-        if (!findDeviceRow(pane.nodeId)) return;
+        if (!pane || !findDeviceRow(pane.nodeId)) return;
         window.clearTimeout(state.restoreTimer);
         state.restoreTimer = window.setTimeout(function () {
             var key = state.restoreActive;
             state.restoreActive = "all";
             activate(key);
-        }, 150);
+        }, 180);
     }
 
     function bind() {
-        if (!state.root || state.root.__myCompanyStandaloneDeviceTabsV5Bound) return;
-        state.root.__myCompanyStandaloneDeviceTabsV5Bound = true;
+        if (!state.shell || state.shell.__myCompanyDeviceTabsV6Bound) return;
+        state.shell.__myCompanyDeviceTabsV6Bound = true;
 
-        state.root.addEventListener("click", function (event) {
+        state.shell.addEventListener("click", function (event) {
             ensureInfrastructure();
             var info = candidate(event.target);
-            if (!info) return;
-            beginOpen(info, event);
+            if (info) beginOpen(info, event);
         }, true);
 
-        state.root.addEventListener("click", function () { window.setTimeout(function () { syncVisibility(); scheduleRestore(); }, 0); });
+        state.shell.addEventListener("click", function () {
+            window.setTimeout(function () { syncVisibility(); captureInitialList(); scheduleRestore(); }, 0);
+        });
+
         window.addEventListener("sirkportal:languagechange", function () {
             updateLanguage();
             renderTabs();
@@ -371,6 +377,7 @@
         window.setTimeout(function () {
             ensureInfrastructure();
             syncVisibility();
+            captureInitialList();
             if (state.pending) finalizeOpen();
             scheduleRestore();
         }, 20);
@@ -382,7 +389,7 @@
             state.observer = new MutationObserver(schedule);
             state.observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden", "style"] });
         }
-        window.setInterval(function () { ensureInfrastructure(); syncVisibility(); scheduleRestore(); }, 1000);
+        window.setInterval(function () { ensureInfrastructure(); syncVisibility(); captureInitialList(); scheduleRestore(); }, 1000);
     }
 
     window.MyCompanyDeviceTabs = { mount: ensureInfrastructure, activateAll: activateAll, activate: activate, close: closeTab };
