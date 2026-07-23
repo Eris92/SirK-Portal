@@ -7,16 +7,17 @@ function errorText(error) {
     return String(error && (error.stack || error.message) || error || "Unknown SIRK Platform load error.");
 }
 
+function sendJson(res, status, value) {
+    if (typeof res.status === "function") res.status(status); else res.statusCode = status;
+    if (typeof res.set === "function") res.set("Content-Type", "application/json; charset=utf-8");
+    else if (typeof res.setHeader === "function") res.setHeader("Content-Type", "application/json; charset=utf-8");
+    if (typeof res.json === "function") res.json(value);
+    else if (typeof res.send === "function") res.send(JSON.stringify(value));
+    else if (typeof res.end === "function") res.end(JSON.stringify(value));
+}
+
 function createFallbackRuntime(error) {
     var message = errorText(error);
-    function sendJson(res, status, value) {
-        if (typeof res.status === "function") res.status(status); else res.statusCode = status;
-        if (typeof res.set === "function") res.set("Content-Type", "application/json; charset=utf-8");
-        else if (typeof res.setHeader === "function") res.setHeader("Content-Type", "application/json; charset=utf-8");
-        if (typeof res.json === "function") res.json(value);
-        else if (typeof res.send === "function") res.send(JSON.stringify(value));
-        else if (typeof res.end === "function") res.end(JSON.stringify(value));
-    }
     return {
         loadError: message,
         modules: {},
@@ -28,27 +29,27 @@ function createFallbackRuntime(error) {
         adminSnapshot: function () {
             return {
                 plugin: { name: "SIRK Management Platform", shortName: "SIRK-Portal", version: VERSION },
-                modules: [], moduleSettings: {}, integrations: {},
-                migration: { completed: false, error: message },
+                modules: [],
+                moduleSettings: {},
+                integrations: {},
                 diagnostics: { logs: "", errors: message },
-                loadError: message, generatedAt: new Date().toISOString()
+                loadError: message,
+                generatedAt: new Date().toISOString()
             };
         },
-        saveAdminSettings: function () { return Promise.reject(new Error("SIRK Platform runtime failed to load: " + message)); }
+        saveAdminSettings: function () {
+            return Promise.reject(new Error("SIRK Platform runtime failed to load: " + message));
+        }
     };
 }
 
 function dataRoot(parent) {
-    var fs = parent.fs || require("fs");
     var path = parent.path || require("path");
     var meshServer = parent && parent.parent;
-    var dataBase = meshServer && meshServer.datapath ? meshServer.datapath : path.dirname(parent.pluginPath || __dirname);
-    var current = path.join(dataBase, "sirk-platform-data");
-    var legacy = path.join(dataBase, "mycompany-data");
-    try {
-        if (!fs.existsSync(current) && fs.existsSync(legacy)) fs.renameSync(legacy, current);
-    } catch (ignored) {}
-    return current;
+    var dataBase = meshServer && meshServer.datapath
+        ? meshServer.datapath
+        : path.dirname(parent.pluginPath || __dirname);
+    return path.join(dataBase, "sirk-platform-data");
 }
 
 function writeLoadError(parent, error) {
@@ -56,20 +57,29 @@ function writeLoadError(parent, error) {
         var fs = parent.fs || require("fs");
         var path = parent.path || require("path");
         var root = dataRoot(parent);
-        if (!fs.existsSync(root)) fs.mkdirSync(root, { recursive: true });
-        fs.writeFileSync(path.join(root, "plugin-load-error.log"), new Date().toISOString() + "\r\n" + errorText(error) + "\r\n", "utf8");
+        fs.mkdirSync(root, { recursive: true });
+        fs.writeFileSync(
+            path.join(root, "plugin-load-error.log"),
+            new Date().toISOString() + "\r\n" + errorText(error) + "\r\n",
+            "utf8"
+        );
     } catch (ignored) {}
 }
 
 function createPlugin(parent, shortName) {
-    var obj = {};
-    obj.parent = parent;
-    obj.meshServer = parent && parent.parent;
-    obj.shortName = shortName || "SIRK-Portal";
-    obj.exports = ["onWebUIStartupEnd", "goPageStart", "goPageEnd", "onDeviceRefreshEnd", "commandResult"];
+    var obj = {
+        parent: parent,
+        meshServer: parent && parent.parent,
+        shortName: shortName || "SIRK-Portal",
+        exports: ["onWebUIStartupEnd", "goPageStart", "goPageEnd", "onDeviceRefreshEnd", "commandResult"]
+    };
 
     try {
-        obj.runtime = require("./core/runtime-portal.js").createRuntime({ parent: parent, pluginRoot: __dirname, source: obj });
+        obj.runtime = require("./server/core/runtime-portal.js").createRuntime({
+            parent: parent,
+            pluginRoot: __dirname,
+            source: obj
+        });
     } catch (error) {
         console.error("SIRK Platform runtime creation failed", error);
         writeLoadError(parent, error);
@@ -86,7 +96,9 @@ function createPlugin(parent, shortName) {
     obj.handleAdminReq = function (req, res, user) { return obj.admin.req(req, res, user); };
     obj.handleAdminPostReq = function (req, res, user) { return obj.admin.post(req, res, user); };
     obj.hook_processAgentData = function (command, agent) {
-        if (obj.runtime && typeof obj.runtime.captureAgentData === "function") obj.runtime.captureAgentData(command, agent);
+        if (obj.runtime && typeof obj.runtime.captureAgentData === "function") {
+            obj.runtime.captureAgentData(command, agent);
+        }
     };
 
     obj.onWebUIStartupEnd = function () {
@@ -95,7 +107,6 @@ function createPlugin(parent, shortName) {
         var browserVersion = VERSION;
         var browserPin = obj.shortName;
         window.__SIRK_PLATFORM_VERSION__ = browserVersion;
-        window.__MYCOMPANY_VERSION__ = browserVersion; // legacy alias
         document.documentElement.classList.add("sirk-platform-native-ui");
 
         function asset(name) {
@@ -105,6 +116,7 @@ function createPlugin(parent, shortName) {
             url.searchParams.set("v", browserVersion);
             return url.href;
         }
+
         function load(id, source) {
             return new Promise(function (resolve, reject) {
                 var existing = document.getElementById(id);
@@ -125,6 +137,7 @@ function createPlugin(parent, shortName) {
                 (document.head || document.documentElement).appendChild(script);
             });
         }
+
         function style(id, name) {
             if (document.getElementById(id)) return;
             var link = document.createElement("link");
@@ -165,22 +178,21 @@ function createPlugin(parent, shortName) {
             ["sirk-platform-device-tabs", "portal-device-tabs.js"],
             ["sirk-platform-runtime", "runtime.js"]
         ];
+
         scripts.reduce(function (chain, item) {
             return chain.then(function () { return load(item[0], asset(item[1])); });
         }, Promise.resolve()).then(function () {
-            var runtime = window.SirkPlatformRuntime || window.MyCompanyRuntime;
-            if (!runtime || typeof runtime.initialize !== "function") throw new Error("SIRK Platform browser runtime was not loaded.");
-            window.SirkPlatformRuntime = runtime;
-            window.MyCompanyRuntime = runtime; // legacy alias
-            return runtime.initialize();
+            if (!window.SirkPlatformRuntime || typeof window.SirkPlatformRuntime.initialize !== "function") {
+                throw new Error("SIRK Platform browser runtime was not loaded.");
+            }
+            return window.SirkPlatformRuntime.initialize();
         }).catch(function (error) {
             if (window.console) console.error("SIRK Platform browser startup failed", error);
         });
     };
 
     function browserRuntime() {
-        if (typeof window === "undefined") return null;
-        return window.SirkPlatformRuntime || window.MyCompanyRuntime || null;
+        return typeof window === "undefined" ? null : window.SirkPlatformRuntime || null;
     }
     obj.goPageStart = function (view) {
         var runtime = browserRuntime();
