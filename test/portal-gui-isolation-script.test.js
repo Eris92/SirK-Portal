@@ -13,10 +13,10 @@ var source = fs.readFileSync(file, "utf8");
     "[ValidateSet('Old', 'New')]",
     "[ValidateSet('Audit', 'Remove', 'Restore')]",
     "[ValidateSet('Exclusive', 'Full')]",
-    "function Get-OldGraph",
-    "function Get-NewGraph",
-    "function New-PortalBackup",
-    "function Restore-PortalBackup",
+    "function Get-OldPortalGraph",
+    "function Get-NewPortalGraph",
+    "function New-PortalGuiBackup",
+    "function Restore-PortalGuiBackup",
     "Compress-Archive",
     "Get-FileHash",
     "legacy-class-usage.csv",
@@ -32,15 +32,15 @@ var source = fs.readFileSync(file, "utf8");
 });
 
 assert(
-    source.indexOf("if ($Action -eq 'Restore')") < source.indexOf("$portalDocuments = @('public/portal-standalone.html'"),
+    source.indexOf("if ($Action -eq 'Restore')") < source.indexOf("foreach ($portalDocument in @('public/portal-standalone.html'"),
     "Restore must run before validating Portal documents that may have been removed."
 );
 assert(
-    source.indexOf("New-PortalBackup") < source.indexOf("Remove-Item -LiteralPath (Join-PluginPath"),
+    source.indexOf("New-PortalGuiBackup -Root") < source.indexOf("Remove-Item -LiteralPath $filePath -Force"),
     "Backup must be created before selected GUI files are removed."
 );
 assert(
-    source.indexOf("$removed = New-Object 'System.Collections.Generic.List[string]'") >= 0,
+    source.indexOf("$removed = New-Object -TypeName 'System.Collections.Generic.List[string]'") >= 0,
     "Removed files must use a dynamic collection."
 );
 assert(
@@ -54,6 +54,10 @@ assert(
 assert(
     source.indexOf("git clean") < 0 && source.indexOf("Remove-Item -LiteralPath $root -Recurse") < 0,
     "The isolation script must not perform broad repository deletion."
+);
+assert(
+    source.indexOf("Complete-PortalGuiOperation -Result $result -ExitCode 10") >= 0,
+    "A skipped Restore must exit before rebuilding graphs from potentially missing files."
 );
 
 console.log("Portal GUI isolation PowerShell contract: OK");
