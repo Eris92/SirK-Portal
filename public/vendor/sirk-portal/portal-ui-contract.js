@@ -124,6 +124,21 @@
         doc.head.appendChild(link);
     }
 
+    function syncFrameEnvironment(doc, adminRoot) {
+        var dark = root.classList.contains("sirk-theme-dark");
+        adminRoot.classList.toggle("sirk-theme-dark", dark);
+        adminRoot.classList.toggle("sirk-theme-light", !dark);
+        doc.documentElement.classList.toggle("sirk-theme-dark", dark);
+        doc.documentElement.classList.toggle("sirk-theme-light", !dark);
+        doc.documentElement.style.colorScheme = dark ? "dark" : "light";
+
+        var source = window.getComputedStyle(root);
+        ["--sirk-panel", "--sirk-input", "--sirk-text", "--sirk-muted", "--sirk-border", "--sirk-active-accent"].forEach(function (name) {
+            var value = source.getPropertyValue(name);
+            if (value) adminRoot.style.setProperty(name, value.trim());
+        });
+    }
+
     function decorateSettingsFrame(frame) {
         if (!frame) return;
 
@@ -138,6 +153,7 @@
                 admin.classList.add("mc-admin-portal-embedded");
                 doc.documentElement.classList.add("mc-portal-admin-document");
                 ensureFrameStyle(doc);
+                syncFrameEnvironment(doc, adminRoot);
                 decorate(adminRoot);
 
                 if (!frame.__myCompanyPortalUiObserver) {
