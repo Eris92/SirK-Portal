@@ -8,45 +8,22 @@
     (function prepareInitialView() {
         var root = document.getElementById("sirkStandaloneRoot");
         var content = document.getElementById("sirkStandaloneContent");
-        var nav = root && root.querySelector(".sirk-standalone-nav");
         var child = false;
         var savedActive = "all";
-        var menuTimer = 0;
-        var menuTimeout = 0;
+        var finished = false;
+        var readinessTimer = 0;
+        var fallbackTimer = 0;
+
+        if (root) {
+            document.documentElement.classList.add("sirk-portal-boot-pending");
+            root.style.visibility = "hidden";
+            root.style.pointerEvents = "none";
+            root.setAttribute("aria-busy", "true");
+        }
 
         try {
             child = new URL(window.location.href).searchParams.get("sirkWorkspaceChild") === "1";
         } catch (error) {}
-
-        // The static HTML contains all possible menu entries. Keep only the menu
-        // list hidden until bootstrap applies permissions and Portal view settings.
-        // The sidebar, brand and controls stay visible and never flash.
-        if (!child && nav) {
-            nav.style.visibility = "hidden";
-            nav.style.pointerEvents = "none";
-            nav.setAttribute("aria-busy", "true");
-            menuTimer = window.setInterval(function () {
-                var runtime = window.MyCompanyRuntime;
-                var ready = runtime && runtime.state && runtime.state.bootstrap;
-                if (!ready) return;
-                window.clearInterval(menuTimer);
-                menuTimer = 0;
-                window.requestAnimationFrame(function () {
-                    nav.style.visibility = "";
-                    nav.style.pointerEvents = "";
-                    nav.removeAttribute("aria-busy");
-                });
-            }, 25);
-            menuTimeout = window.setTimeout(function () {
-                if (menuTimer) {
-                    window.clearInterval(menuTimer);
-                    menuTimer = 0;
-                }
-                nav.style.visibility = "";
-                nav.style.pointerEvents = "";
-                nav.removeAttribute("aria-busy");
-            }, 3000);
-        }
 
         try {
             var saved = JSON.parse(localStorage.getItem("mycompany.sirkportal.deviceTabs") || "{}");
@@ -76,66 +53,93 @@
         var title = document.getElementById("sirkStandaloneTitle");
         if (title && requestedButton) title.textContent = requestedButton.textContent;
 
-        // Never hide the child document or its content. The child starts with the
-        // stable loading surface already present in HTML, then replaces it with the
-        // restored host workspace. Hiding it caused a full white flash on every F5.
-        if (child && content && restoreHost) {
-            document.documentElement.classList.add("sirk-device-restore-pending");
-            content.setAttribute("aria-busy", "true");
-            content.setAttribute("data-device-tab-restore-pending", "1");
+        function bootstrapReady() {
+            var runtime = window.MyCompanyRuntime;
+            return !!(runtime && runtime.state && runtime.state.bootstrap && runtime.state.bootstrap.modules);
         }
 
-        var finished = false;
-        var observer = null;
-        var timer = null;
+        function menuReady() {
+            var menuButtons = document.querySelectorAll(".sirk-standalone-nav [data-view]");
+            if (!menuButtons.length) return false;
+            for (var index = 0; index < menuButtons.length; index += 1) {
+                if (!menuButtons[index].hasAttribute("aria-hidden")) return false;
+            }
+            return true;
+        }
+
+        function desiredChildTab() {
+            try {
+                var value = JSON.parse(localStorage.getItem("mycompany.sirkportal.deviceActiveTabs") || "{}");
+                return String(value && value.__last__ || "general");
+            } catch (error) {
+                return "general";
+            }
+        }
+
+        function childWorkspaceReady() {
+            if (!bootstrapReady() || !content) return false;
+            if (String(content.getAttribute("data-active-view") || "") !== "devices") return false;
+            var workspace = content.querySelector(".sirk-device-workspace");
+            if (!workspace) return false;
+            var desired = desiredChildTab();
+            var desiredButton = workspace.querySelector('[data-device-tab="' + desired.replace(/"/g, '\\"') + '"]');
+            if (!desiredButton) desired = "general";
+            var active = workspace.querySelector("[data-device-tab].is-active");
+            return !!(active && active.getAttribute("data-device-tab") === desired);
+        }
+
+        function parentWorkspaceReady() {
+            if (!bootstrapReady() || !menuReady() || !content) return false;
+            var currentView = String(content.getAttribute("data-active-view") || "");
+            if (!currentView || !content.childNodes.length) return false;
+            if (!restoreHost) return true;
+
+            var activeTab = document.querySelector(".sirk-device-tabs-standalone .sirk-device-tab.is-active[data-device-workspace-key]");
+            var activeKey = activeTab && String(activeTab.getAttribute("data-device-workspace-key") || "");
+            var frame = document.querySelector(".sirk-device-session-layer.is-active .sirk-device-isolated-frame");
+            if (!activeKey || activeKey === "all" || !frame) return false;
+
+            try {
+                var childDocument = frame.contentDocument;
+                var childRoot = childDocument && childDocument.getElementById("sirkStandaloneRoot");
+                return !!(childRoot && childRoot.style.visibility !== "hidden" &&
+                    !childDocument.documentElement.classList.contains("sirk-portal-boot-pending"));
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function ready() {
+            return child ? childWorkspaceReady() : parentWorkspaceReady();
+        }
 
         function reveal() {
             if (finished) return;
             finished = true;
-            if (observer) observer.disconnect();
-            if (timer) window.clearTimeout(timer);
+            if (readinessTimer) window.clearInterval(readinessTimer);
+            if (fallbackTimer) window.clearTimeout(fallbackTimer);
             document.documentElement.classList.remove("sirk-portal-boot-pending", "sirk-device-restore-pending");
             if (root) {
                 root.style.visibility = "";
                 root.style.pointerEvents = "";
                 root.removeAttribute("aria-busy");
             }
-            if (content) {
-                content.style.visibility = "";
-                content.style.pointerEvents = "";
-                content.removeAttribute("aria-busy");
-                content.removeAttribute("data-device-tab-restore-pending");
-            }
             window.dispatchEvent(new Event("resize"));
         }
 
-        core.revealPortal = function () {
-            reveal();
-            return true;
+        function checkReady() {
+            if (ready()) reveal();
+        }
+
+        core.revealPortal = function (force) {
+            if (force === true) reveal();
+            else checkReady();
+            return finished;
         };
 
-        function ready() {
-            if (finished || !content) return;
-            if (!child) {
-                reveal();
-                return;
-            }
-            if (content.querySelector(".sirk-device-workspace,.sirk-device-compact-header,[data-device-workspace-ready='1']")) reveal();
-        }
-
-        if (child && content) {
-            observer = new MutationObserver(function () { window.setTimeout(ready, 0); });
-            observer.observe(content, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                attributeFilter: ["class", "hidden", "data-active-view", "data-device-workspace-ready"]
-            });
-            timer = window.setTimeout(reveal, 1200);
-            ready();
-        } else {
-            reveal();
-        }
+        readinessTimer = window.setInterval(checkReady, 50);
+        fallbackTimer = window.setTimeout(reveal, 3000);
+        checkReady();
     }());
 
     core.assetVersion = String(window.__MYCOMPANY_PORTAL_VERSION__ || "1.5.0");
