@@ -70,6 +70,41 @@ Dla audytu bezpieczeństwa, threat modelingu, hardeningu, podatności, authentic
 
 - `docs/agent/41-Agent-Security.md`
 
+## Obowiązkowa kontrola zmian MyCompany
+
+Przed modyfikacją interfejsu ustal faktyczny łańcuch ładowania:
+
+1. znajdź HTML lub bootstrap dodający dany asset;
+2. potwierdź nazwę pliku obsługującego widok;
+3. potwierdź, że asset jest udostępniany przez `MyCompanyAdmin.js` albo `plugin-main.js`;
+4. sprawdź bieżącą zawartość tego pliku przed zmianą;
+5. po zmianie sprawdź diff i źródła wersji.
+
+Nie zakładaj, że plik o podobnej nazwie jest używany przez runtime. Nie ogłaszaj poprawki, jeżeli zmieniony został wyłącznie plik, którego ładowania nie potwierdzono.
+
+Dla zmian SirK Portal obowiązują dodatkowe kontrakty:
+
+- nie ukrywaj całego `#sirkStandaloneRoot` ani całego dokumentu podczas `F5`;
+- nie stosuj długich timeoutów jako podstawowego mechanizmu gotowości;
+- wyłączone elementy menu nie mogą być widoczne przed zastosowaniem uprawnień;
+- gotowy widok ma być podstawiany jednokrotnie, bez sekwencji `Overview → host → zniknięcie → host`;
+- iframe aktywnej sesji hosta jest trwałym elementem DOM: nie przenoś go, nie usuwaj i nie zmieniaj `src` przy przełączaniu widoków;
+- przełączanie hostów i sekcji może zmieniać wyłącznie widoczność, `pointer-events`, klasy i położenie trwałej warstwy sesji;
+- aktywny host i jego podzakładka muszą być zapisywane osobno i odtwarzane bez zerwania sesji;
+- PL/EN i jasny/ciemny muszą synchronizować się do wszystkich otwartych workspace’ów bez ich przeładowania.
+
+Po zmianie UI wykonaj co najmniej:
+
+- test jednostkowy lub kontraktowy obejmujący zmieniony mechanizm;
+- `npm test` dla całego pluginu;
+- kontrolę `F5` na `All`, aktywnym hoście i aktywnej sesji;
+- kontrolę przejścia `Devices → inny widok → Devices` bez utraty iframe;
+- kontrolę PL/EN i jasny/ciemny bez opuszczania bieżącego widoku.
+
+Test tekstowy nie może sprawdzać nieistniejącej klasy lub starej implementacji. Każda asercja musi odpowiadać aktualnemu kodowi runtime.
+
+Zmiana wyłącznie dokumentacji nie wymaga podnoszenia wersji pluginu. Zmiana runtime wymaga spójnej aktualizacji wszystkich źródeł wersji oraz dokumentacji wydania.
+
 Nie wczytuj wszystkich instrukcji bez potrzeby. Dla prostego podzadania po zaklasyfikowaniu do `FAST_PATH` użyj właściwego Skill lub skryptu i nie analizuj pełnej architektury projektu.
 
 Kontrolowany wyjątek pozwalający zapisać jawnie oznaczone poświadczenia testowe znajduje się wyłącznie w `07-Agent-Konfiguracja-Sekrety.md`. Nie rozszerzaj go na inne sekrety.
