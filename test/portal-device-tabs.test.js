@@ -6,6 +6,7 @@ var css = read("public/portal-device-tabs.css");
 var main = read("plugin-main.js");
 var admin = read("MyCompanyAdmin.js");
 var standalone = read("public/portal-standalone.html");
+var standaloneCore = read("public/standalone-core.js");
 [
     'var STORAGE_KEY = "mycompany.sirkportal.deviceTabs"',
     'var CHILD_PARAM = "sirkWorkspaceChild"',
@@ -43,4 +44,8 @@ assert(main.indexOf('load("mycompany-device-tabs-script", asset("portal-device-t
 assert(standalone.indexOf('__ASSET_BASE__/portal-device-tabs.css?v=__VERSION__') >= 0, "Standalone Portal must load device tab CSS");
 assert(standalone.indexOf('__ASSET_BASE__/portal-device-tabs.js?v=__VERSION__') >= 0, "Standalone Portal must load device tab script");
 assert(admin.indexOf('"portal-device-tabs.js"') >= 0 && admin.indexOf('"portal-device-tabs.css"') >= 0, "Admin asset server must expose device tab assets");
+assert(standaloneCore.indexOf('root.style.visibility = "hidden"') < 0, "F5 startup must never hide the complete Portal root");
+assert(standaloneCore.indexOf("15000") < 0, "F5 startup must not use a 15 second reveal timeout");
+assert(standaloneCore.indexOf('window.setTimeout(reveal, 1200)') >= 0, "Child workspace restore must have a short bounded fallback");
+assert(standaloneCore.indexOf('if (!child) {\n                reveal();') >= 0, "Main Portal must reveal immediately without waiting for host restore");
 console.log("Isolated multi-host Portal device sessions: OK");
