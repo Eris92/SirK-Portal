@@ -28,6 +28,8 @@ function files(relative) {
 });
 
 [
+    "SIRK-Portal.js",
+    "admin.js",
     "tools/install/Install-MyCompany-FromGit.ps1",
     "tools/install/Install-MyCompany-FromGit_RUN.ps1",
     "docs/REPOSITORY-LAYOUT.md",
@@ -38,6 +40,33 @@ function files(relative) {
 ].forEach(function (relative) {
     if (!exists(relative)) errors.push("Missing canonical layout file: " + relative);
 });
+
+var config = JSON.parse(read("config.json"));
+var packageJson = JSON.parse(read("package.json"));
+if (config.name !== "SIRK Management Platform") errors.push("Plugin display name must be SIRK Management Platform.");
+if (config.shortName !== "SIRK-Portal") errors.push("Plugin shortName must be SIRK-Portal.");
+if (packageJson.name !== "sirk-portal") errors.push("Package name must be sirk-portal.");
+
+var canonicalEntry = read("SIRK-Portal.js");
+if (canonicalEntry.indexOf('module.exports["SIRK-Portal"]') < 0) {
+    errors.push("Canonical entrypoint must export SIRK-Portal.");
+}
+if (exists("MyCompany.js")) {
+    var legacyEntry = read("MyCompany.js");
+    if (legacyEntry.length > 900 || legacyEntry.indexOf('require("./SIRK-Portal.js")') < 0) {
+        errors.push("MyCompany.js must remain a small legacy compatibility shim only.");
+    }
+}
+
+var pluginMain = read("plugin-main.js");
+if (pluginMain.indexOf('browserPin = "MyCompany"') >= 0) errors.push("Browser asset pin must not be hardcoded to MyCompany.");
+if (pluginMain.indexOf("SIRK Management Platform") < 0 || pluginMain.indexOf("SirkPlatformRuntime") < 0) {
+    errors.push("Plugin runtime must use canonical SIRK Platform naming.");
+}
+var adminView = read("views/MyCompany.handlebars");
+if (adminView.indexOf("SIRK Management Platform") < 0 || adminView.indexOf("SirkPlatformAdminData") < 0) {
+    errors.push("Administration view must expose SIRK Management Platform branding.");
+}
 
 fs.readdirSync(root, { withFileTypes: true }).forEach(function (entry) {
     if (!entry.isFile() || !/\.ps1$/i.test(entry.name)) return;
@@ -54,9 +83,7 @@ allowedRootPowerShell.forEach(function (name) {
 
 if (exists("web")) {
     fs.readdirSync(absolute("web"), { withFileTypes: true }).forEach(function (entry) {
-        if (entry.isFile() && /\.(?:js|css)$/i.test(entry.name)) {
-            errors.push("Admin frontend file must live in web/admin: web/" + entry.name);
-        }
+        if (entry.isFile() && /\.(?:js|css)$/i.test(entry.name)) errors.push("Admin frontend file must live in web/admin: web/" + entry.name);
     });
 }
 
@@ -76,15 +103,9 @@ var backendApproval = exists("server/modules/approvalcenter/index.js")
     ? "server/modules/approvalcenter/index.js"
     : "modules/ApprovalCenter/index.js";
 var rendererApproval = "public/modules/approvalcenter.js";
-if (!exists(backendApproval) || read(backendApproval).indexOf("module.exports.createModule") < 0) {
-    errors.push("Approval Center backend module is missing or invalid.");
-}
-if (!exists(rendererApproval) || read(rendererApproval).indexOf("window.MyCompanyModules.approvalcenter") < 0) {
-    errors.push("Canonical Approval Center browser renderer is missing or invalid.");
-}
-if (exists("public/approvalcenter.js")) {
-    errors.push("Duplicate Approval Center renderer must not exist: public/approvalcenter.js");
-}
+if (!exists(backendApproval) || read(backendApproval).indexOf("module.exports.createModule") < 0) errors.push("Approval Center backend module is missing or invalid.");
+if (!exists(rendererApproval) || read(rendererApproval).indexOf("window.MyCompanyModules.approvalcenter") < 0) errors.push("Canonical Approval Center browser renderer is missing or invalid.");
+if (exists("public/approvalcenter.js")) errors.push("Duplicate Approval Center renderer must not exist: public/approvalcenter.js");
 
 var registrations = Object.create(null);
 files("public").filter(function (file) { return /\.js$/i.test(file); }).forEach(function (file) {
@@ -103,29 +124,20 @@ Object.keys(registrations).forEach(function (key) {
 });
 
 var adminSource = read("MyCompanyAdmin.js");
-if (adminSource.indexOf('"approvalcenter.js": ["public/modules/approvalcenter.js"') < 0) {
-    errors.push("Asset router must point approvalcenter.js to the canonical public/modules renderer.");
-}
-if (adminSource.indexOf('"icons/sirk-ui.svg": ["assets/icons/sirk-ui.svg"') < 0) {
-    errors.push("Central icon sprite is not exposed by the asset router.");
-}
-if (adminSource.indexOf('"shared/icon-registry.js": ["public/shared/icon-registry.js"') < 0) {
-    errors.push("Shared icon registry is not exposed by the asset router.");
-}
-if (adminSource.indexOf('"admin.css": ["web/admin/admin.css"') < 0 || /\["web\/admin(?:-[^"\]]+)?\.(?:js|css)"/.test(adminSource)) {
-    errors.push("Admin asset router must use only web/admin/* paths.");
-}
+if (adminSource.indexOf('"approvalcenter.js": ["public/modules/approvalcenter.js"') < 0) errors.push("Asset router must point approvalcenter.js to the canonical public/modules renderer.");
+if (adminSource.indexOf('"icons/sirk-ui.svg": ["assets/icons/sirk-ui.svg"') < 0) errors.push("Central icon sprite is not exposed by the asset router.");
+if (adminSource.indexOf('"shared/icon-registry.js": ["public/shared/icon-registry.js"') < 0) errors.push("Shared icon registry is not exposed by the asset router.");
+if (adminSource.indexOf('"admin.css": ["web/admin/admin.css"') < 0 || /\["web\/admin(?:-[^"\]]+)?\.(?:js|css)"/.test(adminSource)) errors.push("Admin asset router must use only web/admin/* paths.");
 
 var navSource = read("public/portal-standalone-nav.js");
-if (navSource.indexOf("shared/icon-registry.js") < 0 || navSource.indexOf("window.SirkIcons.svg") < 0) {
-    errors.push("Standalone Portal navigation must use the shared icon registry.");
-}
+if (navSource.indexOf("shared/icon-registry.js") < 0 || navSource.indexOf("window.SirkIcons.svg") < 0) errors.push("Standalone Portal navigation must use the shared icon registry.");
 
 if (errors.length) {
     console.error(errors.join("\n"));
     process.exit(1);
 }
 console.log("Repository layout validation: OK");
+console.log("SIRK Platform naming validation: OK");
 console.log("Canonical frontend renderer validation: OK");
 console.log("Central icon registry validation: OK");
 console.log("Canonical admin directory validation: OK");
