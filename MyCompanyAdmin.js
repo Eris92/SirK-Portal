@@ -7,7 +7,8 @@ var pluginAdminFactory = require("./core/plugin-admin-service-backup-discovery.j
 var serverAdminFactory = require("./core/server-admin-service.js");
 
 module.exports.admin = function (plugin) {
-    var obj = {}, root = __dirname;
+    var obj = {};
+    var root = __dirname;
     var pluginAdmin = pluginAdminFactory.createPluginAdminService({
         pluginHandler: plugin.parent,
         fs: fs,
@@ -20,16 +21,16 @@ module.exports.admin = function (plugin) {
     });
 
     var assets = {
-        "admin.css": ["web/admin.css", "text/css; charset=utf-8"],
-        "admin-ui-enhancements.css": ["web/admin-ui-enhancements.css", "text/css; charset=utf-8"],
-        "admin.js": ["web/admin.js", "text/javascript; charset=utf-8"],
-        "admin-layout.js": ["web/admin-layout.js", "text/javascript; charset=utf-8"],
-        "admin-approval-policy.js": ["web/admin-approval-policy.js", "text/javascript; charset=utf-8"],
-        "admin-ui-enhancements.js": ["web/admin-ui-enhancements.js", "text/javascript; charset=utf-8"],
-        "admin-plugin-updates.js": ["web/admin-plugin-updates.js", "text/javascript; charset=utf-8"],
-        "admin-marketplace.js": ["web/admin-marketplace.js", "text/javascript; charset=utf-8"],
-        "admin-move-mesh-levels.js": ["web/admin-move-mesh-levels.js", "text/javascript; charset=utf-8"],
-        "admin-portal.js": ["web/admin-portal.js", "text/javascript; charset=utf-8"],
+        "admin.css": ["web/admin/admin.css", "text/css; charset=utf-8"],
+        "admin-ui-enhancements.css": ["web/admin/admin-ui-enhancements.css", "text/css; charset=utf-8"],
+        "admin.js": ["web/admin/admin.js", "text/javascript; charset=utf-8"],
+        "admin-layout.js": ["web/admin/admin-layout.js", "text/javascript; charset=utf-8"],
+        "admin-approval-policy.js": ["web/admin/admin-approval-policy.js", "text/javascript; charset=utf-8"],
+        "admin-ui-enhancements.js": ["web/admin/admin-ui-enhancements.js", "text/javascript; charset=utf-8"],
+        "admin-plugin-updates.js": ["web/admin/admin-plugin-updates.js", "text/javascript; charset=utf-8"],
+        "admin-marketplace.js": ["web/admin/admin-marketplace.js", "text/javascript; charset=utf-8"],
+        "admin-move-mesh-levels.js": ["web/admin/admin-move-mesh-levels.js", "text/javascript; charset=utf-8"],
+        "admin-portal.js": ["web/admin/admin-portal.js", "text/javascript; charset=utf-8"],
         "marketplace.json": ["marketplace.json", "application/json; charset=utf-8"],
 
         "core.js": ["public/core.js", "text/javascript; charset=utf-8"],
@@ -87,11 +88,14 @@ module.exports.admin = function (plugin) {
     };
 
     function serve(res, name) {
-        var def = assets[name];
-        if (!def) { shared.send(res, 404, "text/plain; charset=utf-8", "Not found"); return; }
-        fs.readFile(path.join(root, def[0]), function (error, data) {
+        var definition = assets[name];
+        if (!definition) {
+            shared.send(res, 404, "text/plain; charset=utf-8", "Not found");
+            return;
+        }
+        fs.readFile(path.join(root, definition[0]), function (error, data) {
             if (error) shared.send(res, 404, "text/plain; charset=utf-8", "Not found");
-            else shared.send(res, 200, def[1], data);
+            else shared.send(res, 200, definition[1], data);
         });
     }
 
