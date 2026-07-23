@@ -7,20 +7,25 @@ var main = read("plugin-main.js");
 var admin = read("MyCompanyAdmin.js");
 var standalone = read("public/portal-standalone.html");
 [
-    'name: "ALL | Wszystkie"',
+    'function allLabel()',
+    'language() === "en" ? "All" : "Wszystkie"',
     'className = "sirk-device-tab-close"',
     'className = "sirk-device-tab-store"',
     'document.getElementById("sirkStandaloneContent")',
     'content.closest(".sirk-standalone-main")',
     'main.insertBefore(state.bar, content)',
     '.sirk-standalone-sidebar .sirk-device-tabs',
+    'cloneChildren(state.content, state.panes.all.store)',
+    'state.content.querySelector(".sirk-device-workspace")',
     'moveChildren(state.content, pane.store)',
     'moveChildren(pane.store, state.content)',
     'window.MyCompanyDeviceTabs',
-    'disconnectPane(pane)'
+    'disconnectPane(pane)',
+    'sirkportal:languagechange'
 ].forEach(function (value) { assert(tabs.indexOf(value) >= 0, "Missing persistent standalone device tab contract: " + value); });
 assert(tabs.indexOf("DocumentFragment") < 0, "Device tabs must not store live workspaces in consumable DocumentFragment objects");
 assert(tabs.indexOf('root.querySelector(\'[data-view="devices"]\')') < 0, "Standalone tabs must not resolve the sidebar navigation button as the Devices workspace");
+assert(tabs.indexOf('stashActive();\n        window.clearTimeout(state.finalizeTimer)') < 0, "Device list must not be removed before the host workspace renderer runs");
 [
     ".sirk-device-tabs",
     "height:32px",
