@@ -1,26 +1,46 @@
 (function () {
     "use strict";
 
-    var root = document.getElementById("mycompany-admin");
-    var tabs = root && root.querySelector(".mc-admin-tabs");
+    var admin = document.getElementById("mycompany-admin");
+    var tabs = admin && admin.querySelector(".mc-admin-tabs");
     var content = document.getElementById("mycompany-admin-content");
-    if (!root || !tabs || !content) return;
+    if (!admin || !tabs || !content) return;
 
     var STORAGE_COLLAPSED = "mycompany.admin.managementCollapsed";
     var shell = document.createElement("div");
+    var toolbarHost = document.createElement("div");
     var toolbar = document.createElement("div");
+    var workspace = document.createElement("div");
+    var layout = document.createElement("div");
     var middle = document.createElement("div");
-    shell.className = "mc-admin-shell mc-admin-management-shell";
-    toolbar.className = "mc-admin-management-toolbar";
-    middle.className = "mc-admin-middle";
-    root.insertBefore(shell, tabs);
-    shell.appendChild(toolbar);
-    shell.appendChild(tabs);
-    shell.appendChild(middle);
-    shell.appendChild(content);
+
+    shell.className = "mc-admin-shell mc-admin-management-shell mc-portal-module-shell mc-portal-module-admin";
+    toolbarHost.className = "mc-portal-module-toolbar";
+    toolbar.className = "mc-admin-management-toolbar mc-shared-toolbar mc-portal-toolbar";
+    workspace.className = "mc-portal-module-workspace";
+    layout.className = "mc-admin-management-layout mc-portal-module-layout";
+    tabs.classList.add("mc-portal-module-primary");
+    middle.className = "mc-admin-middle mc-portal-module-secondary";
+    content.classList.add("mc-portal-module-details");
+
+    admin.insertBefore(shell, tabs);
+    shell.appendChild(toolbarHost);
+    toolbarHost.appendChild(toolbar);
+    shell.appendChild(workspace);
+    workspace.appendChild(layout);
+    layout.appendChild(tabs);
+    layout.appendChild(middle);
+    layout.appendChild(content);
+
+    try {
+        if (new URL(window.location.href).searchParams.get("portal") === "1") {
+            admin.classList.add("mc-admin-portal-embedded");
+            document.documentElement.classList.add("mc-portal-admin-document");
+        }
+    } catch (error) {}
 
     function svg(path) {
-        return '<svg viewBox="0 0 24 24" aria-hidden="true">' + path + '</svg>';
+        return '<svg viewBox="0 0 24 24" aria-hidden="true">' + path + "</svg>";
     }
 
     var icons = {
@@ -45,11 +65,11 @@
     function toolButton(action, title, icon) {
         var button = document.createElement("button");
         button.type = "button";
-        button.className = "mc-admin-management-tool";
+        button.className = "mc-admin-management-tool mc-shared-toolbar-button mc-portal-toolbar-button";
         button.setAttribute("data-admin-tool", action);
         button.title = title;
         button.setAttribute("aria-label", title);
-        button.innerHTML = icon;
+        button.innerHTML = '<span class="mc-shared-toolbar-icon mc-portal-toolbar-icon">' + icon + "</span>";
         toolbar.appendChild(button);
         return button;
     }
@@ -58,9 +78,9 @@
     var refresh = toolButton("refresh", "Odśwież", svg('<path d="M20 6v5h-5M4 18v-5h5"/><path d="M6.1 8A7 7 0 0 1 18 6l2 5M4 13l2 5a7 7 0 0 0 11.9-2"/>'));
     var search = toolButton("search", "Szukaj ustawienia", svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'));
     var searchBox = document.createElement("label");
-    searchBox.className = "mc-admin-management-search";
+    searchBox.className = "mc-admin-management-search mc-shared-toolbar-search";
     searchBox.hidden = true;
-    searchBox.innerHTML = '<span class="sr-only">Szukaj ustawienia</span><input type="search" placeholder="Szukaj sekcji…">';
+    searchBox.innerHTML = '<span class="sr-only">Szukaj ustawienia</span><input class="mc-portal-filter" type="search" placeholder="Szukaj sekcji…">';
     toolbar.appendChild(searchBox);
 
     function isCollapsed() {
@@ -69,21 +89,27 @@
     }
 
     function setCollapsed(value) {
-        shell.classList.toggle("is-collapsed", value === true);
-        collapse.innerHTML = value ? svg('<path d="m9 18 6-6-6-6"/>') : svg('<path d="m15 18-6-6 6-6"/>');
+        value = value === true;
+        shell.classList.toggle("is-collapsed", value);
+        layout.classList.toggle("is-collapsed", value);
+        collapse.querySelector(".mc-shared-toolbar-icon").innerHTML = value
+            ? svg('<path d="m9 18 6-6-6-6"/>')
+            : svg('<path d="m15 18-6-6 6-6"/>');
         collapse.title = value ? "Rozwiń menu" : "Zwiń menu";
         collapse.setAttribute("aria-label", collapse.title);
         try { window.localStorage.setItem(STORAGE_COLLAPSED, value ? "1" : "0"); } catch (error) {}
     }
 
     function decorateButton(button, key) {
-        if (!button || button.querySelector(".mc-admin-management-item-icon")) return;
+        if (!button) return;
+        button.classList.add("mc-portal-nav-item");
+        if (button.querySelector(".mc-admin-management-item-icon")) return;
         var label = document.createElement("span");
-        label.className = "mc-admin-management-item-label";
+        label.className = "mc-admin-management-item-label mc-portal-nav-label";
         label.textContent = button.textContent.trim();
         button.textContent = "";
         var icon = document.createElement("span");
-        icon.className = "mc-admin-management-item-icon";
+        icon.className = "mc-admin-management-item-icon mc-portal-nav-icon";
         icon.innerHTML = icons[key] || icons.settings;
         button.appendChild(icon);
         button.appendChild(label);
@@ -145,15 +171,20 @@
         middle.hidden = !navigation;
         shell.classList.toggle("has-middle", !!navigation);
         shell.setAttribute("data-admin-view", active);
+        shell.style.setProperty("--portal-secondary-width", navigation ? "236px" : "0px");
 
-        var layout = content.querySelector(".mc-admin-settings-layout");
-        if (layout) layout.classList.add("mc-admin-settings-layout-single");
+        var settingsLayout = content.querySelector(".mc-admin-settings-layout");
+        if (settingsLayout) settingsLayout.classList.add("mc-admin-settings-layout-single");
         cleanApprovalProviderOptions();
         decorateNavigation();
         applySearch();
+
+        if (window.MyCompanyPortalUiContract && typeof window.MyCompanyPortalUiContract.refresh === "function") {
+            window.MyCompanyPortalUiContract.refresh();
+        }
     }
 
-    collapse.onclick = function () { setCollapsed(!shell.classList.contains("is-collapsed")); };
+    collapse.onclick = function () { setCollapsed(!layout.classList.contains("is-collapsed")); };
     refresh.onclick = function () { window.location.reload(); };
     search.onclick = function () {
         searchBox.hidden = !searchBox.hidden;
