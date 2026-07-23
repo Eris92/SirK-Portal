@@ -113,6 +113,8 @@
         fullscreen.setAttribute("role", "menuitem");
         fullscreen.innerHTML = '<span>⛶</span><span>' + text("Pełny ekran połączenia", "Connection fullscreen") + '</span>';
 
+        var openedAt = 0;
+
         function refresh() {
             var active = document.documentElement.classList.contains("sirk-device-focus-mode");
             focus.classList.toggle("is-active", active);
@@ -125,10 +127,8 @@
             toggle.setAttribute("aria-expanded", "false");
         }
 
-        function showMenu() {
-            refresh();
-            menu.hidden = false;
-            toggle.setAttribute("aria-expanded", "true");
+        function positionMenu() {
+            if (menu.hidden) return;
             var rect = toggle.getBoundingClientRect();
             var menuWidth = Math.max(menu.offsetWidth || 230, 230);
             var left = Math.min(window.innerWidth - menuWidth - 8, Math.max(8, rect.right - menuWidth));
@@ -136,6 +136,14 @@
             if (top + (menu.offsetHeight || 92) > window.innerHeight - 8) top = Math.max(8, rect.top - (menu.offsetHeight || 92) - 7);
             menu.style.left = left + "px";
             menu.style.top = top + "px";
+        }
+
+        function showMenu() {
+            refresh();
+            openedAt = Date.now();
+            menu.hidden = false;
+            toggle.setAttribute("aria-expanded", "true");
+            positionMenu();
         }
 
         toggle.addEventListener("click", function (event) {
@@ -149,26 +157,44 @@
         toggle.addEventListener("contextmenu", function (event) {
             event.preventDefault();
             event.stopPropagation();
-            if (menu.hidden) showMenu();
-            else hideMenu();
+            showMenu();
         });
 
-        focus.addEventListener("click", function () {
+        menu.addEventListener("pointerdown", function (event) {
+            event.stopPropagation();
+        });
+        menu.addEventListener("contextmenu", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        });
+
+        focus.addEventListener("click", function (event) {
+            event.stopPropagation();
             setFocusMode(!document.documentElement.classList.contains("sirk-device-focus-mode"));
             hideMenu();
             refresh();
         });
 
-        fullscreen.addEventListener("click", function () {
+        fullscreen.addEventListener("click", function (event) {
+            event.stopPropagation();
             hideMenu();
             enterConnectionFullscreen();
         });
 
-        document.addEventListener("click", function (event) {
+        document.addEventListener("pointerdown", function (event) {
+            if (Date.now() - openedAt < 300) return;
             if (!host.contains(event.target) && !menu.contains(event.target)) hideMenu();
+        }, true);
+        document.addEventListener("contextmenu", function (event) {
+            if (toggle.contains(event.target) || menu.contains(event.target)) return;
+            hideMenu();
+        }, true);
+        window.addEventListener("resize", function () {
+            if (!menu.hidden) positionMenu();
         });
-        window.addEventListener("resize", hideMenu);
-        window.addEventListener("scroll", hideMenu, true);
+        window.addEventListener("scroll", function () {
+            if (!menu.hidden) positionMenu();
+        }, true);
 
         menu.appendChild(focus);
         menu.appendChild(fullscreen);
