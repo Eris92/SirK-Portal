@@ -1,63 +1,55 @@
 (function () {
     "use strict";
 
-    if (window.__myCompanyDeviceTabsLoaded) return;
-    window.__myCompanyDeviceTabsLoaded = true;
+    if (window.__myCompanyStandaloneDeviceTabsV2Loaded) return;
+    window.__myCompanyStandaloneDeviceTabsV2Loaded = true;
 
     var state = {
         root: null,
-        view: null,
+        main: null,
+        content: null,
         bar: null,
         cache: null,
         panes: Object.create(null),
         active: "all",
         pending: null,
         finalizeTimer: 0,
-        ensureTimer: 0,
         observer: null
     };
 
     function text(value) { return String(value || "").replace(/\s+/g, " ").trim(); }
     function safeKey(value) { return text(value).replace(/[^a-z0-9._:-]/gi, "_").slice(0, 180); }
 
-    function findDeviceView(root) {
-        if (!root) return null;
-        var direct = root.querySelector([
-            '[data-view="devices"]',
-            '[data-view="device"]',
-            '[data-sirk-view-content="devices"]',
-            '#sirkDevicesView',
-            '.sirk-devices-view',
-            '.sirk-device-view'
-        ].join(","));
-        if (direct) return direct;
-
-        var candidates = root.querySelectorAll("section,main,div");
-        for (var i = 0; i < candidates.length; i++) {
-            var heading = candidates[i].querySelector && candidates[i].querySelector(":scope > h1,:scope > h2,:scope > header h1,:scope > header h2");
-            var title = text(heading && heading.textContent).toLowerCase();
-            if ((title === "devices" || title === "urządzenia" || title === "urzadzenia") && candidates[i].querySelector(".sirk-device-row,.sirk-device-card,.sirk-device-item,[data-node-id],[data-nodeid]")) return candidates[i];
-        }
-        return null;
+    function currentView() {
+        var active = document.querySelector('.sirk-standalone-nav button.is-active[data-view]');
+        return active ? String(active.getAttribute("data-view") || "") : "";
     }
 
-    function newStore(key) {
+    function devicesActive() { return currentView() === "devices"; }
+
+    function createStore(key) {
         var store = document.createElement("div");
         store.className = "sirk-device-tab-store";
         store.setAttribute("data-device-tab-store", key);
         return store;
     }
 
+    function moveChildren(source, target) {
+        if (!source || !target) return;
+        while (source.firstChild) target.appendChild(source.firstChild);
+    }
+
     function ensureInfrastructure() {
         var root = document.getElementById("sirkPortalRoot");
-        var view = findDeviceView(root);
-        if (!root || !view) return false;
+        var content = document.getElementById("sirkStandaloneContent");
+        var main = content && content.closest(".sirk-standalone-main");
+        if (!root || !content || !main) return false;
 
         state.root = root;
-        if (state.view !== view) {
-            state.view = view;
-            state.bar = null;
-        }
+        state.content = content;
+        state.main = main;
+
+        document.querySelectorAll(".sirk-standalone-sidebar .sirk-device-tabs,.sirk-standalone-nav .sirk-device-tabs").forEach(function (wrong) { wrong.remove(); });
 
         if (!state.cache || !state.cache.isConnected) {
             state.cache = document.createElement("div");
@@ -69,50 +61,45 @@
 
         if (!state.bar || !state.bar.isConnected) {
             state.bar = document.createElement("div");
-            state.bar.className = "sirk-device-tabs";
+            state.bar.className = "sirk-device-tabs sirk-device-tabs-standalone";
             state.bar.setAttribute("role", "tablist");
             state.bar.setAttribute("aria-label", "Otwarte urządzenia");
-            view.parentNode.insertBefore(state.bar, view);
+            main.insertBefore(state.bar, content);
         }
 
         if (!state.panes.all) {
-            state.panes.all = { key: "all", name: "ALL | Wszystkie", nodeId: "", store: newStore("all") };
+            state.panes.all = { key: "all", name: "ALL | Wszystkie", nodeId: "", store: createStore("all") };
             state.cache.appendChild(state.panes.all.store);
         }
 
-        syncBarVisibility();
+        syncVisibility();
         renderTabs();
-        bindRoot();
+        bind();
         return true;
     }
 
-    function syncBarVisibility() {
-        if (!state.bar || !state.view) return;
-        var hidden = state.view.hidden || state.view.style.display === "none";
-        state.bar.hidden = hidden;
-        state.bar.style.display = hidden ? "none" : "";
-    }
-
-    function moveChildren(source, target) {
-        if (!source || !target) return;
-        while (source.firstChild) target.appendChild(source.firstChild);
+    function syncVisibility() {
+        if (!state.bar) return;
+        var visible = devicesActive();
+        state.bar.hidden = !visible;
+        state.bar.style.display = visible ? "flex" : "none";
     }
 
     function stashActive() {
         var pane = state.panes[state.active];
-        if (!pane || !state.view) return;
-        moveChildren(state.view, pane.store);
+        if (!pane || !state.content) return;
+        moveChildren(state.content, pane.store);
     }
 
     function activate(key) {
         var pane = state.panes[key];
-        if (!pane || !state.view) return;
+        if (!pane || !state.content) return;
         if (key !== state.active) stashActive();
         state.active = key;
-        moveChildren(pane.store, state.view);
+        moveChildren(pane.store, state.content);
         renderTabs();
-        state.view.dispatchEvent(new CustomEvent("mycompany:device-tab-activated", { bubbles: true, detail: { key: key, nodeId: pane.nodeId } }));
         window.dispatchEvent(new Event("resize"));
+        state.content.dispatchEvent(new CustomEvent("mycompany:device-tab-activated", { bubbles: true, detail: { key: key, nodeId: pane.nodeId } }));
     }
 
     function disconnectPane(pane) {
@@ -132,7 +119,7 @@
         if (state.active === key) {
             stashActive();
             state.active = "all";
-            moveChildren(state.panes.all.store, state.view);
+            moveChildren(state.panes.all.store, state.content);
         }
         disconnectPane(pane);
         delete state.panes[key];
@@ -156,7 +143,7 @@
             label.className = "sirk-device-tab-label";
             label.textContent = pane.name;
             tab.appendChild(label);
-            tab.onclick = function () { activate(key); };
+            tab.addEventListener("click", function () { activate(key); });
 
             if (key !== "all") {
                 var close = document.createElement("span");
@@ -164,11 +151,11 @@
                 close.textContent = "×";
                 close.setAttribute("role", "button");
                 close.setAttribute("aria-label", "Zamknij " + pane.name);
-                close.onclick = function (event) {
+                close.addEventListener("click", function (event) {
                     event.preventDefault();
                     event.stopPropagation();
                     closeTab(key);
-                };
+                });
                 tab.appendChild(close);
             }
             state.bar.appendChild(tab);
@@ -192,21 +179,18 @@
     }
 
     function candidate(target) {
-        if (!state.view || state.active !== "all" || !target || !target.closest) return null;
+        if (!devicesActive() || state.active !== "all" || !state.content || !target || !target.closest) return null;
         var element = target.closest('[data-node-id],[data-nodeid],[data-device-id],[data-deviceid],[data-node],[data-device],.sirk-device-row,.sirk-device-card,.sirk-device-item,.device-row,.device-card,[role="row"]');
-        if (!element || !state.view.contains(element)) return null;
+        if (!element || !state.content.contains(element)) return null;
         if (target.closest("button,input,select,textarea") && !target.closest(".sirk-device-row,.sirk-device-card,.sirk-device-item,.device-row,.device-card")) return null;
 
         var nodeId = attributeValue(element);
         var nameNode = element.querySelector && element.querySelector('[data-device-name],.sirk-device-name,.device-name,[data-host-name],strong,b');
         var name = text(nameNode && nameNode.textContent || element.getAttribute("data-device-name") || element.getAttribute("data-host-name") || "");
-        if (!name) {
-            var raw = text(element.textContent);
-            name = raw.split(/\s{2,}| · |\n/)[0];
-        }
+        if (!name) name = text(element.textContent).split(/\s{2,}| · |\n/)[0];
         if (!nodeId) nodeId = safeKey(name);
         if (!name || name.length > 100 || !nodeId) return null;
-        return { element: element, key: "node:" + safeKey(nodeId), nodeId: nodeId, name: name.slice(0, 64) };
+        return { key: "node:" + safeKey(nodeId), nodeId: nodeId, name: name.slice(0, 64) };
     }
 
     function beginOpen(info) {
@@ -217,20 +201,19 @@
         state.pending = info;
         stashActive();
         window.clearTimeout(state.finalizeTimer);
-        state.finalizeTimer = window.setTimeout(finalizeOpen, 350);
+        state.finalizeTimer = window.setTimeout(finalizeOpen, 180);
         return true;
     }
 
     function finalizeOpen() {
-        if (!state.pending || !state.view) return;
-        var info = state.pending;
-        var hasContent = state.view.childNodes.length > 0;
-        if (!hasContent) {
-            state.finalizeTimer = window.setTimeout(finalizeOpen, 200);
+        if (!state.pending || !state.content) return;
+        if (!state.content.childNodes.length) {
+            state.finalizeTimer = window.setTimeout(finalizeOpen, 120);
             return;
         }
+        var info = state.pending;
         state.pending = null;
-        var pane = { key: info.key, name: info.name, nodeId: info.nodeId, store: newStore(info.key) };
+        var pane = { key: info.key, name: info.name, nodeId: info.nodeId, store: createStore(info.key) };
         state.cache.appendChild(pane.store);
         state.panes[info.key] = pane;
         state.active = info.key;
@@ -238,11 +221,12 @@
         window.dispatchEvent(new Event("resize"));
     }
 
-    function bindRoot() {
-        if (!state.root || state.root.__myCompanyDeviceTabsBound) return;
-        state.root.__myCompanyDeviceTabsBound = true;
+    function bind() {
+        if (!state.root || state.root.__myCompanyStandaloneDeviceTabsBound) return;
+        state.root.__myCompanyStandaloneDeviceTabsBound = true;
+
         state.root.addEventListener("click", function (event) {
-            if (!ensureInfrastructure()) return;
+            ensureInfrastructure();
             var info = candidate(event.target);
             if (!info) return;
             if (state.panes[info.key]) {
@@ -254,34 +238,31 @@
             }
             beginOpen(info);
         }, true);
+
+        state.root.addEventListener("click", function () { window.setTimeout(syncVisibility, 0); });
     }
 
-    function scheduleEnsure() {
-        window.clearTimeout(state.ensureTimer);
-        state.ensureTimer = window.setTimeout(function () {
+    function schedule() {
+        window.setTimeout(function () {
             ensureInfrastructure();
+            syncVisibility();
             if (state.pending) {
                 window.clearTimeout(state.finalizeTimer);
-                state.finalizeTimer = window.setTimeout(finalizeOpen, 120);
+                state.finalizeTimer = window.setTimeout(finalizeOpen, 100);
             }
-            syncBarVisibility();
         }, 20);
     }
 
     function start() {
         ensureInfrastructure();
         if (!state.observer) {
-            state.observer = new MutationObserver(scheduleEnsure);
-            state.observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "style", "class"] });
+            state.observer = new MutationObserver(schedule);
+            state.observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden", "style"] });
         }
-        window.setInterval(function () { ensureInfrastructure(); }, 1000);
+        window.setInterval(function () { ensureInfrastructure(); syncVisibility(); }, 1000);
     }
 
-    window.MyCompanyDeviceTabs = {
-        mount: ensureInfrastructure,
-        activateAll: function () { if (state.panes.all) activate("all"); },
-        close: closeTab
-    };
+    window.MyCompanyDeviceTabs = { mount: ensureInfrastructure, activateAll: function () { activate("all"); }, close: closeTab };
 
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
     else start();
