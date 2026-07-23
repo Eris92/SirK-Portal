@@ -100,35 +100,7 @@ jobs:
                   source = source.replace(old, new)
               path.write_text(source, encoding='utf-8')
           PY
-          cat > .github/workflows/test.yml <<'EOF'
-          name: Test
-
-          on:
-            push:
-              branches: [main]
-            pull_request:
-
-          permissions:
-            contents: read
-
-          jobs:
-            validate-linux:
-              runs-on: ubuntu-latest
-              steps:
-                - uses: actions/checkout@v4
-                - uses: actions/setup-node@v4
-                  with:
-                    node-version: '24'
-                - run: npm test
-            validate-windows:
-              runs-on: windows-latest
-              steps:
-                - uses: actions/checkout@v4
-                - uses: actions/setup-node@v4
-                  with:
-                    node-version: '24'
-                - run: npm test
-          EOF
+          git checkout HEAD -- .github/workflows/test.yml .github/workflows/validate.yml .github/workflows/finalize-layout.yml
       - name: Validate final tree
         if: steps.cleanup.outcome == 'success'
         shell: bash
@@ -158,7 +130,7 @@ jobs:
             finalize-test-output.log
           if-no-files-found: error
           retention-days: 1
-      - name: Commit and push final tree
+      - name: Commit and push code tree
         if: steps.cleanup.outcome == 'success' && success()
         shell: bash
         run: |
