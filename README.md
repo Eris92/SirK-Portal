@@ -24,30 +24,38 @@ ikony                          -> assets/icons/
 narzędzia                      -> tools/
 ```
 
-Aktualne katalogi `core/`, `modules/` i część płaskiego `public/` są migrowane etapami. Nowy kod nie może dodawać kolejnych plików do starych lokalizacji.
+Katalogi `core/`, `modules/` i część płaskiego `public/` są jeszcze migrowane etapami. Nowy kod nie może dodawać kolejnych implementacji do starych lokalizacji.
 
 ## Backend i frontend modułu
 
 Moduł biznesowy może mieć dwie warstwy:
 
 ```text
-server/modules/approvalcenter/index.js   # backend
-public/modules/approvalcenter/index.js   # frontend
+server/modules/approval-center/index.js  # backend
+public/modules/approvalcenter.js         # frontend
 ```
 
 Nie są to dwa niezależne moduły. Backend obsługuje API, dane i uprawnienia, a frontend renderuje interfejs i korzysta ze wspólnego API.
+
+Historyczna ścieżka:
+
+```text
+modules/ApprovalCenter/index.js
+```
+
+jest wyłącznie małym shimem migracyjnym. Runtime i nowy kod nie mogą rozwijać backendu w tym katalogu.
 
 ## Moduły funkcjonalne
 
 - Automation Scripts — skrypty i zarządzanie;
 - Commands — polecenia;
-- Approval Center — akceptacje;
-- Move Requests — przenoszenie urządzeń;
+- Approvals — akceptacje;
+- Device Transfers — przenoszenie urządzeń;
 - Jira Integration — integracja z Jira i Assets;
 - Defender XDR — bezpieczeństwo;
 - SIRK Portal — główny interfejs użytkownika.
 
-Klucze migracyjne `myscripts`, `mycommands`, `myjira` i `MyCompany` mogą występować wyłącznie w warstwie kompatybilności dla istniejących ustawień i instalacji. Nie są nazwami wyświetlanymi ani nazwami nowych plików.
+Klucze migracyjne `myscripts`, `mycommands`, `myjira`, `approvalcenter` i `MyCompany` mogą występować wyłącznie w warstwie kompatybilności dla istniejących ustawień, wniosków i instalacji. Nie są nazwami wyświetlanymi ani nazwami nowych plików.
 
 ## Entry pointy
 
@@ -61,7 +69,25 @@ SIRK-Portal.js
 
 ## Instalacja
 
-Docelowe nazwy narzędzi instalacyjnych będą znajdować się w `tools/install/`. Historyczne launchery `Install-MyCompany-*` są utrzymywane wyłącznie do czasu zakończenia migracji aktualizatora.
+Kanoniczny instalator:
+
+```powershell
+.\Install-SIRK-Portal-FromGit_RUN.ps1
+```
+
+Właściwa implementacja znajduje się w:
+
+```text
+tools/install/Install-SIRK-Portal-FromGit.ps1
+```
+
+Instalator:
+
+- sprawdza `shortName: SIRK-Portal`;
+- testuje `SIRK-Portal.js`;
+- usuwa starą kopię pluginu `MyCompany`, aby MeshCentral nie ładował dwóch wersji;
+- zachowuje backup;
+- kopiuje dane z `mycompany-data` do `sirk-platform-data`, gdy migracja jest potrzebna.
 
 ## SIRK Portal
 
@@ -102,4 +128,4 @@ Przy pierwszym uruchomieniu po zmianie nazwy dane z `mycompany-data` są przenos
 npm test
 ```
 
-Walidator struktury kontroluje nazwę `SIRK-Portal`, nazwę wyświetlaną `SIRK Management Platform`, centralne ikony, pojedynczy renderer każdego modułu, katalog `web/admin/` i brak nowych implementacji pod historycznymi nazwami.
+Walidator struktury kontroluje nazwę `SIRK-Portal`, nazwę wyświetlaną `SIRK Management Platform`, centralne ikony, pojedynczy renderer każdego modułu, katalog `web/admin/`, kanoniczne moduły w `server/modules/` i brak nowych implementacji pod historycznymi nazwami.
