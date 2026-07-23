@@ -18,12 +18,10 @@
             ".mc-shared-nav-item,.sirk-management-item,.mc-approval-nav-item," +
             ".mc-admin-tabs>[data-tab],.mc-admin-section-nav [data-settings-key],.mc-admin-section-nav [data-debug-key]"
         ), "mc-portal-nav-item");
-
         addClass(scope.querySelectorAll(
             ".mc-tree-fallback-icon,.mc-tree-icon,.mc-tree-root img,.sirk-management-item-icon," +
             ".mc-approval-nav-icon,.mc-admin-management-item-icon"
         ), "mc-portal-nav-icon");
-
         addClass(scope.querySelectorAll(
             ".mc-tree-label,.sirk-script-label,.mc-approval-nav-label,.mc-admin-management-item-label"
         ), "mc-portal-nav-label");
@@ -76,7 +74,6 @@
         );
         if (workspace) {
             workspace.classList.add("mc-portal-module-workspace", "mc-portal-module-layout");
-
             var columns = workspace.children || [];
             if (columns[0]) columns[0].classList.add("mc-portal-module-primary");
             if (columns[1]) columns[1].classList.add("mc-portal-module-secondary");
@@ -90,6 +87,7 @@
         );
         var collapsed = !!(
             managementHost && managementHost.classList.contains("is-management-collapsed") ||
+            shell.classList.contains("is-collapsed") ||
             workspace && workspace.classList.contains("is-collapsed")
         );
 
@@ -102,40 +100,63 @@
 
     function decorate(scope) {
         scope = scope || root;
-
         addClass(scope.querySelectorAll(
             ".mc-shared-page.mc-portal-module-shell,.sirk-management-shell,.mc-admin-management-shell"
         ), "mc-portal-module-shell");
-
-        Array.prototype.forEach.call(scope.querySelectorAll(".mc-portal-module-shell,.sirk-management-shell,.mc-admin-management-shell"), decorateShell);
+        Array.prototype.forEach.call(
+            scope.querySelectorAll(".mc-portal-module-shell,.sirk-management-shell,.mc-admin-management-shell"),
+            decorateShell
+        );
         decorateToolbar(scope);
         decorateNavigation(scope);
         decorateTables(scope);
         decorateActions(scope);
     }
 
+    function ensureFrameStyle(doc) {
+        if (!doc || !doc.head || doc.getElementById("mycompany-portal-ui-contract-style")) return;
+        var source = document.getElementById("mycompany-portal-ui-contract-style");
+        if (!source || !source.href) return;
+        var link = doc.createElement("link");
+        link.id = "mycompany-portal-ui-contract-style";
+        link.rel = "stylesheet";
+        link.href = source.href;
+        doc.head.appendChild(link);
+    }
+
     function decorateSettingsFrame(frame) {
-        if (!frame || frame.getAttribute("data-portal-ui-contract") === "1") return;
-        frame.setAttribute("data-portal-ui-contract", "1");
+        if (!frame) return;
 
         function apply() {
             try {
                 var doc = frame.contentDocument;
                 var admin = doc && doc.getElementById("mycompany-admin");
-                var adminRoot = doc && doc.getElementById("sirkPortalRoot");
-                if (!admin || !adminRoot) return;
+                if (!admin || !doc.body) return;
+
+                var adminRoot = doc.getElementById("sirkPortalRoot") || doc.body;
+                if (!adminRoot.id) adminRoot.id = "sirkPortalRoot";
                 admin.classList.add("mc-admin-portal-embedded");
-                if (doc.documentElement) doc.documentElement.classList.add("mc-portal-admin-document");
-                if (frame.contentWindow && frame.contentWindow.MyCompanyPortalUiContract) {
-                    frame.contentWindow.MyCompanyPortalUiContract.decorate(adminRoot);
+                doc.documentElement.classList.add("mc-portal-admin-document");
+                ensureFrameStyle(doc);
+                decorate(adminRoot);
+
+                if (!frame.__myCompanyPortalUiObserver) {
+                    frame.__myCompanyPortalUiObserver = new MutationObserver(function () {
+                        decorate(adminRoot);
+                    });
+                    frame.__myCompanyPortalUiObserver.observe(adminRoot, { childList: true, subtree: true });
                 }
             } catch (error) {}
         }
 
-        frame.addEventListener("load", function () {
-            window.setTimeout(apply, 0);
-            window.setTimeout(apply, 250);
-        });
+        if (frame.getAttribute("data-portal-ui-contract") !== "1") {
+            frame.setAttribute("data-portal-ui-contract", "1");
+            frame.addEventListener("load", function () {
+                frame.__myCompanyPortalUiObserver = null;
+                window.setTimeout(apply, 0);
+                window.setTimeout(apply, 250);
+            });
+        }
         apply();
     }
 
@@ -152,10 +173,7 @@
 
     var observer = new MutationObserver(schedule);
     observer.observe(root, { childList: true, subtree: true });
-
-    root.addEventListener("click", function () {
-        window.setTimeout(schedule, 0);
-    }, true);
+    root.addEventListener("click", function () { window.setTimeout(schedule, 0); }, true);
     window.addEventListener("sirkportal:languagechange", schedule);
 
     window.MyCompanyPortalUiContract = {
