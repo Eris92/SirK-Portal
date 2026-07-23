@@ -1,9 +1,10 @@
 (function () {
     "use strict";
 
-    if (window.__myCompanyStandaloneDeviceTabsV3Loaded) return;
-    window.__myCompanyStandaloneDeviceTabsV3Loaded = true;
+    if (window.__myCompanyStandaloneDeviceTabsV4Loaded) return;
+    window.__myCompanyStandaloneDeviceTabsV4Loaded = true;
 
+    var STORAGE_KEY = "mycompany.sirkportal.deviceTabs";
     var state = {
         root: null,
         main: null,
@@ -14,7 +15,10 @@
         active: "all",
         pending: null,
         observer: null,
-        finalizeTimer: 0
+        finalizeTimer: 0,
+        restoreTimer: 0,
+        restored: false,
+        restoreActive: "all"
     };
 
     function text(value) { return String(value || "").replace(/\s+/g, " ").trim(); }
@@ -44,12 +48,37 @@
         while (source.firstChild) target.appendChild(source.firstChild);
     }
 
-    function cloneChildren(source, target) {
-        if (!source || !target) return;
-        target.textContent = "";
-        Array.prototype.forEach.call(source.childNodes, function (node) {
-            target.appendChild(node.cloneNode(true));
+    function readPersisted() {
+        try {
+            var value = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+            return value && typeof value === "object" ? value : {};
+        } catch (error) { return {}; }
+    }
+
+    function persist() {
+        try {
+            var tabs = Object.keys(state.panes).filter(function (key) { return key !== "all"; }).map(function (key) {
+                var pane = state.panes[key];
+                return { key: pane.key, nodeId: pane.nodeId, name: pane.name };
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ active: state.active, tabs: tabs }));
+        } catch (error) {}
+    }
+
+    function restoreMetadata() {
+        if (state.restored || !state.cache) return;
+        state.restored = true;
+        var saved = readPersisted();
+        (Array.isArray(saved.tabs) ? saved.tabs : []).forEach(function (item) {
+            var nodeId = text(item && item.nodeId);
+            var name = text(item && item.name);
+            var key = text(item && item.key) || (nodeId ? "node:" + safeKey(nodeId) : "");
+            if (!key || !nodeId || state.panes[key]) return;
+            var pane = { key: key, nodeId: nodeId, name: name || nodeId, store: createStore(key), loaded: false };
+            state.cache.appendChild(pane.store);
+            state.panes[key] = pane;
         });
+        state.restoreActive = state.panes[saved.active] ? saved.active : "all";
     }
 
     function ensureInfrastructure() {
@@ -79,15 +108,13 @@
             main.insertBefore(state.bar, content);
         }
 
-        if (!state.panes.all) {
-            state.panes.all = { key: "all", name: allLabel(), nodeId: "", store: createStore("all") };
-            state.cache.appendChild(state.panes.all.store);
-        }
-
+        if (!state.panes.all) state.panes.all = { key: "all", name: allLabel(), nodeId: "", store: null, loaded: true };
+        restoreMetadata();
         updateLanguage();
         syncVisibility();
         renderTabs();
         bind();
+        scheduleRestore();
         return true;
     }
 
@@ -104,21 +131,79 @@
         state.bar.style.display = visible ? "flex" : "none";
     }
 
-    function stashActive() {
-        var pane = state.panes[state.active];
-        if (!pane || !state.content) return;
+    function stashHost(key) {
+        var pane = state.panes[key];
+        if (!pane || key === "all" || !state.content) return;
         moveChildren(state.content, pane.store);
+        pane.loaded = pane.store.childNodes.length > 0;
+    }
+
+    function nativeDevicesButton() {
+        return document.querySelector('.sirk-standalone-nav [data-view="devices"]');
+    }
+
+    function renderNativeAll() {
+        var button = nativeDevicesButton();
+        if (button) {
+            button.click();
+            return true;
+        }
+        return false;
+    }
+
+    function activateAll() {
+        if (!state.content) return;
+        if (state.active !== "all") stashHost(state.active);
+        state.active = "all";
+        state.pending = null;
+        renderTabs();
+        persist();
+        renderNativeAll();
+        window.dispatchEvent(new Event("resize"));
+    }
+
+    function findDeviceRow(nodeId) {
+        if (!state.content) return null;
+        var rows = state.content.querySelectorAll("[data-device-id]");
+        for (var i = 0; i < rows.length; i++) {
+            if (String(rows[i].getAttribute("data-device-id") || "") === String(nodeId || "")) return rows[i];
+        }
+        return null;
+    }
+
+    function openPaneThroughNative(pane) {
+        if (!pane || !state.content) return;
+        state.pending = { key: pane.key, nodeId: pane.nodeId, name: pane.name, existing: true };
+        function clickWhenReady(attempt) {
+            if (!state.pending || state.pending.key !== pane.key) return;
+            var row = findDeviceRow(pane.nodeId);
+            if (row) { row.click(); return; }
+            if (attempt > 80) { state.pending = null; activateAll(); return; }
+            if (!devicesActive() || !state.content.querySelector("#sirkDevicesHost")) renderNativeAll();
+            window.setTimeout(function () { clickWhenReady(attempt + 1); }, 100);
+        }
+        clickWhenReady(0);
     }
 
     function activate(key) {
         var pane = state.panes[key];
         if (!pane || !state.content) return;
-        if (key !== state.active) stashActive();
+        if (key === "all") { activateAll(); return; }
+        if (state.active === key) return;
+        if (state.active !== "all") stashHost(state.active);
         state.active = key;
-        moveChildren(pane.store, state.content);
+        if (pane.loaded && pane.store.childNodes.length) {
+            state.content.textContent = "";
+            moveChildren(pane.store, state.content);
+            renderTabs();
+            persist();
+            window.dispatchEvent(new Event("resize"));
+            return;
+        }
         renderTabs();
-        window.dispatchEvent(new Event("resize"));
-        state.content.dispatchEvent(new CustomEvent("mycompany:device-tab-activated", { bubbles: true, detail: { key: key, nodeId: pane.nodeId } }));
+        persist();
+        renderNativeAll();
+        openPaneThroughNative(pane);
     }
 
     function disconnectPane(pane) {
@@ -135,14 +220,16 @@
     function closeTab(key) {
         if (key === "all" || !state.panes[key]) return;
         var pane = state.panes[key];
-        if (state.active === key) {
-            stashActive();
-            state.active = "all";
-            moveChildren(state.panes.all.store, state.content);
-        }
+        var wasActive = state.active === key;
+        if (wasActive) stashHost(key);
         disconnectPane(pane);
         delete state.panes[key];
+        if (wasActive) {
+            state.active = "all";
+            renderNativeAll();
+        }
         renderTabs();
+        persist();
         window.dispatchEvent(new Event("resize"));
     }
 
@@ -162,7 +249,11 @@
             label.className = "sirk-device-tab-label";
             label.textContent = pane.name;
             tab.appendChild(label);
-            tab.addEventListener("click", function () { activate(key); });
+            tab.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                activate(key);
+            });
 
             if (key !== "all") {
                 var close = document.createElement("span");
@@ -183,31 +274,25 @@
 
     function attributeValue(element) {
         if (!element) return "";
-        var names = ["data-node-id", "data-nodeid", "data-device-id", "data-deviceid", "data-node", "data-device"];
-        var nodes = [element].concat(Array.prototype.slice.call(element.querySelectorAll ? element.querySelectorAll("[data-node-id],[data-nodeid],[data-device-id],[data-deviceid],[data-node],[data-device],a[href]") : []));
+        var names = ["data-device-id", "data-node-id", "data-nodeid", "data-deviceid", "data-node", "data-device"];
+        var nodes = [element].concat(Array.prototype.slice.call(element.querySelectorAll ? element.querySelectorAll("[data-device-id],[data-node-id],[data-nodeid],[data-deviceid],[data-node],[data-device],a[href]") : []));
         for (var n = 0; n < nodes.length; n++) {
             for (var i = 0; i < names.length; i++) {
                 var value = nodes[n].getAttribute && nodes[n].getAttribute(names[i]);
                 if (value) return value;
             }
-            var href = nodes[n].getAttribute && nodes[n].getAttribute("href") || "";
-            var match = href.match(/[?&#](?:nodeid|node|device)=([^&#]+)/i);
-            if (match) return decodeURIComponent(match[1]);
         }
         return "";
     }
 
     function candidate(target) {
         if (!devicesActive() || state.active !== "all" || !state.content || !target || !target.closest) return null;
-        var element = target.closest('[data-device-id],[data-node-id],[data-nodeid],[data-deviceid],[data-node],[data-device],.sirk-device-row,.sirk-device-card,.sirk-device-item,.device-row,.device-card,[role="row"]');
+        var element = target.closest('[data-device-id],.sirk-device-row');
         if (!element || !state.content.contains(element)) return null;
-
         var nodeId = attributeValue(element);
-        var nameNode = element.querySelector && element.querySelector('[data-device-name],.sirk-device-name,.device-name,[data-host-name],strong,b');
-        var name = text(nameNode && nameNode.textContent || element.getAttribute("data-device-name") || element.getAttribute("data-host-name") || "");
-        if (!name) name = text(element.textContent).split(/\s{2,}| · |\n/)[0];
-        if (!nodeId) nodeId = safeKey(name);
-        if (!name || name.length > 100 || !nodeId) return null;
+        var nameNode = element.querySelector && element.querySelector('.sirk-device-primary strong,[data-device-name],.sirk-device-name,.device-name,strong');
+        var name = text(nameNode && nameNode.textContent || element.getAttribute("data-device-name") || "");
+        if (!nodeId || !name) return null;
         return { key: "node:" + safeKey(nodeId), nodeId: nodeId, name: name.slice(0, 64) };
     }
 
@@ -219,11 +304,9 @@
             activate(info.key);
             return;
         }
-
-        cloneChildren(state.content, state.panes.all.store);
-        state.pending = info;
+        state.pending = { key: info.key, nodeId: info.nodeId, name: info.name, existing: false };
         window.clearTimeout(state.finalizeTimer);
-        state.finalizeTimer = window.setTimeout(finalizeOpen, 100);
+        state.finalizeTimer = window.setTimeout(finalizeOpen, 80);
     }
 
     function finalizeOpen() {
@@ -233,20 +316,37 @@
             state.finalizeTimer = window.setTimeout(finalizeOpen, 100);
             return;
         }
-
         var info = state.pending;
         state.pending = null;
-        var pane = { key: info.key, name: info.name, nodeId: info.nodeId, store: createStore(info.key) };
-        state.cache.appendChild(pane.store);
-        state.panes[info.key] = pane;
+        var pane = state.panes[info.key];
+        if (!pane) {
+            pane = { key: info.key, name: info.name, nodeId: info.nodeId, store: createStore(info.key), loaded: true };
+            state.cache.appendChild(pane.store);
+            state.panes[info.key] = pane;
+        }
+        pane.name = info.name || pane.name;
+        pane.nodeId = info.nodeId || pane.nodeId;
+        pane.loaded = true;
         state.active = info.key;
         renderTabs();
+        persist();
         window.dispatchEvent(new Event("resize"));
     }
 
+    function scheduleRestore() {
+        if (!state.restored || state.restoreActive === "all" || !devicesActive()) return;
+        if (!state.panes[state.restoreActive]) { state.restoreActive = "all"; return; }
+        window.clearTimeout(state.restoreTimer);
+        state.restoreTimer = window.setTimeout(function () {
+            var key = state.restoreActive;
+            state.restoreActive = "all";
+            activate(key);
+        }, 250);
+    }
+
     function bind() {
-        if (!state.root || state.root.__myCompanyStandaloneDeviceTabsV3Bound) return;
-        state.root.__myCompanyStandaloneDeviceTabsV3Bound = true;
+        if (!state.root || state.root.__myCompanyStandaloneDeviceTabsV4Bound) return;
+        state.root.__myCompanyStandaloneDeviceTabsV4Bound = true;
 
         state.root.addEventListener("click", function (event) {
             ensureInfrastructure();
@@ -255,7 +355,7 @@
             beginOpen(info, event);
         }, true);
 
-        state.root.addEventListener("click", function () { window.setTimeout(syncVisibility, 0); });
+        state.root.addEventListener("click", function () { window.setTimeout(function () { syncVisibility(); scheduleRestore(); }, 0); });
         window.addEventListener("sirkportal:languagechange", function () {
             updateLanguage();
             renderTabs();
@@ -267,6 +367,7 @@
             ensureInfrastructure();
             syncVisibility();
             if (state.pending) finalizeOpen();
+            scheduleRestore();
         }, 20);
     }
 
@@ -276,10 +377,10 @@
             state.observer = new MutationObserver(schedule);
             state.observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden", "style"] });
         }
-        window.setInterval(function () { ensureInfrastructure(); syncVisibility(); }, 1000);
+        window.setInterval(function () { ensureInfrastructure(); syncVisibility(); scheduleRestore(); }, 1000);
     }
 
-    window.MyCompanyDeviceTabs = { mount: ensureInfrastructure, activateAll: function () { activate("all"); }, close: closeTab };
+    window.MyCompanyDeviceTabs = { mount: ensureInfrastructure, activateAll: activateAll, activate: activate, close: closeTab };
 
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
     else start();
