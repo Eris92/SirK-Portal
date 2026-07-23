@@ -1,6 +1,6 @@
-<div id="mycompany-admin" class="mc-admin" data-plugin="{{pluginShortName}}">
-    <h2>My Company</h2>
-    <div class="mc-admin-subtitle">Consolidated plugin administration</div>
+<div id="mycompany-admin" class="mc-admin sirk-platform-admin" data-plugin="{{pluginShortName}}">
+    <h2>SIRK Management Platform</h2>
+    <div class="mc-admin-subtitle">SIRK Platform administration</div>
     <div class="mc-admin-tabs">
         <button type="button" data-tab="overview" class="active">Overview</button>
         <button type="button" data-tab="settings">Settings</button>
@@ -10,7 +10,10 @@
     </div>
     <div id="mycompany-admin-content"></div>
 </div>
-<script>window.MyCompanyAdminData={{{adminDataJson}}};</script>
+<script>
+window.SirkPlatformAdminData={{{adminDataJson}}};
+window.MyCompanyAdminData=window.SirkPlatformAdminData;
+</script>
 <link rel="stylesheet" href="pluginadmin.ashx?pin={{pluginShortName}}&asset=admin.css">
 <link rel="stylesheet" href="pluginadmin.ashx?pin={{pluginShortName}}&asset=admin-ui-enhancements.css">
 <script src="pluginadmin.ashx?pin={{pluginShortName}}&asset=admin.js"></script>
@@ -35,12 +38,13 @@
 <script>
 (function () {
     "use strict";
-    if (window.__myCompanyPluginRollbackLoaded) return;
+    if (window.__sirkPlatformPluginRollbackLoaded) return;
+    window.__sirkPlatformPluginRollbackLoaded = true;
     window.__myCompanyPluginRollbackLoaded = true;
     var root = document.getElementById("mycompany-admin"), content = document.getElementById("mycompany-admin-content");
     if (!root || !content) return;
     var plugins = [];
-    function pin(){return root.getAttribute("data-plugin")||"MyCompany";}
+    function pin(){return root.getAttribute("data-plugin")||"SIRK-Portal";}
     function parse(r){return r.text().then(function(t){var v;try{v=JSON.parse(t||"{}");}catch(e){throw new Error(t||("HTTP "+r.status));}if(!r.ok||v.ok===false)throw new Error(v.error||("HTTP "+r.status));return v;});}
     function post(operation,payload){var body=new URLSearchParams();payload=payload||{};payload.operation=operation;body.set("payload",JSON.stringify(payload));var url=new URL("pluginadmin.ashx",window.location.href);url.searchParams.set("pin",pin());url.searchParams.set("action","plugin-operation");return fetch(url.href,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"},body:body.toString()}).then(parse);}
     function status(text,error){var h=content.querySelector(".mc-admin-save-status");if(h){h.className=error?"mc-admin-save-status mc-admin-error":"mc-admin-save-status";h.textContent=text||"";}}
