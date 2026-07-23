@@ -31,12 +31,12 @@
         var style = document.createElement("style");
         style.id = "sirkDeviceViewModeStyle";
         style.textContent = [
-            ".sirk-device-tabs-standalone{position:relative!important;padding-right:54px!important}",
-            ".sirk-device-view-mode{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:40}",
-            ".sirk-device-view-mode-toggle{display:grid;place-items:center;width:32px;height:32px;padding:0;border:1px solid var(--sirk-border,#dce3ec);border-radius:9px;background:var(--sirk-panel,#fff);color:var(--sirk-muted,#657187);cursor:pointer;box-shadow:0 3px 10px rgba(15,23,42,.08)}",
+            ".sirk-device-tabs-standalone{position:relative!important;padding-right:54px!important;overflow:visible!important}",
+            ".sirk-device-view-mode{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:2147483000}",
+            ".sirk-device-view-mode-toggle{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:32px;height:32px;padding:0!important;line-height:0!important;border:1px solid var(--sirk-border,#dce3ec);border-radius:9px;background:var(--sirk-panel,#fff);color:var(--sirk-muted,#657187);cursor:pointer;box-shadow:0 3px 10px rgba(15,23,42,.08)}",
             ".sirk-device-view-mode-toggle:hover,.sirk-device-view-mode-toggle:focus-visible{border-color:#60a5fa;color:#2563eb;outline:none}",
-            ".sirk-device-view-mode-toggle svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}",
-            ".sirk-device-view-mode-menu{position:absolute;right:0;top:calc(100% + 7px);display:grid;min-width:230px;padding:6px;border:1px solid var(--sirk-border,#dce3ec);border-radius:10px;background:var(--sirk-panel,#fff);color:var(--sirk-text,#172033);box-shadow:0 14px 35px rgba(15,23,42,.22)}",
+            ".sirk-device-view-mode-toggle svg{display:block!important;flex:0 0 auto;width:17px;height:17px;margin:0!important;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}",
+            ".sirk-device-view-mode-menu{position:fixed!important;z-index:2147483647!important;display:grid;min-width:230px;padding:6px;border:1px solid var(--sirk-border,#dce3ec);border-radius:10px;background:var(--sirk-panel,#fff);color:var(--sirk-text,#172033);box-shadow:0 14px 35px rgba(15,23,42,.28)}",
             ".sirk-device-view-mode-menu[hidden]{display:none!important}",
             ".sirk-device-view-mode-menu button{display:flex;align-items:center;gap:9px;min-height:36px;padding:8px 10px;border:0;border-radius:7px;background:transparent;color:inherit;text-align:left;font:600 13px Segoe UI,Arial,sans-serif;cursor:pointer}",
             ".sirk-device-view-mode-menu button:hover,.sirk-device-view-mode-menu button:focus-visible{background:var(--sirk-hover,#eef3f9);outline:none}",
@@ -95,7 +95,7 @@
         toggle.className = "sirk-device-view-mode-toggle";
         toggle.setAttribute("aria-haspopup", "menu");
         toggle.setAttribute("aria-expanded", "false");
-        toggle.title = text("Tryb widoku", "View mode");
+        toggle.title = text("Lewy klik: widok szeroki. Prawy klik: menu.", "Left click: wide view. Right click: menu.");
         toggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>';
 
         var menu = document.createElement("div");
@@ -117,41 +117,64 @@
             var active = document.documentElement.classList.contains("sirk-device-focus-mode");
             focus.classList.toggle("is-active", active);
             focus.lastChild.textContent = active ? text("Widok normalny", "Normal view") : text("Widok szeroki", "Wide view");
+            toggle.classList.toggle("is-active", active);
+        }
+
+        function hideMenu() {
+            menu.hidden = true;
+            toggle.setAttribute("aria-expanded", "false");
+        }
+
+        function showMenu() {
+            refresh();
+            menu.hidden = false;
+            toggle.setAttribute("aria-expanded", "true");
+            var rect = toggle.getBoundingClientRect();
+            var menuWidth = Math.max(menu.offsetWidth || 230, 230);
+            var left = Math.min(window.innerWidth - menuWidth - 8, Math.max(8, rect.right - menuWidth));
+            var top = rect.bottom + 7;
+            if (top + (menu.offsetHeight || 92) > window.innerHeight - 8) top = Math.max(8, rect.top - (menu.offsetHeight || 92) - 7);
+            menu.style.left = left + "px";
+            menu.style.top = top + "px";
         }
 
         toggle.addEventListener("click", function (event) {
             event.preventDefault();
             event.stopPropagation();
-            menu.hidden = !menu.hidden;
-            toggle.setAttribute("aria-expanded", menu.hidden ? "false" : "true");
+            hideMenu();
+            setFocusMode(!document.documentElement.classList.contains("sirk-device-focus-mode"));
             refresh();
+        });
+
+        toggle.addEventListener("contextmenu", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (menu.hidden) showMenu();
+            else hideMenu();
         });
 
         focus.addEventListener("click", function () {
             setFocusMode(!document.documentElement.classList.contains("sirk-device-focus-mode"));
-            menu.hidden = true;
-            toggle.setAttribute("aria-expanded", "false");
+            hideMenu();
             refresh();
         });
 
         fullscreen.addEventListener("click", function () {
-            menu.hidden = true;
-            toggle.setAttribute("aria-expanded", "false");
+            hideMenu();
             enterConnectionFullscreen();
         });
 
         document.addEventListener("click", function (event) {
-            if (!host.contains(event.target)) {
-                menu.hidden = true;
-                toggle.setAttribute("aria-expanded", "false");
-            }
+            if (!host.contains(event.target) && !menu.contains(event.target)) hideMenu();
         });
+        window.addEventListener("resize", hideMenu);
+        window.addEventListener("scroll", hideMenu, true);
 
         menu.appendChild(focus);
         menu.appendChild(fullscreen);
         host.appendChild(toggle);
-        host.appendChild(menu);
         bar.appendChild(host);
+        document.body.appendChild(menu);
         refresh();
         return true;
     }
