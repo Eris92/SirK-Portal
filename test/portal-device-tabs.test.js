@@ -8,29 +8,32 @@ var admin = read("MyCompanyAdmin.js");
 var standalone = read("public/portal-standalone.html");
 [
     'var STORAGE_KEY = "mycompany.sirkportal.deviceTabs"',
+    'document.getElementById("sirkStandaloneRoot")',
+    'shell.appendChild(state.cache)',
     'function allLabel()',
     'language() === "en" ? "All" : "Wszystkie"',
     'className = "sirk-device-tab-close"',
     'className = "sirk-device-tab-store"',
     'state.panes.all = { key: "all"',
     'function activateAll()',
-    'showStored("all")',
-    'function stashActive()',
+    'function stashCurrent()',
+    'function showStored(key)',
     'moveChildren(state.content, pane.store)',
     'moveChildren(pane.store, state.content)',
+    'data-device-workspace-key',
+    'activate(key)',
     'localStorage.setItem(STORAGE_KEY',
     'function restoreMetadata()',
     'function scheduleRestore()',
     'findDeviceRow(pane.nodeId)',
-    'state.content.querySelector(".sirk-device-workspace")',
+    'contentIsWorkspace()',
     'window.MyCompanyDeviceTabs',
     'disconnectPane(pane)',
     'sirkportal:languagechange'
 ].forEach(function (value) { assert(tabs.indexOf(value) >= 0, "Missing persistent standalone device tab contract: " + value); });
+assert(tabs.indexOf('document.getElementById("sirkPortalRoot")') < 0, "Workspace cache must stay inside sirkStandaloneRoot so the native renderer still owns moved device rows");
 assert(tabs.indexOf("DocumentFragment") < 0, "Device tabs must not store live workspaces in consumable DocumentFragment objects");
 assert(tabs.indexOf("cloneChildren") < 0, "All devices must be stored as live DOM, not a cloned snapshot");
-assert(tabs.indexOf("renderNativeAll") < 0, "Switching to All must not click Portal navigation and stop active remote sessions");
-assert(tabs.indexOf('root.querySelector(\'[data-view="devices"]\')') < 0, "Standalone tabs must not resolve the sidebar navigation button as the Devices workspace");
 [
     ".sirk-device-tabs",
     "height:32px",
