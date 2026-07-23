@@ -1,141 +1,177 @@
-# MyCompany 1.5.83
+# MyCompany 1.5.134
 
-Prompt do rozpoczynania nowej rozmowy: [`docs/agent/Prompt-Start-MyCompany-Conversation.md`](docs/agent/Prompt-Start-MyCompany-Conversation.md).
+Jeden skonsolidowany plugin MeshCentral zawierający backend, moduły administracyjne, biblioteki skryptów i opcjonalny SirK Portal.
 
-One consolidated MeshCentral plugin. The repository is the complete install source; no legacy plugin code or submodules are loaded.
+## Dokumentacja
 
-Portal Overview pokazuje liczbę otwartych wniosków Approval Center oraz zbiorczy stan integracji. Site Admin ustawia dla Active Directory, Entra ID, Jira, Defender XDR i Zabbix stan `OK`, `Warning` albo `Critical` oraz osobne komunikaty PL/EN.
-Ręczne `OK` jest honorowane dopiero po potwierdzeniu kompletności wymaganej konfiguracji i credentiali; brak konfiguracji automatycznie wymusza `Critical` bez ujawniania sekretów.
+- [Aktualny stan projektu](docs/PROJECT-STATE.md)
+- [Integracja MyCompany + SirK Portal](docs/portal-integration.md)
+- [AGENTS.md](AGENTS.md)
+- [Reguły agenta dla MyCompany](docs/agent/11-Agent-MyCompany.md)
+- [Prompt startowy nowej rozmowy](docs/agent/Prompt-Start-MyCompany-Conversation.md)
 
-Reguły lewego menu Portalu oraz folderów My Scripts i My Commands stosują zasadę deny-by-default: pusta lista grup nie nadaje dostępu. Dostęp bez przypisywania grup wymaga jawnego zaznaczenia `Dostęp dla wszystkich użytkowników`; Site Admin nadal omija ograniczenie grupowe dla włączonych pozycji.
+Repozytorium jest kompletnym źródłem instalacyjnym. Runtime nie ładuje kodu z dawnych repozytoriów ani sąsiednich pluginów.
 
-Administracja MyCompany korzysta z powierzchni zgodnej z Zarządzaniem: wspólny toolbar, trzy kolumny `184px / 236px / minmax(0,1fr)`, zwinięta pierwsza kolumna `56px`, ikony SVG oraz jedno aktywne zaznaczenie. Istniejące formularze, zapis, walidacja, Wtyczki, Serwer i Debug zachowują swoje funkcje.
+## Moduły
 
-Wszystkie panele `Settings`, w tym SirK Portal, używają jednego paska `Save settings` bez przycisków zapisu wewnątrz sekcji zwijanych.
+```text
+MyCompany
+├── My Scripts / Zarządzanie
+├── My Commands / Automatyzacja
+├── Approval Center / Akceptacje
+├── Move Requests
+├── My Jira / Assets
+├── Defender Tools / Security
+├── wspólne integracje i encrypted secrets
+└── SirK Portal (opcjonalny frontend)
+```
 
-Administracja zawiera niezależne pozycje pierwszej kolumny `Wtyczki` i `Serwer`.
-`Wtyczki` udostępnia tabelę pluginów, dodawanie konfiguracji HTTPS oraz potwierdzane
-akcje włączania, wyłączania i usuwania z backupem. `Serwer` pokazuje wyłącznie
-usługi Windows należące do bieżącej instalacji MeshCentral i pozwala zaplanować
-ich potwierdzony restart. MyCompany nie może wyłączyć ani usunąć samego siebie.
+`MyScripts`, `MyCommands`, `MyJira`, `DefenderTools`, `ApprovalCenter` i `MoveRequests` są modułami wewnętrznymi, a nie osobnymi pluginami.
 
-## Optional SirK Portal
+## SirK Portal
 
-SirK Portal is embedded in MyCompany as a fully independent document and is disabled by default.
-MyCompany remains the owner of backend modules, permissions, persistent data, encrypted secrets and integrations.
-The Portal does not replace the native login screen, inject a global shell or CSS, or register MeshCentral `domain.customFiles`. An optional native launcher is disabled by default.
+SirK Portal jest niezależnym dokumentem frontendowym udostępnianym przez MyCompany. Nie modyfikuje core MeshCentral, nie podmienia natywnych plików i nie rejestruje globalnych `domain.customFiles`.
 
-Portal navigation uses the existing modules:
+Nie uruchamiaj jednocześnie osobnej wtyczki `SirKPortal`.
 
-- `Zarządzanie` → MyScripts;
-- `Akceptacje` → Approval Center;
-- `Ustawienia` → MyCompany administration for Site Admin;
-- `Mesh` → native MeshCentral interface.
-
-Enable it under:
+Włączenie:
 
 ```text
 MyCompany → Settings → SirK Portal → Enable SirK Portal
 ```
 
-Opcjonalne przełączniki `Wymuszaj nowy ekran logowania` i `Wymuszaj nowy
-interfejs` kierują odpowiednio ekran logowania oraz wejścia do natywnego UI na
-SirK Portal. Nowy ekran logowania osadza natywne uwierzytelnianie MeshCentral,
-dzięki czemu nie przechowuje haseł ani nie tworzy alternatywnej sesji.
+Główne widoki:
 
-Po wygaśnięciu lub utracie sesji odpowiedź API `401` kieruje użytkownika do
-ekranu logowania. Po poprawnym zalogowaniu Portal wraca do poprzedniej zakładki.
+- Przegląd;
+- Urządzenia;
+- Akceptacje;
+- Automatyzacja;
+- Monitoring;
+- Zasoby;
+- Zarządzanie;
+- Raporty;
+- Bezpieczeństwo;
+- Ustawienia;
+- MeshCentral.
 
-Nagłówek nowego Portalu pokazuje kafelek bieżącego użytkownika w kolejności
-`Prawdziwa Nazwa → obrazek`. Menu otwierane najechaniem, fokusem lub kliknięciem
-zawiera natywną akcję `Wyloguj się`, która unieważnia sesję MeshCentral.
+Każdy widok może zostać ukryty albo ograniczony do grup użytkowników MeshCentral. Backend ponownie sprawdza dostęp do endpointów i zasobów; ukrycie elementu UI nie jest jedyną kontrolą bezpieczeństwa.
 
-Przełącznik `Utrzymuj sesje po restarcie MeshCentral` w ustawieniach SirK Portal
-zarządza stałym `SessionKey`. MyCompany generuje sekret, tworzy backup
-`config.json` i nigdy nie zwraca wartości klucza do przeglądarki. Zmiana wymaga
-restartu usługi. Klucze skonfigurowane poza MyCompany nie są usuwane.
+## Zakładki hostów i trwałe sesje
 
-Do not run the standalone `SirKPortal` plugin at the same time. Disable or uninstall it before enabling the embedded Portal. See `docs/portal-integration.md`.
+Widok Urządzenia posiada dwa poziomy nawigacji:
 
-## Shared UI
-
-All modules use `public/shared-ui/` for tabs, toolbar, layout, status navigation and settings sections. Approval Center is the reference layout. `ModuleShell.mount()` allows MyScripts and Approval Center to be embedded in the Portal without copying their code.
-
-## Administration layout
-
-Natywny panel MyCompany używa układu wzorowanego na My Scripts. Pierwsza kolumna zawiera `Overview`, `Settings` i `Debug`. Dla `Settings` druga kolumna zawiera `SirK Portal`, `Approval Center`, `Move Request`, `My Commands`, `My Scripts`, `My Jira` i `Defender XDR`; dla `Debug` zawiera `Config`, `Logi` i `Błędy`. Trzecia kolumna pokazuje wybrany formularz lub diagnostykę. `Overview` pomija drugą kolumnę i jest widokiem tylko do odczytu: pokazuje stan wszystkich modułów bez kontrolek zmiany i zapisu.
-
-## SirK Portal view style and personalization
-
-Wszystkie widoki SirK Portal poza `Urządzenia` używają jednego wspólnego
-kontraktu powierzchni, toolbaru, nawigacji, kart, przycisków i akcentu. Widok
-`Urządzenia` zachowuje własny układ inwentarza.
-
-W `MyCompany → Settings → SirK Portal` każdą zakładkę można niezależnie:
-
-- pokazać lub ukryć;
-- pozostawić w stylu domyślnym;
-- włączyć personalizację;
-- nadać własną nazwę i sześciocyfrowy kolor akcentu.
-
-Jeżeli wszystkie zakładki zostaną wyłączone, backend pozostawi włączony
-`Przegląd`. Ukrytego widoku nie można otworzyć bezpośrednio przez hash URL, a
-niedostępny widok startowy jest automatycznie zastępowany pierwszym widocznym.
-
-## Codex and new-thread entrypoint
-
-Każdy nowy wątek dotyczący MyCompany rozpoczyna pracę w tym repozytorium od
-`AGENTS.md`. Reguły specyficzne dla pluginu znajdują się w
-`docs/agent/11-Agent-MyCompany.md`, a powtarzalne operacje w `.agents/skills`:
-
-- `test-mycompany` — pełna walidacja `npm test`;
-- `check-mycompany-version` — kontrola wszystkich źródeł wersji;
-- `deploy-mycompany-local` — backup i lokalne wdrożenie bez restartu;
-- `read-meshcentral-log` — ograniczona diagnostyka logów;
-- `restart-meshcentral-service` — restart wyłącznie po jawnej zgodzie.
-
-Repozytorium `C:\Users\Kris\Documents\MeshCentral 2` przechowuje potwierdzoną
-architekturę i status środowiska. Zainstalowany katalog
-`meshcentral-data\plugins\MyCompany` jest artefaktem do reloadu/testu, nie
-źródłem zmian.
-
-## Direct Git installation
-
-Run as Administrator:
-
-```powershell
-.\Install-MyCompany-FromGit_RUN.ps1
-```
-
-The installer clones `main`, validates it, stops MeshCentral only for the atomic directory swap, removes old plugin files, installs the exact Git checkout and starts MeshCentral again.
-
-## Included modules
-
-Jedna samodzielna wtyczka MeshCentral zawierająca moduły:
-
-- My Scripts;
-- My Commands;
-- My Jira / Jira Assets;
-- Microsoft Defender XDR;
-- Approval Center;
-- Move Requests;
-- optional SirK Portal frontend.
-
-Nie wymaga i nie ładuje osobnych wtyczek. Włączone moduły są uruchamiane wewnątrz jednego obiektu pluginu `MyCompany`.
-
-## Instalacja ręczna
-
-Skopiuj folder `MyCompany` do:
+1. górne zakładki `Wszystkie / All + otwarte hosty`;
+2. podzakładki aktywnego hosta:
 
 ```text
-meshcentral-data/plugins/MyCompany
+Ogólne | Pulpit | Terminal | Polecenia | Pliki | Rejestr | Oprogramowanie | Intel AMT
 ```
 
-Uruchom ponownie MeshCentral i zamknij oraz otwórz ponownie kartę przeglądarki.
+Każdy otwarty host ma osobny iframe umieszczony w stałej warstwie sesji. Przełączenie hosta, `All` albo innego widoku Portalu nie powinno usuwać ani przeładowywać iframe.
 
-## Migracja legacy
+Aktywny host i jego podzakładka są zapisywane. Po `F5` Portal ma wrócić bezpośrednio do właściwego hosta i podzakładki, bez pośredniego pokazania `Overview` lub `Ogólne`.
 
-Aktualna wersja nie odczytuje ani nie ładuje katalogów starych wtyczek w czasie działania. Dane ze starych repozytoriów należy przenieść kontrolowanym procesem przed ich wyłączeniem. Istniejący `legacy-migration.json` może pozostać jako historyczny rejestr wcześniejszej migracji, ale nie jest wykonywalną konfiguracją.
+Szczegółowy kontrakt znajduje się w [docs/PROJECT-STATE.md](docs/PROJECT-STATE.md).
+
+## Start Portalu po F5
+
+Przed pierwszą widoczną klatką Portal powinien:
+
+- pobrać bootstrap i access state;
+- zastosować widoczność pozycji menu;
+- ustalić aktywny widok;
+- odtworzyć aktywnego hosta i jego workspace;
+- zastosować zapisany język, motyw i branding.
+
+Nie powinny pojawiać się:
+
+- wyłączone funkcje menu;
+- chwilowy inny widok;
+- biały ekran;
+- sekwencja `Overview → host → zniknięcie → host`;
+- długie oczekiwanie wynikające wyłącznie z timeoutu.
+
+## PL/EN, motyw i branding
+
+PL/EN oraz jasny/ciemny są wspólne dla głównego Portalu i otwartych workspace’ów hostów. Zmiana nie powinna wymagać wyjścia z hosta ani przeładowania iframe.
+
+`Settings → SirK Portal → Portal interface` zawiera między innymi:
+
+- nazwę witryny;
+- adres ikony witryny i favicon;
+- widoczność przycisku resetu hasła;
+- adres resetu hasła;
+- widoczność, nazwy i akcenty pozycji menu;
+- wymuszenie nowego ekranu logowania;
+- wymuszenie nowego interfejsu;
+- utrzymywanie sesji po restarcie MeshCentral.
+
+## Desktop i Terminal
+
+Desktop i Terminal używają natywnej logiki MeshCentral przez plugin-local bridge.
+
+Menu strzałki obok `Połącz / Connect` jest renderowane nad iframe i nie może być przycinane przez toolbar. Przełączanie metod połączenia nie powinno przeładowywać aktywnego workspace.
+
+Przycisk trybu widoku:
+
+- lewy klik przełącza widok szeroki;
+- prawy klik otwiera menu:
+  - Widok szeroki;
+  - Widok szeroki + tryb pełnoekranowy;
+  - Pełny ekran połączenia;
+  - Pełny ekran połączenia + tryb pełnoekranowy.
+
+## Zarządzanie
+
+Zarządzanie korzysta z trzykolumnowego układu:
+
+- pierwsza kolumna: kolorowe ikony głównych kategorii;
+- druga kolumna: foldery i skrypty;
+- trzecia kolumna: wykonanie, edycja albo wyniki.
+
+Zwinięcie pierwszej kolumny ma zmieniać jej rzeczywistą szerokość, a nie tylko ukrywać nazwy.
+
+My Scripts obsługuje:
+
+- PL/EN nazw, opisów, zmiennych i opcji;
+- Favorites;
+- Edit Mode;
+- Credentials i Secrets;
+- potwierdzenie wykonania;
+- Approval Levels;
+- Results i Debug.
+
+## My Commands
+
+My Commands obsługuje:
+
+- wbudowane polecenia oraz skrypty PowerShell;
+- osobne ikony kategorii i poleceń;
+- PL/EN;
+- Edit i Favorites;
+- Multi dla wielu urządzeń;
+- parametry i potwierdzenia;
+- approval workflow.
+
+Multi wysyła `commandId` dla wbudowanego polecenia i `scriptPath` dla skryptu.
+
+## Approval Center i Results
+
+Approval Center jest wspólnym workflow dla providerów MyCompany.
+
+`core/approval-service.js` usuwa prywatne `payload` przed zwróceniem publicznego rekordu. Widoki klienckie nie mogą filtrować publicznych wyników przez `request.payload`.
+
+Management → Results i Approval korzystają z tego samego źródła danych oraz centralnej kontroli widoczności.
+
+## Uprawnienia
+
+Reguły lewego menu Portalu oraz folderów My Scripts i My Commands stosują deny-by-default.
+
+- `enabled: false` ukrywa i blokuje zasób;
+- `allowAll: true` nadaje dostęp wszystkim użytkownikom posiadającym dostęp do modułu;
+- `groupIds` ogranicza dostęp do wybranych grup MeshCentral;
+- pusta lista grup bez `allowAll=true` nie nadaje dostępu;
+- Site Admin omija ograniczenie grupowe dla włączonych elementów.
 
 ## Dane trwałe
 
@@ -151,124 +187,71 @@ meshcentral-data/mycompany-data
     └── MyCommands/
 ```
 
-Portal nie tworzy osobnego storage. Sekrety nie są wysyłane do przeglądarki. W panelu administracyjnym są prezentowane wyłącznie znaczniki `configured`.
+Portal nie tworzy osobnego storage. Sekrety nie są wysyłane do przeglądarki. Panel administracyjny pokazuje wyłącznie stan `configured`.
 
-## Approval API
+## Dwujęzyczne metadane skryptów
 
-Wersjonowane API serwer–serwer jest dostępne pod `/mycompany/api/v1/approval`; zachowany alias kompatybilności to `/approvalcenter/api/v1`. Udostępnia discovery providerów i ich zasobów, odczyt/składanie wniosków oraz decyzje. Tokeny mają scopes i opcjonalne ograniczenie providerów. Każdy POST wymaga `Idempotency-Key`, aby retry nie tworzył drugiego wniosku ani drugiego wykonania.
+```powershell
+#PL Polska nazwa | Polski opis
+#EN English name | English description
 
-## Specialist integrations
+# VariableRequiredPL: $UserName, Użytkownik | Login użytkownika
+# VariableRequiredEN: $UserName, User | User login
+```
 
-### My Jira
+Folder może posiadać plik `<NazwaFolderu>.menu` oraz grafikę o tej samej nazwie bazowej. Obsługiwane grafiki: SVG, PNG, JPG, JPEG i WEBP.
 
-Obsługuje:
+## Instalacja z Git
 
-- New/My/All tickets;
-- My/All tasks;
-- komentarze, transitions i assignment;
-- Jira Assets AQL;
-- mapowanie Assets do MeshCentral po hostname;
-- przejście do urządzenia i My Commands.
+Uruchom jako Administrator:
 
-### Defender XDR
+```powershell
+.\Install-MyCompany-FromGit_RUN.ps1
+```
 
-Obsługuje:
+Installer pobiera `main`, waliduje źródło, wykonuje atomową podmianę katalogu pluginu i uruchamia MeshCentral ponownie.
 
-- raport incydentów Microsoft Graph;
-- alerts_v2 i evidence;
-- korelację MDCA, Entra provisioning i directory audit;
-- filtry czasu, statusu, Incident ID i nazwy/usera;
-- osobne grupy dostępu do Incidents, Email Explorer, Tenant Allow/Block List i Advanced Hunting.
+Instalacja ręczna:
 
-Raport jest uruchamiany dopiero po kliknięciu `Refresh incidents`.
+```text
+meshcentral-data/plugins/MyCompany
+```
 
-### Shared integration profiles
+Nie nadpisuj `meshcentral-data/mycompany-data` podczas aktualizacji pluginu.
 
-Panel administracyjny posiada wspólną konfigurację AD, Entra, Jira, Defender i Zabbix.
-
-## Test
+## Testy
 
 ```bash
 npm test
 ```
 
-Test sprawdza składnię JavaScript, zgodność wersji, wymagane moduły, opcjonalność Portalu, mapowanie MyScripts/Approval Center, backendowe zabezpieczenia oraz zapis ustawień.
+Po zmianach Portalu obowiązkowa jest również ręczna kontrola:
 
-## My Scripts compatibility
+1. `F5` na `All`;
+2. `F5` na aktywnym hoście i aktywnej podzakładce;
+3. `Devices → inny widok → Devices` bez utraty sesji;
+4. przełączenie pomiędzy co najmniej dwoma hostami;
+5. PL/EN bez opuszczania hosta;
+6. jasny/ciemny bez opuszczania hosta;
+7. Desktop i Terminal wraz z menu Connect;
+8. tryby szerokie i pełnoekranowe;
+9. widoczność tylko dozwolonych pozycji menu;
+10. Management → Results z danymi widocznymi w Approval.
 
-MyCompany zawiera pełny interfejs i backend My Scripts jako moduł wewnętrzny. Biblioteka użytkownika jest przechowywana wyłącznie w `mycompany-data`. Jeżeli migracja jest potrzebna, należy skopiować do niej kontrolowanie:
+## Praca agenta
 
-- `scripts`;
-- `settings`;
-- `data/credentials.json`;
-- `data/folder-permissions.json`;
-- `data/script-secrets.json`.
+Każdy nowy wątek dotyczący MyCompany zaczyna się od `AGENTS.md` oraz `docs/agent/11-Agent-MyCompany.md`.
 
-MyCompany nie przeszukuje już sąsiednich katalogów starych wtyczek i nie ładuje z nich kodu ani skryptów.
+Najważniejsze Skills:
 
-### Dwujęzyczne metadane My Scripts
+- `test-mycompany`;
+- `check-mycompany-version`;
+- `deploy-mycompany-local`;
+- `read-meshcentral-log`;
+- `restart-meshcentral-service`.
 
-Każdy skrypt może deklarować nazwę i opis w obu językach:
-
-```powershell
-#PL Polska nazwa | Polski opis widoczny w portalu
-#EN English name | English description shown in the portal
-```
-
-Zmienne, listy i sekrety używają tej samej nazwy technicznej oraz par dyrektyw
-z sufiksami `PL` i `EN`:
-
-```powershell
-# VariableRequiredPL: $UserName, Użytkownik | Login użytkownika
-# VariableRequiredEN: $UserName, User | User login
-# VariableSelectPL: $Limit=20, Limit | Liczba rekordów |20=20 rekordów|50=50 rekordów
-# VariableSelectEN: $Limit=20, Limit | Number of records |20=20 records|50=50 records
-```
-
-Edit Mode zapisuje obie wersje językowe. Starsze jednojęzyczne nagłówki nadal
-są odczytywane jako fallback, ale nowe i edytowane skrypty powinny używać par
-`PL`/`EN`.
-
-Folder może zawierać plik `<NazwaFolderu>.menu` obok opcjonalnego pliku ikony:
-
-```text
-Raporty/
-├── Raporty.svg
-├── Raporty.menu
-└── Get-Report.ps1
-```
-
-Zawartość `.menu` używa nagłówków `#PL` i `#EN` jak skrypt. Nazwa jest widoczna
-w menu, a opis pojawia się jako podpowiedź po najechaniu. Zmiana języka SirK
-Portal przełącza foldery, skrypty, parametry, opcje i akcje bez przeładowania.
-
-## My Commands scripts
-
-Canonical location:
-
-```text
-meshcentral-data\mycompany-data\scripts\MyCommands
-```
-
-Example:
-
-```text
-MyCommands
-├── ActiveDirectory
-│   ├── ActiveDirectory.svg
-│   ├── Groups
-│   │   ├── Groups.svg
-│   │   └── Add-User-To-Group.ps1
-│   └── Users
-│       ├── Users.png
-│       └── Get-User.ps1
-└── Automation
-    ├── Automation.svg
-    └── Winget-Upgrade.ps1
-```
-
-A folder graphic must have the same base name as its directory. Supported formats: SVG, PNG, JPG, JPEG and WEBP.
+Zmiana runtime wymaga testów, spójnej wersji, changelogu, historii wersji oraz kontrolowanego deploymentu. Zmiana wyłącznie dokumentacji nie wymaga podnoszenia wersji pluginu.
 
 ## Repository policy
 
-This repository contains the complete installable MyCompany plugin and the full embedded script libraries under `seed/MyScripts` and `seed/MyCommands`. No external plugin source is loaded at runtime.
+Repozytorium zawiera kompletny instalowalny plugin oraz biblioteki `seed/MyScripts` i `seed/MyCommands`. Runtime nie ładuje zewnętrznego źródła pluginów ani kodu legacy.
