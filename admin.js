@@ -32,61 +32,66 @@ module.exports.admin = function (plugin) {
         "admin-portal.js": ["web/admin/admin-portal.js", "text/javascript; charset=utf-8"],
         "marketplace.json": ["marketplace.json", "application/json; charset=utf-8"],
 
-        "core.js": ["public/core.js", "text/javascript; charset=utf-8"],
-        "mesh-plugin-core.js": ["public/mesh-plugin-core.js", "text/javascript; charset=utf-8"],
-        "module-shell.js": ["public/module-shell.js", "text/javascript; charset=utf-8"],
-        "runtime.js": ["public/runtime.js", "text/javascript; charset=utf-8"],
+        "core.js": ["public/shared/core.js", "text/javascript; charset=utf-8"],
+        "runtime.js": ["public/shared/runtime.js", "text/javascript; charset=utf-8"],
+        "module-shell.js": ["public/shared/module-shell.js", "text/javascript; charset=utf-8"],
+        "main.css": ["public/shared/styles/main.css", "text/css; charset=utf-8"],
         "shared/icon-registry.js": ["public/shared/icon-registry.js", "text/javascript; charset=utf-8"],
         "icons/sirk-ui.svg": ["assets/icons/sirk-ui.svg", "image/svg+xml; charset=utf-8"],
 
-        "native-portal-launcher.js": ["public/native-portal-launcher.js", "text/javascript; charset=utf-8"],
-        "portal.js": ["public/portal.js", "text/javascript; charset=utf-8"],
-        "portal-device-tabs.js": ["public/portal-device-tabs.js", "text/javascript; charset=utf-8"],
-        "portal-device-tabs.css": ["public/portal-device-tabs.css", "text/css; charset=utf-8"],
-        "portal-icon-data.js": ["public/portal-icon-data.js", "text/javascript; charset=utf-8"],
-        "portal-subfolder-icons.js": ["public/portal-subfolder-icons.js", "text/javascript; charset=utf-8"],
-        "portal-collapse-isolation.js": ["public/portal-collapse-isolation.js", "text/javascript; charset=utf-8"],
-        "portal-folder-collapse.js": ["public/portal-folder-collapse.js", "text/javascript; charset=utf-8"],
-        "portal-management.js": ["public/portal-management.js", "text/javascript; charset=utf-8"],
-        "portal-approval.js": ["public/portal-approval.js", "text/javascript; charset=utf-8"],
-        "portal-approval-hook.js": ["public/portal-approval-hook.js", "text/javascript; charset=utf-8"],
-        "portal-fix.js": ["public/portal-fix.js", "text/javascript; charset=utf-8"],
-        "portal-ui-fix.js": ["public/portal-ui-fix.js", "text/javascript; charset=utf-8"],
-        "portal.css": ["public/portal.css", "text/css; charset=utf-8"],
-        "native-approval.css": ["public/native-approval.css", "text/css; charset=utf-8"],
+        "mesh-plugin-core.js": ["public/native/mesh-plugin-core.js", "text/javascript; charset=utf-8"],
+        "native-portal-launcher.js": ["public/native/portal-launcher.js", "text/javascript; charset=utf-8"],
+        "portal-device-tabs.js": ["public/native/device-tabs.js", "text/javascript; charset=utf-8"],
+        "portal-device-tabs.css": ["public/native/device-tabs.css", "text/css; charset=utf-8"],
+        "native-approval.css": ["public/native/approval.css", "text/css; charset=utf-8"],
 
-        "myscripts.js": ["public/myscripts.js", "text/javascript; charset=utf-8"],
-        "myscripts.css": ["public/myscripts.css", "text/css; charset=utf-8"],
+        "portal.js": ["public/portal/index.js", "text/javascript; charset=utf-8"],
+        "portal-icon-data.js": ["public/portal/icons.js", "text/javascript; charset=utf-8"],
+        "portal-subfolder-icons.js": ["public/portal/subfolder-icons.js", "text/javascript; charset=utf-8"],
+        "portal-collapse-isolation.js": ["public/portal/collapse-isolation.js", "text/javascript; charset=utf-8"],
+        "portal-folder-collapse.js": ["public/portal/folder-collapse.js", "text/javascript; charset=utf-8"],
+        "portal-management.js": ["public/portal/management.js", "text/javascript; charset=utf-8"],
+        "portal-approval.js": ["public/portal/approvals.js", "text/javascript; charset=utf-8"],
+        "portal-approval-hook.js": ["public/portal/approvals-hook.js", "text/javascript; charset=utf-8"],
+        "portal-fix.js": ["public/portal/fixes.js", "text/javascript; charset=utf-8"],
+        "portal-ui-fix.js": ["public/portal/ui-fixes.js", "text/javascript; charset=utf-8"],
+        "portal.css": ["public/portal/portal.css", "text/css; charset=utf-8"],
+
+        "myscripts.js": ["public/modules/automation/index.js", "text/javascript; charset=utf-8"],
+        "myscripts.css": ["public/modules/automation/style.css", "text/css; charset=utf-8"],
         "myscripts-menu.svg": ["assets/myscripts-menu.svg", "image/svg+xml; charset=utf-8"],
-        "mycommands.js": ["public/mycommands.js", "text/javascript; charset=utf-8"],
-        "myjira.js": ["public/myjira.js", "text/javascript; charset=utf-8"],
-        "defendertools.js": ["public/defendertools.js", "text/javascript; charset=utf-8"],
-        "approvalcenter.js": ["public/modules/approvalcenter.js", "text/javascript; charset=utf-8"],
-        "moverequests.js": ["public/moverequests.js", "text/javascript; charset=utf-8"],
-        "main.css": ["public/main.css", "text/css; charset=utf-8"],
+        "mycommands.js": ["public/modules/commands/index.js", "text/javascript; charset=utf-8"],
+        "myjira.js": ["public/modules/jira/index.js", "text/javascript; charset=utf-8"],
+        "defendertools.js": ["public/modules/security/index.js", "text/javascript; charset=utf-8"],
+        "approvalcenter.js": ["public/modules/approvals/index.js", "text/javascript; charset=utf-8"],
+        "moverequests.js": ["public/modules/move-requests/index.js", "text/javascript; charset=utf-8"],
 
-        "shared-ui/toolbar-config.js": ["public/shared-ui/toolbar-config.js", "text/javascript; charset=utf-8"],
-        "shared-ui/toolbar-api.js": ["public/shared-ui/toolbar-api.js", "text/javascript; charset=utf-8"],
-        "shared-ui/toolbar.js": ["public/shared-ui/toolbar.js", "text/javascript; charset=utf-8"],
-        "shared-ui/tabs.js": ["public/shared-ui/tabs.js", "text/javascript; charset=utf-8"],
-        "shared-ui/layout.js": ["public/shared-ui/layout.js", "text/javascript; charset=utf-8"],
-        "shared-ui/settings.js": ["public/shared-ui/settings.js", "text/javascript; charset=utf-8"],
-        "shared-ui/status-nav.js": ["public/shared-ui/status-nav.js", "text/javascript; charset=utf-8"],
-        "shared-ui/tree.js": ["public/shared-ui/tree.js", "text/javascript; charset=utf-8"],
-        "shared-ui/catalog.js": ["public/shared-ui/catalog.js", "text/javascript; charset=utf-8"],
-        "shared-ui/results.js": ["public/shared-ui/results.js", "text/javascript; charset=utf-8"],
-        "shared-ui/result-layout.js": ["public/shared-ui/result-layout.js", "text/javascript; charset=utf-8"],
-        "shared-ui/script-tools.js": ["public/shared-ui/script-tools.js", "text/javascript; charset=utf-8"],
-        "shared-ui/script-definition-form.js": ["public/shared-ui/script-definition-form.js", "text/javascript; charset=utf-8"],
-        "shared-ui/confirm-execution-form.js": ["public/shared-ui/confirm-execution-form.js", "text/javascript; charset=utf-8"],
-        "shared-ui/script-edit-actions.js": ["public/shared-ui/script-edit-actions.js", "text/javascript; charset=utf-8"],
-        "shared-ui/system-credentials-form.js": ["public/shared-ui/system-credentials-form.js", "text/javascript; charset=utf-8"],
-        "shared-ui/page.js": ["public/shared-ui/page.js", "text/javascript; charset=utf-8"],
-        "shared-ui/shared-ui.css": ["public/shared-ui/shared-ui.css", "text/css; charset=utf-8"],
-        "shared-ui/toolbar.css": ["public/shared-ui/toolbar.css", "text/css; charset=utf-8"]
+        "shared-ui/toolbar-config.js": ["public/shared/ui/toolbar-config.js", "text/javascript; charset=utf-8"],
+        "shared-ui/toolbar-api.js": ["public/shared/ui/toolbar-api.js", "text/javascript; charset=utf-8"],
+        "shared-ui/toolbar.js": ["public/shared/ui/toolbar.js", "text/javascript; charset=utf-8"],
+        "shared-ui/tabs.js": ["public/shared/ui/tabs.js", "text/javascript; charset=utf-8"],
+        "shared-ui/layout.js": ["public/shared/ui/layout.js", "text/javascript; charset=utf-8"],
+        "shared-ui/settings.js": ["public/shared/ui/settings.js", "text/javascript; charset=utf-8"],
+        "shared-ui/status-nav.js": ["public/shared/ui/status-nav.js", "text/javascript; charset=utf-8"],
+        "shared-ui/tree.js": ["public/shared/ui/tree.js", "text/javascript; charset=utf-8"],
+        "shared-ui/catalog.js": ["public/shared/ui/catalog.js", "text/javascript; charset=utf-8"],
+        "shared-ui/results.js": ["public/shared/ui/results.js", "text/javascript; charset=utf-8"],
+        "shared-ui/result-layout.js": ["public/shared/ui/result-layout.js", "text/javascript; charset=utf-8"],
+        "shared-ui/script-tools.js": ["public/shared/ui/script-tools.js", "text/javascript; charset=utf-8"],
+        "shared-ui/script-definition-form.js": ["public/shared/ui/script-definition-form.js", "text/javascript; charset=utf-8"],
+        "shared-ui/confirm-execution-form.js": ["public/shared/ui/confirm-execution-form.js", "text/javascript; charset=utf-8"],
+        "shared-ui/script-edit-actions.js": ["public/shared/ui/script-edit-actions.js", "text/javascript; charset=utf-8"],
+        "shared-ui/system-credentials-form.js": ["public/shared/ui/system-credentials-form.js", "text/javascript; charset=utf-8"],
+        "shared-ui/page.js": ["public/shared/ui/page.js", "text/javascript; charset=utf-8"],
+        "shared-ui/shared-ui.css": ["public/shared/ui/shared-ui.css", "text/css; charset=utf-8"],
+        "shared-ui/toolbar.css": ["public/shared/ui/toolbar.css", "text/css; charset=utf-8"]
     };
 
-    function serve(res, name) {
+    function errorText(error) {
+        return String(error && error.message || error || "Unknown error.");
+    }
+
+    function sendAsset(res, name) {
         var definition = assets[name];
         if (!definition) {
             shared.send(res, 404, "text/plain; charset=utf-8", "Not found");
@@ -141,7 +146,7 @@ module.exports.admin = function (plugin) {
         var action = String(req && req.query && req.query.action || "");
 
         if (serveVendorPortal(res, asset)) return;
-        if (assets[asset]) { serve(res, asset); return; }
+        if (assets[asset]) { sendAsset(res, asset); return; }
         if (asset === "bootstrap") {
             plugin.runtime.request("GET", "_runtime", "bootstrap", req, res, user);
             return;
@@ -182,10 +187,6 @@ module.exports.admin = function (plugin) {
             console.error("SIRK Platform admin render failed", error);
             shared.send(res, 500, "text/plain; charset=utf-8", "Internal error");
         }
-    }
-
-    function errorText(error) {
-        return String(error && error.message || error || "Unknown error.");
     }
 
     function post(req, res, user) {
