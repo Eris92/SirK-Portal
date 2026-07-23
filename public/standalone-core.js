@@ -11,13 +11,6 @@
         var child = false;
         var savedActive = "all";
 
-        if (root) {
-            document.documentElement.classList.add("sirk-portal-boot-pending");
-            root.style.visibility = "hidden";
-            root.style.pointerEvents = "none";
-            root.setAttribute("aria-busy", "true");
-        }
-
         try {
             child = new URL(window.location.href).searchParams.get("sirkWorkspaceChild") === "1";
         } catch (error) {}
@@ -50,7 +43,10 @@
         var title = document.getElementById("sirkStandaloneTitle");
         if (title && requestedButton) title.textContent = requestedButton.textContent;
 
-        if (content && restoreHost) {
+        // Never hide the complete Portal. The menu and header must be available
+        // immediately after F5. Only a child host workspace may be hidden briefly
+        // while its previously selected sub-tab is restored.
+        if (child && content && restoreHost) {
             document.documentElement.classList.add("sirk-device-restore-pending");
             content.style.visibility = "hidden";
             content.style.pointerEvents = "none";
@@ -66,54 +62,48 @@
             finished = true;
             if (observer) observer.disconnect();
             if (timer) window.clearTimeout(timer);
-            document.documentElement.classList.remove("sirk-portal-boot-pending");
+            document.documentElement.classList.remove("sirk-portal-boot-pending", "sirk-device-restore-pending");
             if (root) {
                 root.style.visibility = "";
                 root.style.pointerEvents = "";
                 root.removeAttribute("aria-busy");
             }
-            if (content && !document.documentElement.classList.contains("sirk-device-restore-pending")) {
+            if (content) {
                 content.style.visibility = "";
                 content.style.pointerEvents = "";
                 content.removeAttribute("aria-busy");
+                content.removeAttribute("data-device-tab-restore-pending");
             }
             window.dispatchEvent(new Event("resize"));
         }
 
-        core.revealPortal = function (force) {
-            if (!force && document.documentElement.classList.contains("sirk-device-restore-pending")) return false;
+        core.revealPortal = function () {
             reveal();
             return true;
         };
 
         function ready() {
             if (finished || !content) return;
-            var currentView = String(content.getAttribute("data-active-view") || "");
-
-            if (!restoreHost) {
-                if (currentView === requested && content.childNodes.length > 0) reveal();
+            if (!child) {
+                reveal();
                 return;
             }
-
-            if (child) {
-                if (content.querySelector(".sirk-device-workspace,.sirk-device-compact-header,[data-device-workspace-ready='1']")) reveal();
-                return;
-            }
-
-            var activeTab = document.querySelector(".sirk-device-tabs-standalone .sirk-device-tab.is-active[data-device-workspace-key]");
-            var activeKey = activeTab && String(activeTab.getAttribute("data-device-workspace-key") || "");
-            if (activeKey && activeKey !== "all" && content.querySelector(".sirk-device-isolated-workspace iframe")) reveal();
+            if (content.querySelector(".sirk-device-workspace,.sirk-device-compact-header,[data-device-workspace-ready='1']")) reveal();
         }
 
-        observer = new MutationObserver(function () { window.setTimeout(ready, 0); });
-        observer.observe(document.documentElement, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ["class", "hidden", "data-active-view", "data-device-workspace-key"]
-        });
-        timer = window.setTimeout(reveal, 15000);
-        ready();
+        if (child && content) {
+            observer = new MutationObserver(function () { window.setTimeout(ready, 0); });
+            observer.observe(content, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ["class", "hidden", "data-active-view", "data-device-workspace-ready"]
+            });
+            timer = window.setTimeout(reveal, 1200);
+            ready();
+        } else {
+            reveal();
+        }
     }());
 
     core.assetVersion = String(window.__MYCOMPANY_PORTAL_VERSION__ || "1.5.0");
