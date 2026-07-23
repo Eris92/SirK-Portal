@@ -37,6 +37,10 @@ jobs:
               'observe\\(document\\.documentElement/',
               'observe\\\\(document\\\\.documentElement/'
           )
+          source = source.replace(
+              '"sirkPlatformPortalReturnHash", "sirkPortal.returnHash"',
+              '"sirkPortalReturnHash", "sirkPortal.returnHash"'
+          )
           path.write_text(source, encoding='utf-8')
           PY
           set -o pipefail
