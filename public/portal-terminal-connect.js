@@ -14,6 +14,17 @@
 
     function text(pl, en) { return language() === "en" ? en : pl; }
 
+    function installMenuStyle() {
+        if (document.getElementById("sirkConnectDropdownFixStyle")) return;
+        var style = document.createElement("style");
+        style.id = "sirkConnectDropdownFixStyle";
+        style.textContent = [
+            ".sirk-connect-menu.sirk-connect-menu-portal,.sirk-terminal-connect-menu.sirk-connect-menu-portal{position:fixed!important;z-index:2147483647!important;display:grid!important;min-width:220px!important;max-height:calc(100vh - 16px)!important;overflow:auto!important;margin:0!important}",
+            ".sirk-connect-menu.sirk-connect-menu-portal[hidden],.sirk-terminal-connect-menu.sirk-connect-menu-portal[hidden]{display:none!important}"
+        ].join("");
+        (document.head || document.documentElement).appendChild(style);
+    }
+
     function terminalOptions() {
         return [
             { label: text("Powłoka Admina", "Admin Shell"), options: { protocol: 1 } },
@@ -28,8 +39,8 @@
     }
 
     function isTerminalToolbar() {
-        var label = document.querySelector(".sirk-native-bridge-toolbar .sirk-native-bridge-label");
-        return !!label && String(label.textContent || "").trim().toLowerCase() === "terminal";
+        var body = document.getElementById("sirkDeviceTabBody");
+        return !!(body && body.closest(".sirk-device-workspace") && document.querySelector('[data-device-tab="terminal"].is-active'));
     }
 
     function patchNativeFrame() {
@@ -51,21 +62,73 @@
         } catch (error) {}
     }
 
-    function closeAllMenus(event) {
-        document.querySelectorAll(".sirk-terminal-connect-menu").forEach(function (menu) {
-            var group = menu.closest(".sirk-native-bridge-button-group");
-            if (!event || !group || !group.contains(event.target)) {
-                menu.hidden = true;
-                var toggle = group && group.querySelector(".sirk-terminal-connect-toggle");
-                if (toggle) toggle.setAttribute("aria-expanded", "false");
+    function positionPortalMenu(menu, toggle) {
+        if (!menu || !toggle || menu.hidden) return;
+        var rect = toggle.getBoundingClientRect();
+        var width = Math.max(menu.offsetWidth || 220, 220);
+        var height = menu.offsetHeight || 180;
+        var left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.left));
+        var top = rect.bottom + 5;
+        if (top + height > window.innerHeight - 8) top = Math.max(8, rect.top - height - 5);
+        menu.style.left = left + "px";
+        menu.style.top = top + "px";
+    }
+
+    function portalMenu(menu, toggle) {
+        if (!menu || !toggle) return;
+        if (!menu.classList.contains("sirk-connect-menu-portal")) {
+            menu.classList.add("sirk-connect-menu-portal");
+            document.body.appendChild(menu);
+            menu.addEventListener("pointerdown", function (event) { event.stopPropagation(); });
+            menu.addEventListener("click", function (event) { event.stopPropagation(); });
+        }
+        menu.__sirkToggle = toggle;
+        if (!menu.hidden) positionPortalMenu(menu, toggle);
+    }
+
+    function setMenuOpen(menu, toggle, open) {
+        if (!menu || !toggle) return;
+        document.querySelectorAll(".sirk-connect-menu-portal").forEach(function (other) {
+            if (other !== menu) {
+                other.hidden = true;
+                if (other.__sirkToggle) other.__sirkToggle.setAttribute("aria-expanded", "false");
             }
         });
+        menu.hidden = !open;
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open) {
+            portalMenu(menu, toggle);
+            window.requestAnimationFrame(function () { positionPortalMenu(menu, toggle); });
+        }
+    }
+
+    function fixDesktopDropdown() {
+        var toggle = document.querySelector(".sirk-connect-arrow");
+        var menu = document.querySelector(".sirk-connect-menu");
+        if (!toggle || !menu) return;
+        portalMenu(menu, toggle);
+        if (toggle.getAttribute("data-sirk-dropdown-fixed") === "1") return;
+        toggle.setAttribute("data-sirk-dropdown-fixed", "1");
+        toggle.addEventListener("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+            setMenuOpen(menu, toggle, menu.hidden);
+        }, true);
     }
 
     function enhanceTerminal() {
         if (!isTerminalToolbar()) return;
         var connect = document.getElementById("sirkNativeConnect");
-        if (!connect || connect.closest(".sirk-terminal-connect-group")) return;
+        if (!connect) return;
+
+        var existingGroup = connect.closest(".sirk-terminal-connect-group");
+        if (existingGroup) {
+            var existingToggle = existingGroup.querySelector(".sirk-terminal-connect-toggle");
+            var existingMenu = document.getElementById("sirkNativeTerminalConnectMenu");
+            if (existingToggle && existingMenu) portalMenu(existingMenu, existingToggle);
+            return;
+        }
 
         var parent = connect.parentNode;
         if (!parent) return;
@@ -98,15 +161,18 @@
             item.className = "sirk-native-bridge-menu-item";
             item.setAttribute("role", "menuitem");
             item.textContent = entry.label;
-            item.addEventListener("click", function () {
+            item.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
                 pendingOptions = entry.options;
-                menu.hidden = true;
-                toggle.setAttribute("aria-expanded", "false");
+                setMenuOpen(menu, toggle, false);
                 connect.click();
             });
             menu.appendChild(item);
         });
-        group.appendChild(menu);
+
+        document.body.appendChild(menu);
+        portalMenu(menu, toggle);
 
         connect.addEventListener("click", function () {
             if (!pendingOptions) pendingOptions = { protocol: 1 };
@@ -115,21 +181,39 @@
         toggle.addEventListener("click", function (event) {
             event.preventDefault();
             event.stopPropagation();
-            menu.hidden = !menu.hidden;
-            toggle.setAttribute("aria-expanded", menu.hidden ? "false" : "true");
-        });
-
-        if (!closeHandlerInstalled) {
-            document.addEventListener("click", closeAllMenus);
-            closeHandlerInstalled = true;
-        }
+            if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+            setMenuOpen(menu, toggle, menu.hidden);
+        }, true);
     }
 
-    var observer = new MutationObserver(function () {
+    function closeAllMenus(event) {
+        document.querySelectorAll(".sirk-connect-menu-portal").forEach(function (menu) {
+            var toggle = menu.__sirkToggle;
+            if (event && (menu.contains(event.target) || (toggle && toggle.contains(event.target)))) return;
+            menu.hidden = true;
+            if (toggle) toggle.setAttribute("aria-expanded", "false");
+        });
+    }
+
+    function refresh() {
+        installMenuStyle();
         enhanceTerminal();
+        fixDesktopDropdown();
         patchNativeFrame();
-    });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-    window.setInterval(patchNativeFrame, 200);
-    enhanceTerminal();
+    }
+
+    if (!closeHandlerInstalled) {
+        document.addEventListener("pointerdown", closeAllMenus, true);
+        window.addEventListener("resize", function () {
+            document.querySelectorAll(".sirk-connect-menu-portal:not([hidden])").forEach(function (menu) {
+                positionPortalMenu(menu, menu.__sirkToggle);
+            });
+        });
+        closeHandlerInstalled = true;
+    }
+
+    var observer = new MutationObserver(function () { window.setTimeout(refresh, 0); });
+    observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden"] });
+    window.setInterval(refresh, 250);
+    refresh();
 }());
