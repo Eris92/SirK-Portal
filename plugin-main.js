@@ -1,17 +1,16 @@
 "use strict";
 
-var createAdmin = require("./MyCompanyAdmin.js").admin;
+var createAdmin = require("./admin.js").admin;
 var VERSION = require("./config.json").version;
 
-function cleanError(error) {
-    return String(error && (error.stack || error.message) || error || "Unknown MyCompany load error.");
+function errorText(error) {
+    return String(error && (error.stack || error.message) || error || "Unknown SIRK Platform load error.");
 }
 
 function createFallbackRuntime(error) {
-    var message = cleanError(error);
+    var message = errorText(error);
     function sendJson(res, status, value) {
-        if (typeof res.status === "function") res.status(status);
-        else res.statusCode = status;
+        if (typeof res.status === "function") res.status(status); else res.statusCode = status;
         if (typeof res.set === "function") res.set("Content-Type", "application/json; charset=utf-8");
         else if (typeof res.setHeader === "function") res.setHeader("Content-Type", "application/json; charset=utf-8");
         if (typeof res.json === "function") res.json(value);
@@ -24,30 +23,41 @@ function createFallbackRuntime(error) {
         initialize: function () { return Promise.resolve(); },
         captureAgentData: function () {},
         request: function (method, moduleName, asset, req, res) {
-            sendJson(res, 503, { ok: false, error: "MyCompany runtime failed to load." });
+            sendJson(res, 503, { ok: false, error: "SIRK Platform runtime failed to load." });
         },
         adminSnapshot: function () {
             return {
-                plugin: { name: "My Company", version: VERSION },
+                plugin: { name: "SIRK Management Platform", shortName: "SIRK-Portal", version: VERSION },
                 modules: [], moduleSettings: {}, integrations: {},
                 migration: { completed: false, error: message },
                 diagnostics: { logs: "", errors: message },
                 loadError: message, generatedAt: new Date().toISOString()
             };
         },
-        saveAdminSettings: function () { return Promise.reject(new Error("MyCompany runtime failed to load: " + message)); }
+        saveAdminSettings: function () { return Promise.reject(new Error("SIRK Platform runtime failed to load: " + message)); }
     };
+}
+
+function dataRoot(parent) {
+    var fs = parent.fs || require("fs");
+    var path = parent.path || require("path");
+    var meshServer = parent && parent.parent;
+    var dataBase = meshServer && meshServer.datapath ? meshServer.datapath : path.dirname(parent.pluginPath || __dirname);
+    var current = path.join(dataBase, "sirk-platform-data");
+    var legacy = path.join(dataBase, "mycompany-data");
+    try {
+        if (!fs.existsSync(current) && fs.existsSync(legacy)) fs.renameSync(legacy, current);
+    } catch (ignored) {}
+    return current;
 }
 
 function writeLoadError(parent, error) {
     try {
         var fs = parent.fs || require("fs");
         var path = parent.path || require("path");
-        var meshServer = parent && parent.parent;
-        var dataBase = meshServer && meshServer.datapath ? meshServer.datapath : path.dirname(parent.pluginPath || __dirname);
-        var dataRoot = path.join(dataBase, "mycompany-data");
-        if (!fs.existsSync(dataRoot)) fs.mkdirSync(dataRoot, { recursive: true });
-        fs.writeFileSync(path.join(dataRoot, "plugin-load-error.log"), new Date().toISOString() + "\r\n" + cleanError(error) + "\r\n", "utf8");
+        var root = dataRoot(parent);
+        if (!fs.existsSync(root)) fs.mkdirSync(root, { recursive: true });
+        fs.writeFileSync(path.join(root, "plugin-load-error.log"), new Date().toISOString() + "\r\n" + errorText(error) + "\r\n", "utf8");
     } catch (ignored) {}
 }
 
@@ -55,13 +65,13 @@ function createPlugin(parent, shortName) {
     var obj = {};
     obj.parent = parent;
     obj.meshServer = parent && parent.parent;
-    obj.shortName = shortName || "MyCompany";
+    obj.shortName = shortName || "SIRK-Portal";
     obj.exports = ["onWebUIStartupEnd", "goPageStart", "goPageEnd", "onDeviceRefreshEnd", "commandResult"];
 
     try {
         obj.runtime = require("./core/runtime-portal.js").createRuntime({ parent: parent, pluginRoot: __dirname, source: obj });
     } catch (error) {
-        console.error("MyCompany runtime creation failed", error);
+        console.error("SIRK Platform runtime creation failed", error);
         writeLoadError(parent, error);
         obj.runtime = createFallbackRuntime(error);
     }
@@ -69,7 +79,7 @@ function createPlugin(parent, shortName) {
     obj.admin = createAdmin(obj);
     obj.server_startup = function () {
         Promise.resolve(obj.runtime.initialize()).catch(function (error) {
-            console.error("MyCompany initialization failed", error);
+            console.error("SIRK Platform initialization failed", error);
             writeLoadError(parent, error);
         });
     };
@@ -82,10 +92,11 @@ function createPlugin(parent, shortName) {
     obj.onWebUIStartupEnd = function () {
         if (typeof window === "undefined" || typeof document === "undefined") return;
 
-        var browserVersion = "1.5.137";
-        var browserPin = "MyCompany";
-        window.__MYCOMPANY_VERSION__ = browserVersion;
-        document.documentElement.classList.add("mycompany-native-ui");
+        var browserVersion = VERSION;
+        var browserPin = obj.shortName;
+        window.__SIRK_PLATFORM_VERSION__ = browserVersion;
+        window.__MYCOMPANY_VERSION__ = browserVersion; // legacy alias
+        document.documentElement.classList.add("sirk-platform-native-ui");
 
         function asset(name) {
             var url = new URL("pluginadmin.ashx", window.location.href);
@@ -123,74 +134,70 @@ function createPlugin(parent, shortName) {
             (document.head || document.documentElement).appendChild(link);
         }
 
-        style("mycompany-main-style", "main.css");
-        style("mycompany-myscripts-style", "myscripts.css");
-        style("mycompany-shared-style-0", "shared-ui/shared-ui.css");
-        style("mycompany-shared-style-1", "shared-ui/toolbar.css");
-        style("mycompany-native-approval-style", "native-approval.css");
-        style("mycompany-device-tabs-style", "portal-device-tabs.css");
+        style("sirk-platform-main-style", "main.css");
+        style("sirk-platform-automation-style", "myscripts.css");
+        style("sirk-platform-shared-style", "shared-ui/shared-ui.css");
+        style("sirk-platform-toolbar-style", "shared-ui/toolbar.css");
+        style("sirk-platform-native-approval-style", "native-approval.css");
+        style("sirk-platform-device-tabs-style", "portal-device-tabs.css");
 
-        load("mycompany-core-script", asset("core.js"))
-            .then(function () { return load("mycompany-mesh-plugin-core-script", asset("mesh-plugin-core.js")); })
-            .then(function () { return load("mycompany-shared-toolbar-config", asset("shared-ui/toolbar-config.js")); })
-            .then(function () { return load("mycompany-shared-toolbar-api", asset("shared-ui/toolbar-api.js")); })
-            .then(function () { return load("mycompany-shared-toolbar", asset("shared-ui/toolbar.js")); })
-            .then(function () { return load("mycompany-shared-tabs", asset("shared-ui/tabs.js")); })
-            .then(function () { return load("mycompany-shared-layout", asset("shared-ui/layout.js")); })
-            .then(function () { return load("mycompany-shared-settings", asset("shared-ui/settings.js")); })
-            .then(function () { return load("mycompany-shared-status-nav", asset("shared-ui/status-nav.js")); })
-            .then(function () { return load("mycompany-shared-tree", asset("shared-ui/tree.js")); })
-            .then(function () { return load("mycompany-shared-catalog", asset("shared-ui/catalog.js")); })
-            .then(function () { return load("mycompany-shared-results", asset("shared-ui/results.js")); })
-            .then(function () { return load("mycompany-shared-result-layout", asset("shared-ui/result-layout.js")); })
-            .then(function () { return load("mycompany-shared-script-tools", asset("shared-ui/script-tools.js")); })
-            .then(function () { return load("mycompany-shared-script-definition", asset("shared-ui/script-definition-form.js")); })
-            .then(function () { return load("mycompany-shared-confirm", asset("shared-ui/confirm-execution-form.js")); })
-            .then(function () { return load("mycompany-shared-edit-actions", asset("shared-ui/script-edit-actions.js")); })
-            .then(function () { return load("mycompany-shared-system-credentials", asset("shared-ui/system-credentials-form.js")); })
-            .then(function () { return load("mycompany-shared-page", asset("shared-ui/page.js")); })
-            .then(function () { return load("mycompany-module-shell-script", asset("module-shell.js")); })
-            .then(function () { return load("mycompany-device-tabs-script", asset("portal-device-tabs.js")); })
-            .then(function () { return load("mycompany-runtime-script", asset("runtime.js")); })
-            .then(function () {
-                if (!window.MyCompanyRuntime || typeof window.MyCompanyRuntime.initialize !== "function") throw new Error("MyCompany runtime was not loaded.");
-                return window.MyCompanyRuntime.initialize();
-            })
-            .catch(function (error) { if (window.console) console.error("MyCompany browser startup failed", error); });
+        var scripts = [
+            ["sirk-platform-core", "core.js"],
+            ["sirk-platform-mesh-core", "mesh-plugin-core.js"],
+            ["sirk-platform-toolbar-config", "shared-ui/toolbar-config.js"],
+            ["sirk-platform-toolbar-api", "shared-ui/toolbar-api.js"],
+            ["sirk-platform-toolbar", "shared-ui/toolbar.js"],
+            ["sirk-platform-tabs", "shared-ui/tabs.js"],
+            ["sirk-platform-layout", "shared-ui/layout.js"],
+            ["sirk-platform-settings", "shared-ui/settings.js"],
+            ["sirk-platform-status-nav", "shared-ui/status-nav.js"],
+            ["sirk-platform-tree", "shared-ui/tree.js"],
+            ["sirk-platform-catalog", "shared-ui/catalog.js"],
+            ["sirk-platform-results", "shared-ui/results.js"],
+            ["sirk-platform-result-layout", "shared-ui/result-layout.js"],
+            ["sirk-platform-script-tools", "shared-ui/script-tools.js"],
+            ["sirk-platform-script-definition", "shared-ui/script-definition-form.js"],
+            ["sirk-platform-confirm", "shared-ui/confirm-execution-form.js"],
+            ["sirk-platform-edit-actions", "shared-ui/script-edit-actions.js"],
+            ["sirk-platform-credentials", "shared-ui/system-credentials-form.js"],
+            ["sirk-platform-page", "shared-ui/page.js"],
+            ["sirk-platform-module-shell", "module-shell.js"],
+            ["sirk-platform-device-tabs", "portal-device-tabs.js"],
+            ["sirk-platform-runtime", "runtime.js"]
+        ];
+        scripts.reduce(function (chain, item) {
+            return chain.then(function () { return load(item[0], asset(item[1])); });
+        }, Promise.resolve()).then(function () {
+            var runtime = window.SirkPlatformRuntime || window.MyCompanyRuntime;
+            if (!runtime || typeof runtime.initialize !== "function") throw new Error("SIRK Platform browser runtime was not loaded.");
+            window.SirkPlatformRuntime = runtime;
+            window.MyCompanyRuntime = runtime; // legacy alias
+            return runtime.initialize();
+        }).catch(function (error) {
+            if (window.console) console.error("SIRK Platform browser startup failed", error);
+        });
     };
 
+    function browserRuntime() {
+        if (typeof window === "undefined") return null;
+        return window.SirkPlatformRuntime || window.MyCompanyRuntime || null;
+    }
     obj.goPageStart = function (view) {
-        if (typeof window !== "undefined" && window.MyCompanyRuntime && typeof window.MyCompanyRuntime.onNativePageStart === "function") window.MyCompanyRuntime.onNativePageStart(view);
+        var runtime = browserRuntime();
+        if (runtime && typeof runtime.onNativePageStart === "function") runtime.onNativePageStart(view);
     };
     obj.goPageEnd = function (view) {
-        if (typeof window !== "undefined" && window.MyCompanyRuntime && typeof window.MyCompanyRuntime.onNativePageEnd === "function") window.MyCompanyRuntime.onNativePageEnd(view);
+        var runtime = browserRuntime();
+        if (runtime && typeof runtime.onNativePageEnd === "function") runtime.onNativePageEnd(view);
     };
     obj.onDeviceRefreshEnd = function (nodeId) {
-        if (typeof window !== "undefined" && window.MyCompanyRuntime && typeof window.MyCompanyRuntime.onDeviceRefreshEnd === "function") window.MyCompanyRuntime.onDeviceRefreshEnd(nodeId);
+        var runtime = browserRuntime();
+        if (runtime && typeof runtime.onDeviceRefreshEnd === "function") runtime.onDeviceRefreshEnd(nodeId);
     };
     obj.commandResult = function (server, message) {
-        if (typeof window !== "undefined" && window.MyCompanyRuntime && typeof window.MyCompanyRuntime.commandResult === "function") window.MyCompanyRuntime.commandResult(message);
+        var runtime = browserRuntime();
+        if (runtime && typeof runtime.commandResult === "function") runtime.commandResult(message);
     };
-
-    (function registerAdminAlias() {
-        if (!parent || !parent.plugins || !parent.exports) return;
-        var alias = obj.shortName === "MyCompany" ? "mycompany" : "MyCompany";
-        if (parent.plugins[alias]) return;
-        parent.plugins[alias] = {
-            exports: [],
-            handleAdminReq: function (req, res, user) {
-                var active = parent.plugins[obj.shortName];
-                if (!active || typeof active.handleAdminReq !== "function") return;
-                return active.handleAdminReq(req, res, user);
-            },
-            handleAdminPostReq: function (req, res, user) {
-                var active = parent.plugins[obj.shortName];
-                if (!active || typeof active.handleAdminPostReq !== "function") return;
-                return active.handleAdminPostReq(req, res, user);
-            }
-        };
-        parent.exports[alias] = [];
-    }());
 
     return obj;
 }
