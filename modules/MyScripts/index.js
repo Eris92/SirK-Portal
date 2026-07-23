@@ -116,15 +116,16 @@ module.exports.createModule = function (context) {
             if (asset === "script-secrets") { requireScriptAccess(user, q.path); return { ok: true, secrets: admin.getSecretState(user, q.path) }; }
             if (asset === "system-credentials") { requireScriptAccess(user, q.path); return { ok: true, systemCredentials: admin.getSystemCredentialState(user, q.path) }; }
             if (asset === "results") {
-                return context.approval.list(user, { type: "myscripts", status: q.status || "", q: q.q || "", page: Number(q.page) || 1, perPage: Math.min(500, Number(q.perPage) || 100) })
-                    .then(function (value) {
-                        value.rows = (value.rows || []).filter(function (request) {
-                            var scriptPath = request && request.payload && request.payload.scriptPath;
-                            return scriptPath && folderAccess.canAccess(user, folderRules(), folderAccess.rootKey(scriptPath));
-                        });
-                        value.ok = true;
-                        return value;
-                    });
+                return context.approval.list(user, {
+                    type: "myscripts",
+                    status: q.status || "",
+                    q: q.q || "",
+                    page: Number(q.page) || 1,
+                    perPage: Math.min(500, Number(q.perPage) || 100)
+                }).then(function (value) {
+                    value.ok = true;
+                    return value;
+                });
             }
             if (asset === "settings") return { ok: true, settings: context.settings.read().modules.myscripts || {}, scriptsRoot: root };
             throw new Error("Unknown My Scripts action.");
