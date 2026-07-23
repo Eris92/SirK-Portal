@@ -9,8 +9,8 @@
 #sirkPortalRoot .sirk-device-tab-close:hover{background:rgba(220,38,38,.14);color:#dc2626;opacity:1}
 #sirkPortalRoot .sirk-device-tab-cache{position:absolute!important;left:-100000px!important;top:0!important;width:1px!important;height:1px!important;overflow:hidden!important;visibility:hidden!important;pointer-events:none!important}
 #sirkPortalRoot .sirk-device-tabs-standalone:not([hidden]) + #sirkStandaloneContent{min-height:0!important;height:calc(100vh - 118px)!important;overflow:hidden!important;padding:0!important;margin:0!important}
-#sirkPortalRoot .sirk-device-isolated-workspace{display:block;width:100%;height:100%;min-height:0;overflow:hidden;background:#111;border:1px solid var(--sirk-border,#dce3ec);border-radius:0 0 8px 8px;box-sizing:border-box}
-#sirkPortalRoot .sirk-device-isolated-frame{display:block;width:100%;height:100%;min-height:0;border:0;background:#111}
+#sirkPortalRoot .sirk-device-isolated-workspace{display:block;width:100%;height:100%;min-height:0;overflow:hidden;background:transparent}
+#sirkPortalRoot .sirk-device-isolated-frame{display:block;width:100%;height:100%;min-height:0;border:0;background:transparent}
 #sirkPortalRoot.sirk-theme-dark .sirk-device-tabs{--sirk-panel:#111827;--sirk-bg:#0b1220;--sirk-text:#e7edf7;--sirk-muted:#94a3b8;--sirk-border:#2a374a}
 html.sirk-device-workspace-child,html.sirk-device-workspace-child body{width:100%!important;height:100%!important;margin:0!important;overflow:hidden!important}
 html.sirk-device-workspace-child #sirkPortalRoot{width:100%!important;height:100%!important;min-height:100%!important}
@@ -18,8 +18,8 @@ html.sirk-device-workspace-child .sirk-standalone-sidebar{display:none!important
 html.sirk-device-workspace-child .sirk-standalone-root{grid-template-columns:minmax(0,1fr)!important}
 html.sirk-device-workspace-child .sirk-standalone-main{width:100%!important;height:100%!important;min-width:0!important}
 html.sirk-device-workspace-child .sirk-standalone-main>header,html.sirk-device-workspace-child .sirk-standalone-topbar{display:none!important}
-html.sirk-device-workspace-child #sirkStandaloneContent{height:100vh!important;min-height:0!important;padding:0!important;margin:0!important;overflow:hidden!important}
-html.sirk-device-workspace-child #sirkStandaloneContent .sirk-device-workspace{height:100%!important;min-height:0!important;margin:0!important;border-radius:0!important}
-html.sirk-device-workspace-child #sirkStandaloneContent .sirk-device-compact-header{margin:0!important;border:0!important;border-radius:0!important}
+html.sirk-device-workspace-child #sirkStandaloneContent{height:100vh!important;min-height:0!important;padding:0 12px 12px!important;margin:0!important;overflow:hidden!important}
+html.sirk-device-workspace-child #sirkStandaloneContent .sirk-device-workspace{height:100%!important;min-height:0!important;margin:0!important}
+html.sirk-device-workspace-child #sirkStandaloneContent .sirk-device-compact-header{margin:0!important;border-top:0!important;border-radius:0!important}
 html.sirk-device-workspace-child #sirkStandaloneContent .sirk-device-tabs{margin:0!important;border-top:0!important}
 html.sirk-device-workspace-child #sirkStandaloneContent canvas{max-height:calc(100vh - 112px)!important}
