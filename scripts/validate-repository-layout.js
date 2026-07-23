@@ -20,7 +20,10 @@ function files(relative) {
     }, []);
 }
 
-["tools/install", "scripts", "test", "docs", "public", "public/shared", "web", "core", "modules", "assets/icons"].forEach(function (relative) {
+[
+    "tools/install", "scripts", "test", "docs", "public", "public/shared",
+    "web/admin", "core", "modules", "assets/icons"
+].forEach(function (relative) {
     if (!exists(relative)) errors.push("Missing repository directory: " + relative);
 });
 
@@ -29,7 +32,9 @@ function files(relative) {
     "tools/install/Install-MyCompany-FromGit_RUN.ps1",
     "docs/REPOSITORY-LAYOUT.md",
     "assets/icons/sirk-ui.svg",
-    "public/shared/icon-registry.js"
+    "public/shared/icon-registry.js",
+    "web/admin/admin.css",
+    "web/admin/admin.js"
 ].forEach(function (relative) {
     if (!exists(relative)) errors.push("Missing canonical layout file: " + relative);
 });
@@ -46,6 +51,14 @@ allowedRootPowerShell.forEach(function (name) {
         errors.push("Root PowerShell file must be a compatibility launcher only: " + name);
     }
 });
+
+if (exists("web")) {
+    fs.readdirSync(absolute("web"), { withFileTypes: true }).forEach(function (entry) {
+        if (entry.isFile() && /\.(?:js|css)$/i.test(entry.name)) {
+            errors.push("Admin frontend file must live in web/admin: web/" + entry.name);
+        }
+    });
+}
 
 var architecture = read("docs/REPOSITORY-LAYOUT.md");
 [
@@ -99,9 +112,12 @@ if (adminSource.indexOf('"icons/sirk-ui.svg": ["assets/icons/sirk-ui.svg"') < 0)
 if (adminSource.indexOf('"shared/icon-registry.js": ["public/shared/icon-registry.js"') < 0) {
     errors.push("Shared icon registry is not exposed by the asset router.");
 }
+if (adminSource.indexOf('"admin.css": ["web/admin/admin.css"') < 0 || /\["web\/admin(?:-[^"\]]+)?\.(?:js|css)"/.test(adminSource)) {
+    errors.push("Admin asset router must use only web/admin/* paths.");
+}
 
 var navSource = read("public/portal-standalone-nav.js");
-if (navSource.indexOf('shared/icon-registry.js') < 0 || navSource.indexOf("window.SirkIcons.svg") < 0) {
+if (navSource.indexOf("shared/icon-registry.js") < 0 || navSource.indexOf("window.SirkIcons.svg") < 0) {
     errors.push("Standalone Portal navigation must use the shared icon registry.");
 }
 
@@ -112,3 +128,4 @@ if (errors.length) {
 console.log("Repository layout validation: OK");
 console.log("Canonical frontend renderer validation: OK");
 console.log("Central icon registry validation: OK");
+console.log("Canonical admin directory validation: OK");
