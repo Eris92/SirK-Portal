@@ -6,6 +6,8 @@ var path = require("path");
 var adapter = require("./adapters/standalone/index.js");
 var runtimeFactory = require("./standalone-runtime.js");
 var apiFactory = require("./http/api-router.js");
+var updateManagerFactory = require("./system-update-manager.js");
+var updateRouterFactory = require("./http/update-router.js");
 var VERSION = require("../config.json").version;
 var ROOT = path.resolve(__dirname, "..");
 
@@ -28,6 +30,8 @@ var ASSETS = {
     "portal-module-shell.css": "public/portal/standalone/styles/module-shell.css",
     "portal-management-frame.css": "public/portal/standalone/styles/management-frame.css",
     "portal-cleanup.css": "public/portal/standalone/styles/cleanup.css",
+    "system-updates.js": "public/portal/system-updates.js",
+    "system-updates.css": "public/portal/system-updates.css",
     "main.css": "public/shared/styles/main.css",
     "myscripts.css": "public/modules/automation/style.css",
     "shared-ui/shared-ui.css": "public/shared/ui/shared-ui.css",
@@ -74,8 +78,8 @@ function portalHtml() {
         .replace(/__ASSET_BASE__/g, "/assets")
         .replace(/__NATIVE_URL__/g, "")
         .replace(/__VERSION__/g, VERSION);
-    html = html.replace("</head>", '<link rel="stylesheet" href="/assets/portal-management-frame.css?v=' + VERSION + '"></head>');
-    return html.replace("</body>", '<script src="/assets/standalone-core-rest.js?v=' + VERSION + '"></script></body>');
+    html = html.replace("</head>", '<link rel="stylesheet" href="/assets/portal-management-frame.css?v=' + VERSION + '"><link rel="stylesheet" href="/assets/system-updates.css?v=' + VERSION + '"></head>');
+    return html.replace("</body>", '<script src="/assets/standalone-core-rest.js?v=' + VERSION + '"></script><script src="/assets/system-updates.js?v=' + VERSION + '"></script></body>');
 }
 
 function start(options) {
@@ -83,9 +87,12 @@ function start(options) {
     var host = adapter.createHost(options);
     var runtime = runtimeFactory.createRuntime(host, ROOT);
     var api = apiFactory.createHandler(runtime, host);
+    var updateManager = updateManagerFactory.create({ appRoot: ROOT, dataRoot: options.dataRoot });
+    var updateApi = updateRouterFactory.createHandler(updateManager);
     return Promise.resolve(runtime.initialize()).then(function () {
         var server = http.createServer(function (req, res) {
             var url = new URL(req.url, "http://sirk.local");
+            if (url.pathname.indexOf("/api/system/updates/") === 0) { updateApi(req, res, url); return; }
             if (url.pathname.indexOf("/api/") === 0) { api(req, res); return; }
             if (url.pathname === "/" || url.pathname === "/sirkportal/") {
                 res.setHeader("Content-Type", "text/html; charset=utf-8");
