@@ -8,6 +8,7 @@ var VERSION = require("./config.json").version;
 var PORTAL_ROOT = path.join(__dirname, "public", "portal");
 var ASSETS = {
     "vendor/sirk-portal/sirk-portal.css": "vendor/sirk-portal.css",
+    "vendor/sirk-portal/portal-ui-contract.css": "vendor/portal-ui-contract.css",
     "main.css": "../shared/styles/main.css",
     "myscripts.css": "../modules/automation/style.css",
     "shared-ui/shared-ui.css": "../shared/ui/shared-ui.css",

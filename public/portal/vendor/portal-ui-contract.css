@@ -1,0 +1,4 @@
+/* Compatibility endpoint for the shared SIRK Portal visual contract. */
+#sirkPortalRoot .mc-portal-view-surface{background:var(--sirk-panel,#fff);color:var(--sirk-text,#172033)}
+#sirkPortalRoot .mc-portal-card{border:1px solid var(--sirk-border,#dce3ec);border-radius:8px;background:var(--sirk-panel,#fff)}
+#sirkPortalRoot .mc-portal-button{font:inherit;cursor:pointer}

@@ -1,7 +1,7 @@
 {
   "name": "SIRK Management Platform",
   "shortName": "SIRKPortal",
-  "version": "1.5.149",
+  "version": "1.5.150",
   "author": "Eris92",
   "description": "SIRK Management Platform plugin with the standalone SIRK Portal, shared automation, approval, device management and integration services.",
   "hasAdminPanel": true,
@@ -10,6 +10,9 @@
   "configUrl": "https://raw.githubusercontent.com/Eris92/SIRK-Portal/main/config.json",
   "downloadUrl": "https://codeload.github.com/Eris92/SIRK-Portal/zip/refs/heads/main",
   "versionHistoryUrl": "https://raw.githubusercontent.com/Eris92/SIRK-Portal/main/version-history.json",
-  "repository": { "type": "git", "url": "https://github.com/Eris92/SIRK-Portal.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Eris92/SIRK-Portal.git"
+  },
   "meshCentralCompat": ">=1.1.18"
 }
