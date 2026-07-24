@@ -1,3 +1,11 @@
+## 1.8.0
+
+- Published the independent SIRK Portal updater on the Stable (`main`) channel.
+- Moved System lifecycle controls into `Ustawienia -> System` with Aktualizacje, Backupy, Historia and Kanał aktualizacji.
+- Replaced blocking backup, extraction and staging operations with asynchronous jobs and progress polling.
+- Added an explicit `Zapisz` action for update-channel changes.
+- Unified Portal view classes and removed menu-specific frontend class contracts.
+
 ## 1.7.0-dev.1
 
 - Added an independent SIRK lifecycle manager owned by the new Portal instead of MeshCentral plugin management.
