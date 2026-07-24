@@ -1,3 +1,9 @@
+## 1.5.150
+
+- Fixed the standalone Portal bootstrap pin to use `SIRKPortal`.
+- Added the missing `portal-ui-contract.css` asset route with a CSS MIME type.
+- Added regression coverage for runtime Portal asset URLs.
+
 # Changelog
 
 ## 1.5.144

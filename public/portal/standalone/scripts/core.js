@@ -173,7 +173,7 @@
 
     core.assetUrl = function (moduleName, assetName, parameters) {
         var endpoint = new URL(String(window.__SIRK_PLATFORM_API_BASE__ || "pluginadmin.ashx"), window.location.href);
-        endpoint.searchParams.set("pin", "SirkPlatform");
+        endpoint.searchParams.set("pin", "SIRKPortal");
         if (moduleName) endpoint.searchParams.set("module", moduleName);
         if (assetName) endpoint.searchParams.set("asset", assetName);
         endpoint.searchParams.set("v", core.assetVersion);

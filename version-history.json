@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.5.150",
+    "date": "2026-07-24",
+    "changes": [
+      "Fix standalone Portal plugin pin",
+      "Serve Portal UI contract stylesheet with CSS MIME type"
+    ]
+  },
+  {
     "version": "1.5.144",
     "date": "2026-07-24",
     "changes": [
