@@ -32,6 +32,30 @@ function writeBranding(context, settings) {
     } catch (error) {}
 }
 
+function withoutCurrentPortalPlugin(context, callback) {
+    var plugins = context && context.parent && context.parent.plugins;
+    if (!plugins || typeof plugins !== "object") return callback();
+
+    var hidden = [];
+    Object.keys(plugins).forEach(function (key) {
+        var normalized = String(key || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+        var entry = plugins[key];
+        var isCurrent = entry === context.source;
+        var entryRoot = entry && (entry.pluginRoot || entry.pluginPath || entry.path);
+        var sameRoot = entryRoot && context.pluginRoot && path.resolve(String(entryRoot)) === path.resolve(String(context.pluginRoot));
+        if (normalized === "sirkportal" && (isCurrent || sameRoot || !entryRoot)) {
+            hidden.push({ key: key, value: entry });
+            delete plugins[key];
+        }
+    });
+
+    try {
+        return callback();
+    } finally {
+        hidden.forEach(function (item) { plugins[item.key] = item.value; });
+    }
+}
+
 module.exports.createModule = function (context) {
     var module = originalFactory.createModule(context);
     var originalInitialize = module.initialize;
@@ -56,13 +80,22 @@ module.exports.createModule = function (context) {
         }
         return Promise.resolve(originalApiGet.call(module, asset, req, user)).then(function (value) {
             if (value && value.vendor) value.vendor.earlyOverlay = false;
+            if (value && Object.prototype.hasOwnProperty.call(value, "standaloneConflict")) value.standaloneConflict = false;
             return value;
         });
     };
 
     module.apiPost = function (asset, req, user) {
         var body = req && req.body || {};
-        return Promise.resolve(originalApiPost.call(module, asset, req, user)).then(function (value) {
+        var operation;
+        try {
+            operation = withoutCurrentPortalPlugin(context, function () {
+                return originalApiPost.call(module, asset, req, user);
+            });
+        } catch (error) {
+            return Promise.reject(error);
+        }
+        return Promise.resolve(operation).then(function (value) {
             return context.settings.update(function (current) {
                 current.modules.portal = current.modules.portal || {};
                 if (typeof body.showNativeLink === "boolean") current.modules.portal.showNativeLink = body.showNativeLink;
@@ -95,6 +128,7 @@ module.exports.createModule = function (context) {
         value.siteIconUrl = safeUrl(settings.siteIconUrl);
         value.earlyOverlay = false;
         value.loginIntegration = false;
+        value.standaloneConflict = false;
         return value;
     };
 
