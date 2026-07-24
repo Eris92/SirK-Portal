@@ -3,57 +3,28 @@
 
     function storageKey(options) {
         if (options.layoutStorageKey) return String(options.layoutStorageKey);
-        var preset = String(options.preset || "standard").toLowerCase();
-        return "sirkPlatform.layout." + preset + ".collapsed";
-    }
-
-    function isStandalonePortal() {
-        try {
-            return window.location.pathname.toLowerCase().indexOf("/sirkportal") === 0 ||
-                document.getElementById("sirkStandaloneRoot") != null;
-        } catch (error) {
-            return false;
-        }
+        return "sirkPlatform.layout." + String(options.preset || "standard").toLowerCase() + ".collapsed";
     }
 
     window.SharedPage = {
         mount: function (options) {
             options = options || {};
-            var host = typeof options.container === "string"
-                ? document.querySelector(options.container)
-                : options.container;
-            var preset = String(options.preset || "standard").toLowerCase();
-            var standalone = isStandalonePortal();
-
+            var host = typeof options.container === "string" ? document.querySelector(options.container) : options.container;
             host.innerHTML = "";
-            host.className = standalone
-                ? "mc-shared-page mc-portal-module-shell mc-portal-module-" + preset
-                : "mc-shared-page";
-            host.setAttribute("data-module-preset", preset);
-            host.setAttribute("data-frontend", standalone ? "sirkportal" : "meshcentral");
+            host.className = "sirk-standalone-view-scroll";
+            host.setAttribute("data-frontend", "sirkportal");
 
             var tabsHost = document.createElement("div");
-            tabsHost.className = standalone ? "mc-shared-tabs mc-portal-module-tabs" : "mc-shared-tabs";
+            tabsHost.className = "sirk-tabs";
             var toolbarHost = document.createElement("div");
-            toolbarHost.className = standalone ? "mc-portal-module-toolbar" : "mc-shared-toolbar-host";
+            toolbarHost.className = "sirk-toolbar-host";
             var layoutHost = document.createElement("div");
-            layoutHost.className = standalone ? "mc-portal-module-workspace" : "mc-shared-layout-host";
-
+            layoutHost.className = "sirk-layout-host";
             host.appendChild(tabsHost);
             host.appendChild(toolbarHost);
             host.appendChild(layoutHost);
 
-            var layout = window.SharedLayout.mount({
-                container: layoutHost,
-                storageKey: storageKey(options)
-            });
-            if (standalone) {
-                layout.root.classList.add("mc-portal-module-layout");
-                layout.primary.classList.add("mc-portal-module-primary");
-                layout.secondary.classList.add("mc-portal-module-secondary");
-                layout.details.classList.add("mc-portal-module-details");
-            }
-
+            var layout = window.SharedLayout.mount({ container: layoutHost, storageKey: storageKey(options) });
             var toolbar = window.SharedToolbar.mount({
                 container: toolbarHost,
                 preset: options.preset || "standard",
@@ -75,7 +46,7 @@
                 primary: layout.primary,
                 secondary: layout.secondary,
                 details: layout.details,
-                frontend: standalone ? "sirkportal" : "meshcentral"
+                frontend: "sirkportal"
             };
         }
     };
