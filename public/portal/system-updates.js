@@ -44,7 +44,7 @@
 
     function jobMarkup(job) {
         if (!job) return "";
-        return '<div class="sirk-update-job ' + escapeHtml(job.status ||"") + '"><strong>' + escapeHtml(job.type || "operacja") + '</strong>' +
+        return '<div class="sirk-update-job ' + escapeHtml(job.status || "") + '"><strong>' + escapeHtml(job.type || "operacja") + '</strong>' +
             '<span>' + escapeHtml(job.message || job.status || "") + '</span>' +
             '<progress max="100" value="' + Number(job.progress || 0) + '"></progress><small>' + Number(job.progress || 0) + '%</small></div>';
     }
@@ -60,7 +60,7 @@
             '<p>Dostępna wersja: <strong>' + escapeHtml(remote.availableVersion || remote.error || "—") + '</strong></p>' +
             '<p>Aktywny kanał: <strong>' + escapeHtml(current.channel || "—") + '</strong> · <code>' + escapeHtml(current.branch || "—") + '</code></p>' +
             '<p>Status: <strong>' + (remote.updateAvailable ? 'Dostępna aktualizacja' : 'Aktualne') + '</strong></p></div>' +
-            jobMarkup(job) + (current.pending ? '<p class="sirk-update-warning">Operacja została przygotowana. Uruchom ponownie MeshCentral, aby wykonać atomiczną podmianę plików.</p>' : '') + '</div>';
+            jobMarkup(job) + (current.pending ? '<p class="sirk-update-warning">Operacja została przygotowana. Uruchom ponownie MeshCentral, aby wykonać atomową podmianę plików.</p>' : '') + '</div>';
     }
 
     function renderBackups(host, snapshot) {
@@ -150,18 +150,56 @@
     function settingsLayout(host) {
         if (!host || host.getAttribute("data-system-settings-ready") === "1") return;
         host.setAttribute("data-system-settings-ready", "1");
-        host.innerHTML = '<section class="sirk-standalone-view-scroll"><div class="sirk-toolbar-host"><div class="sirk-toolbar"><strong>Ustawienia</strong></div></div>' +
-            '<div class="sirk-layout-host"><div class="sirk-layout"><aside class="sirk-column-primary"><button type="button" class="sirk-nav-item is-active" data-settings-group="system">System</button></aside>' +
-            '<aside class="sirk-column-secondary"><button type="button" class="sirk-nav-item is-active" data-system-section="updates">Aktualizacje</button><button type="button" class="sirk-nav-item" data-system-section="backups">Backupy</button><button type="button" class="sirk-nav-item" data-system-section="history">Historia</button><button type="button" class="sirk-nav-item" data-system-section="channel">Kanał aktualizacji</button></aside>' +
-            '<div class="sirk-column-details" data-system-details></div></div></div></section>';
-        var details = host.querySelector("[data-system-details]");
-        host.addEventListener("click", function (event) {
+
+        var original = document.createElement("div");
+        original.className = "sirk-settings-original";
+        while (host.firstChild) original.appendChild(host.firstChild);
+
+        var shell = document.createElement("section");
+        shell.className = "sirk-standalone-view-scroll";
+        shell.innerHTML = '<div class="sirk-toolbar-host"><div class="sirk-toolbar"><strong>Ustawienia</strong></div></div>' +
+            '<div class="sirk-layout-host"><div class="sirk-layout"><aside class="sirk-column-primary">' +
+            '<button type="button" class="sirk-nav-item is-active" data-settings-group="portal">Portal</button>' +
+            '<button type="button" class="sirk-nav-item" data-settings-group="system">System</button></aside>' +
+            '<aside class="sirk-column-secondary" data-settings-secondary></aside>' +
+            '<div class="sirk-column-details" data-settings-details></div></div></div>';
+        host.appendChild(shell);
+
+        var secondary = shell.querySelector("[data-settings-secondary]");
+        var details = shell.querySelector("[data-settings-details]");
+
+        function selectGroup(group) {
+            Array.prototype.forEach.call(shell.querySelectorAll("[data-settings-group]"), function (item) {
+                item.classList.toggle("is-active", item.getAttribute("data-settings-group") === group);
+            });
+            secondary.innerHTML = "";
+            details.innerHTML = "";
+            if (group === "system") {
+                secondary.innerHTML = '<button type="button" class="sirk-nav-item is-active" data-system-section="updates">Aktualizacje</button>' +
+                    '<button type="button" class="sirk-nav-item" data-system-section="backups">Backupy</button>' +
+                    '<button type="button" class="sirk-nav-item" data-system-section="history">Historia</button>' +
+                    '<button type="button" class="sirk-nav-item" data-system-section="channel">Kanał aktualizacji</button>';
+                mount(details, "updates");
+            } else {
+                details.appendChild(original);
+            }
+        }
+
+        shell.addEventListener("click", function (event) {
+            var group = event.target.closest("[data-settings-group]");
+            if (group) {
+                selectGroup(group.getAttribute("data-settings-group"));
+                return;
+            }
             var button = event.target.closest("[data-system-section]");
             if (!button) return;
-            Array.prototype.forEach.call(host.querySelectorAll("[data-system-section]"), function (item) { item.classList.toggle("is-active", item === button); });
+            Array.prototype.forEach.call(shell.querySelectorAll("[data-system-section]"), function (item) {
+                item.classList.toggle("is-active", item === button);
+            });
             mount(details, button.getAttribute("data-system-section"));
         });
-        mount(details, "updates");
+
+        selectGroup("portal");
     }
 
     function installSettingsIntegration() {
