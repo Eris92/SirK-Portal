@@ -1,6 +1,7 @@
 name: Hotfix 1.8.2 settings and syntax
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches: [main]
     paths:
