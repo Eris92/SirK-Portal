@@ -6,29 +6,49 @@ var os = require("os");
 var path = require("path");
 var managerFactory = require("../server/system-update-manager.js");
 
-var root = fs.mkdtempSync(path.join(os.tmpdir(), "sirk-update-manager-app-"));
-var dataRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sirk-update-manager-data-"));
-fs.mkdirSync(path.join(root, "server"), { recursive: true });
-fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ version: "1.0.0" }));
-fs.writeFileSync(path.join(root, "config.json"), JSON.stringify({ shortName: "SIRKPortal", version: "1.0.0" }));
-fs.writeFileSync(path.join(root, "SIRKPortal.js"), "module.exports = {};\n");
-fs.writeFileSync(path.join(root, "server", "standalone.js"), "module.exports = {};\n");
-fs.writeFileSync(path.join(root, "server", "update-helper.js"), "module.exports = {};\n");
+function waitForJob(manager, jobId) {
+    return new Promise(function (resolve, reject) {
+        var attempts = 0;
+        var timer = setInterval(function () {
+            attempts += 1;
+            var job = manager.job(jobId);
+            if (job && job.status === "completed") { clearInterval(timer); resolve(job); }
+            else if (job && job.status === "failed") { clearInterval(timer); reject(new Error(job.error)); }
+            else if (attempts > 200) { clearInterval(timer); reject(new Error("Timed out waiting for update job.")); }
+        }, 10);
+    });
+}
 
-var manager = managerFactory.create({ appRoot: root, dataRoot: dataRoot });
-assert.deepStrictEqual(manager.channels, { stable: "main", beta: "beta", dev: "develop" });
-assert.strictEqual(manager.current().channel, "dev");
-assert.strictEqual(manager.current().branch, "develop");
-assert.strictEqual(manager.current().pending, null);
-assert.strictEqual(manager.setChannel("stable").branch, "main");
-assert.strictEqual(manager.setChannel("beta").branch, "beta");
-assert.strictEqual(manager.setChannel("dev").branch, "develop");
-assert.strictEqual(manager.health().ok, true);
-var backup = manager.backup("manual");
-assert.ok(backup.id);
-assert.strictEqual(backup.version, "1.0.0");
-assert.strictEqual(manager.backups().length, 1);
-assert.ok(fs.existsSync(path.join(dataRoot, "updates", "backups", backup.id, "manifest.json")));
-assert.ok(fs.existsSync(path.join(dataRoot, "updates", "backups", backup.id, "app", "package.json")));
+(async function () {
+    var root = fs.mkdtempSync(path.join(os.tmpdir(), "sirk-update-manager-app-"));
+    var dataRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sirk-update-manager-data-"));
+    fs.mkdirSync(path.join(root, "server"), { recursive: true });
+    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ version: "0.9.0" }));
+    fs.writeFileSync(path.join(root, "config.json"), JSON.stringify({ shortName: "SIRKPortal", version: "1.0.0" }));
+    fs.writeFileSync(path.join(root, "SIRKPortal.js"), "module.exports = {};\n");
+    fs.writeFileSync(path.join(root, "server", "standalone.js"), "module.exports = {};\n");
+    fs.writeFileSync(path.join(root, "server", "update-helper.js"), "module.exports = {};\n");
 
-console.log("system-update-manager.test.js: OK");
+    var manager = managerFactory.create({ appRoot: root, dataRoot: dataRoot });
+    assert.deepStrictEqual(manager.channels, { stable: "main", beta: "beta", dev: "develop" });
+    assert.strictEqual(manager.current().version, "1.0.0");
+    assert.strictEqual(manager.current().channel, "stable");
+    assert.strictEqual(manager.current().branch, "main");
+    assert.strictEqual(manager.current().pending, null);
+    assert.strictEqual(manager.setChannel("beta").branch, "beta");
+    assert.strictEqual(manager.setChannel("dev").branch, "develop");
+    assert.strictEqual(manager.health().ok, true);
+
+    var queued = manager.backup("manual");
+    assert.ok(queued.jobId);
+    assert.strictEqual(queued.status, "queued");
+    var job = await waitForJob(manager, queued.jobId);
+    assert.strictEqual(job.result.version, "1.0.0");
+    assert.strictEqual(manager.backups().length, 1);
+    assert.ok(fs.existsSync(path.join(dataRoot, "updates", "backups", job.result.id, "manifest.json")));
+    assert.ok(fs.existsSync(path.join(dataRoot, "updates", "backups", job.result.id, "app", "package.json")));
+    console.log("system-update-manager.test.js: OK");
+}()).catch(function (error) {
+    console.error(error.stack || error);
+    process.exitCode = 1;
+});
