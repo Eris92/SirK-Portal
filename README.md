@@ -1,4 +1,4 @@
-# SIRK Management Platform 1.5.140
+# SIRK Management Platform 1.5.141
 
 **Repozytorium i techniczna nazwa pluginu:** `SIRK-Portal`  
 **Nazwa wyświetlana:** `SIRK Management Platform`  
@@ -56,6 +56,12 @@ Szczegółowe mapy znajdują się w lokalnych plikach `INDEX.md` poszczególnych
 - Portal.
 
 Backend modułów znajduje się w `server/modules/`, a pojedyncze renderery frontendowe w `public/modules/`.
+
+## Wspólny kontrakt UI Portalu
+
+Wszystkie widoki SIRK Portal korzystają ze wspólnego systemu klas `mc-portal-*` dla powierzchni, kart, toolbarów, przycisków, pól formularzy, statusów, list i typografii.
+
+Widok Devices zachowuje własną geometrię listy urządzeń, szczegółów hosta i workspace aktywnej sesji, ale korzysta z tych samych komponentów wizualnych co Overview oraz pozostałe zakładki.
 
 ## Entry pointy i loadery
 
