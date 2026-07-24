@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.8.0",
+    "date": "2026-07-24",
+    "changes": [
+      "Publish the independent Portal updater on the stable main channel",
+      "Move System updates, backups, history and update-channel settings into Settings",
+      "Run backup, update staging and restore as asynchronous jobs without blocking MeshCentral",
+      "Add an explicit Save action for the selected update channel",
+      "Unify Portal view classes and remove menu-specific frontend class contracts"
+    ]
+  },
+  {
     "version": "1.7.0-dev.1",
     "date": "2026-07-24",
     "changes": [
