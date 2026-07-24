@@ -2,13 +2,35 @@ name: Test
 
 on:
   push:
-    branches: [main]
+    branches: [main, cleanup/unified-portal-classes]
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  cleanup-classes:
+    if: github.ref == 'refs/heads/cleanup/unified-portal-classes'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout cleanup branch
+        uses: actions/checkout@v4
+        with:
+          ref: cleanup/unified-portal-classes
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Apply canonical Portal classes
+        run: node scripts/cleanup-portal-classes.js
+      - name: Commit generated cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "refactor(ui): remove legacy mc and view-specific classes"
+          git push origin HEAD:cleanup/unified-portal-classes
+
   validate-linux:
     runs-on: ubuntu-latest
     steps:
