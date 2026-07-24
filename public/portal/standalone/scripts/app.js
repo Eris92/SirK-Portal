@@ -349,7 +349,7 @@
                     if (!message) message = language() === "pl" ? item.messageEn : item.messagePl;
                     var itemStatus = ["ok", "warning", "critical"].indexOf(item.status) >= 0 ? item.status : "unknown";
                     var statusText = t(itemStatus === "ok" ? "healthOk" : itemStatus === "critical" ? "healthCritical" : itemStatus === "warning" ? "healthWarning" : "healthUnknown");
-                    return '<li><strong>' + escapeHtml(labels[item.key] || item.key) + '</strong><span class="sirk-health-badge is-' + itemStatus + '">' + escapeHtml(statusText) + '</span>' + (message && itemStatus !== "ok" ? '<small>' + escapeHtml(message) + '</small>' : '') + '</li>';
+                    return '<li><strong>' + escapeHtml(labels[item.key] || item.key) + '</strong><span class="sirk-health-badge is-' + itemStatus '">' + escapeHtml(statusText) + '</span>' + (message && itemStatus !== "ok" ? '<small>' + escapeHtml(message) + '</small>' : '') + '</li>';
                 }).join("");
                 issues.hidden = healthItems.length === 0;
             }
@@ -479,7 +479,7 @@
         var online = nodeOnline(node);
         content.innerHTML = '<div class="sirk-standalone-view-scroll">' +
             '<div class="sirk-device-detail-head"><button type="button" class="sirk-device-back" data-device-back="1">← ' + escapeHtml(t("backToDevices")) + '</button></div>' +
-            '<section class="sirk-device-hero"><span class="sirk-device-hero-icon">' + DEVICE_ICON + '</span><div><h2>' + escapeHtml(node.name || t("unknownHost")) + '</h2><p>' + escapeHtml(nodeGroup(node, map)) + ' · ' + escapeHtml(node.os || t("noOs")) + '</p></div><span class="sirk-device-connection ' + (online ? "is-online" : "is-offline") + '"><i></i>' + escapeHtml(online ? t("online") : t("offline")) + '</span></section>' +
+            '<section class="sirk-device-hero"><span class="sirk-device-hero-icon">' + DEVICE_ICON + '</span><div><h2>' + escapeHtml(node.name || t("unknownHost")) + '</h2><p>' + escapeHtml(nodeGroup(node, map)) + ' · ' + escapeHtml(node.os || t("noOs")) + '</p></div><span class="sirk-device-connection ' + (online ?"is-online" : "is-offline") + '"><i></i>' + escapeHtml(online ? t("online") : t("offline")) + '</span></section>' +
             '<div class="sirk-device-detail-grid">' +
             detailItem(t("name"), node.name) + detailItem(t("status"), online ? t("online") : t("offline")) +
             detailItem(t("group"), nodeGroup(node, map)) + detailItem(t("system"), node.os || t("noOs")) +
@@ -531,7 +531,7 @@
             return '<section class="sirk-device-group"><header class="sirk-device-group-header"><div><strong>' + escapeHtml(group) + '</strong><small>' + rows.length + ' ' + escapeHtml(t("devicesCount")) + '</small></div><span>' + rows.filter(nodeOnline).length + ' ' + escapeHtml(t("online").toLowerCase()) + '</span></header><div class="sirk-device-list">' +
                 rows.map(function (node) {
                     var online = nodeOnline(node);
-                    return '<button type="button" class="sirk-device-row" data-device-id="' + escapeHtml(node.id) + '"><span class="sirk-device-icon">' + DEVICE_ICON + '</span><span class="sirk-device-primary"><strong>' + escapeHtml(node.name || t("unknownHost")) + '</strong><small>' + escapeHtml(group) + '</small></span><span class="sirk-device-os">' + escapeHtml(node.os || t("noOs")) + '</span><span class="sirk-device-network">' + escapeHtml(node.ip || "—") + '</span><span class="sirk-device-seen">' + escapeHtml(formatLastSeen(node.lastSeen)) + '</span><span class="sirk-device-connection ' + (online ? "is-online" : "is-offline") + '"><i></i>' + escapeHtml(online ? t("online") : t("offline")) + '</span><span class="sirk-device-open">' + escapeHtml(t("open")) + '</span></button>';
+                    return '<button type="button" class="sirk-device-row" data-device-id="' + escapeHtml(node.id) + '"><span class="sirk-device-icon">' + DEVICE_ICON + '</span><span class="sirk-device-primary"><strong>' + escapeHtml(node.name || t("unknownHost")) + '</strong><small>' + escapeHtml(group) + '</small></span><span class="sirk-device-os">' + escapeHtml(node.os || t("noOs")) + '</span><span class="sirk-device-network">' + escapeHtml(node.ip || "—") + '</span><span class="sirk-device-seen">' + escapeHtml(formatLastSeen(node.lastSeen)) + '</span><span class="sirk-device-connection ' + (online ?"is-online" : "is-offline") + '"><i></i>' + escapeHtml(online ? t("online") : t("offline")) + '</span><span class="sirk-device-open">' + escapeHtml(t("open")) + '</span></button>';
                 }).join("") + '</div></section>';
         }).join("");
     }
@@ -564,7 +564,7 @@
     }
 
     function placeholder(view, description) {
-        content.innerHTML = '<section class="sirk-standalone-view-scroll sirk-standalone-view-scroll"><div class="sirk-content"><h2>' + escapeHtml(viewName(view)) + '</h2><p class="sirk-muted">' + escapeHtml(description) + '</p></div></section>';
+        content.innerHTML = '<section class="sirk-standalone-view-scroll"><div class="sirk-content"><h2>' + escapeHtml(viewName(view)) + '</h2><p class="sirk-muted">' + escapeHtml(description) + '</p></div></section>';
     }
 
     function render(view) {

@@ -22,9 +22,9 @@
             this.list(options.counts).forEach(function (item) {
                 var button = document.createElement("button");
                 button.type = "button";
-                button.className = "sirk-nav-item sirk-nav-item sirk-nav-item sirk-result-status sirk-result-status-" + (item.key || "all");
+                button.className = "sirk-nav-item sirk-result-status sirk-result-status-" + (item.key || "all");
                 var icon = document.createElement("span");
-                icon.className = "sirk-nav-icon sirk-result-status-icon sirk-nav-icon";
+                icon.className = "sirk-nav-icon sirk-result-status-icon";
                 icon.innerHTML = item.icon;
                 var label = document.createElement("span");
                 label.className = "mc-portal-nav-label";

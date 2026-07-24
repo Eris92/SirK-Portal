@@ -48,7 +48,7 @@
         var host = main.querySelector('[data-="1"]');
         if (!host) {
             host = document.createElement("section");
-            host.className = "sirk-view ";
+            host.className = "sirk-view";
             host.setAttribute("data-view", "sirk-platform-management");
             host.setAttribute("data-", "1");
             main.appendChild(host);

@@ -41,7 +41,7 @@
                 var remote = value.remote || {};
                 status.innerHTML = '<div class="sirk-update-grid">' +
                     '<article><h3>Wersja i kanał</h3><p>Aktualna: <b>' + escapeHtml(value.current.version) + '</b></p><p>Dostępna: <b>' + escapeHtml(remote.availableVersion || remote.error || "—") + '</b></p><p>Gałąź: <b>' + escapeHtml(value.current.branch) + '</b></p></article>' +
-                    '<article><h3>Health check</h3>' + value.health.checks.map(function (check) { return '<p class="' + (check.ok ? "ok" : "fail") + '">' + (check.ok ? "✓" : "✕") + ' ' + escapeHtml(check.name) + (check.error ? ': ' + escapeHtml(check.error) : '') + '</p>'; }).join("") + '</article>' +
+                    '<article><h3>Health check</h3>' + value.health.checks.map(function (check) { return '<p class="' + (check.ok ?"ok" : "fail") + '">' + (check.ok ? "✓" : "✕") + ' ' + escapeHtml(check.name) + (check.error ? ': ' + escapeHtml(check.error) : '') + '</p>'; }).join("") + '</article>' +
                     '<article><h3>Backupy i cofanie</h3>' + (value.backups.length ? value.backups.map(function (backup) { return '<p><button type="button" data-restore-id="' + escapeHtml(backup.id) + '">Przywróć</button> <b>' + escapeHtml(backup.version || "") + '</b><br><small>' + escapeHtml(backup.createdAt || "") + '</small></p>'; }).join("") : '<p>Brak backupów.</p>') + '</article>' +
                     '<article><h3>Historia</h3>' + (value.history.length ? value.history.slice(0, 10).map(function (entry) { return '<p><b>' + escapeHtml(entry.type) + '</b> · ' + escapeHtml(entry.at || "") + '</p>'; }).join("") : '<p>Brak operacji.</p>') + '</article>' +
                     '</div>';

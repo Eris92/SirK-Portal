@@ -61,7 +61,7 @@
 
     function badge(text, kind) {
         var value = document.createElement("span");
-        value.className = "mc-admin-state " + kind;
+        value.className = "mc-admin-state" + kind;
         value.textContent = text;
         return value;
     }

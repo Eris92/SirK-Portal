@@ -164,7 +164,7 @@
 
     function buildShell(host) {
         host.innerHTML = "";
-        host.classList.add("");
+        host
         var shell = el("div", "sirk-standalone-view-scroll sirk-standalone-view-scroll");
         var toolbar = el("div", "sirk-toolbar sirk-toolbar-host");
         toolbar.appendChild(toolButton("collapse", t("collapse"), icons.collapse));
@@ -249,7 +249,7 @@
         var open = el("button", "sirk-nav-item sirk-script-open");
         open.type = "button";
         open.setAttribute("data-script-path", script.path);
-        open.innerHTML = '<span class="sirk-nav-icon' + (script.requiresApproval ? ' sirk-script-approval-icon' : '') + '">' + (script.requiresApproval ? icons.approval : icons.script) + '</span><span class="sirk-script-label"></span>';
+        open.innerHTML = '<span class="sirk-nav-icon' + (script.requiresApproval ? ' sirk-script-approval-icon' : '')">' + (script.requiresApproval ? icons.approval : icons.script) + '</span><span class="sirk-script-label"></span>';
         open.querySelector(".sirk-script-label").textContent = localized(script, "label") || script.name || script.path;
         var scriptDescription = localized(script, "description");
         if (scriptDescription) open.title = scriptDescription;

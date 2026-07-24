@@ -65,11 +65,11 @@
     function toolButton(action, title, icon) {
         var button = document.createElement("button");
         button.type = "button";
-        button.className = "mc-admin-management-tool sirk-toolbar-button sirk-toolbar-button";
+        button.className = "mc-admin-management-tool sirk-toolbar-button";
         button.setAttribute("data-admin-tool", action);
         button.title = title;
         button.setAttribute("aria-label", title);
-        button.innerHTML = '<span class="sirk-toolbar-icon sirk-toolbar-icon">' + icon + "</span>";
+        button.innerHTML = '<span class="sirk-toolbar-icon">' + icon + "</span>";
         toolbar.appendChild(button);
         return button;
     }
