@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.7.0-dev.1",
+    "date": "2026-07-24",
+    "changes": [
+      "Add an independent SIRK lifecycle manager owned by the Portal",
+      "Add stable, beta and dev channels mapped to main, beta and develop",
+      "Add backup, staged update, restore, rollback history and health checks",
+      "Run atomic file replacement in a detached helper after host shutdown",
+      "Make develop the mandatory working branch"
+    ]
+  },
+  {
     "version": "1.6.4",
     "date": "2026-07-24",
     "changes": [
