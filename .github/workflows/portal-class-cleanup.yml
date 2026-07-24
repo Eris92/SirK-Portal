@@ -19,12 +19,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: node scripts/cleanup-portal-classes.js
-      - run: npm test
-      - name: Commit cleanup
+      - name: Normalize Portal classes
+        run: node scripts/cleanup-portal-classes.js
+      - name: Commit generated cleanup
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet || git commit -m "refactor(ui): remove legacy mc and view-specific classes"
+          git diff --cached --quiet || git commit -m "refactor(ui): remove duplicate and redundant Portal classes"
           git push origin HEAD:cleanup/unified-portal-classes
+      - name: Validate normalized frontend
+        run: npm test
