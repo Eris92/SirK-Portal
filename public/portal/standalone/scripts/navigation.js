@@ -117,6 +117,8 @@
     }
 
     loadUiContract();
+    loadStyle("sirk-platform-system-updates-style", "system-updates.css");
+    loadScript("sirk-platform-system-updates-script", "system-updates.js");
     loadScript("sirk-platform-icon-registry", "shared/icon-registry.js", replacePortalIcons);
     observeDeviceWorkspace();
     loadScript("sirk-platform-portal-terminal-connect", "portal-terminal-connect.js");
