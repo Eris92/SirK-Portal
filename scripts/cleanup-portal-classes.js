@@ -1,0 +1,83 @@
+"use strict";
+
+var fs = require("fs");
+var path = require("path");
+var root = path.resolve(__dirname, "..");
+var targets = ["public", "views", "web", "test"];
+var extensions = /\.(js|css|html|handlebars)$/i;
+var replacements = [
+    [/mc-portal-module-shell/g, "sirk-standalone-view-scroll"],
+    [/mc-portal-placeholder-shell/g, "sirk-standalone-view-scroll"],
+    [/mc-portal-placeholder-content/g, "sirk-content"],
+    [/mc-portal-module-toolbar/g, "sirk-toolbar-host"],
+    [/mc-portal-module-workspace/g, "sirk-layout-host"],
+    [/mc-portal-module-layout/g, "sirk-layout"],
+    [/mc-portal-module-primary/g, "sirk-column sirk-column-primary"],
+    [/mc-portal-module-secondary/g, "sirk-column sirk-column-secondary"],
+    [/mc-portal-module-details/g, "sirk-column sirk-column-details"],
+    [/mc-portal-module-tabs/g, "sirk-tabs"],
+    [/mc-portal-toolbar-button/g, "sirk-toolbar-button"],
+    [/mc-portal-toolbar-icon/g, "sirk-toolbar-icon"],
+    [/mc-portal-filter/g, "sirk-filter"],
+    [/mc-portal-nav-item/g, "sirk-nav-item"],
+    [/mc-portal-nav-icon/g, "sirk-nav-icon"],
+    [/mc-portal-card-grid/g, "sirk-card-grid"],
+    [/mc-portal-card/g, "sirk-card"],
+    [/mc-portal-actions/g, "sirk-actions"],
+    [/mc-portal-button-danger/g, "sirk-button-danger"],
+    [/mc-portal-button/g, "sirk-button"],
+    [/mc-portal-view-surface/g, "sirk-standalone-view-scroll"],
+    [/mc-shared-page/g, "sirk-standalone-view-scroll"],
+    [/mc-shared-layout-host/g, "sirk-layout-host"],
+    [/mc-shared-layout/g, "sirk-layout"],
+    [/mc-shared-primary/g, "sirk-column sirk-column-primary"],
+    [/mc-shared-secondary/g, "sirk-column sirk-column-secondary"],
+    [/mc-shared-details/g, "sirk-column sirk-column-details"],
+    [/mc-shared-toolbar-host/g, "sirk-toolbar-host"],
+    [/mc-shared-toolbar-button/g, "sirk-toolbar-button"],
+    [/mc-shared-toolbar-icon/g, "sirk-toolbar-icon"],
+    [/mc-shared-toolbar-search/g, "sirk-toolbar-search"],
+    [/mc-shared-toolbar-group/g, "sirk-toolbar-group"],
+    [/mc-shared-toolbar-left/g, "sirk-toolbar-left"],
+    [/mc-shared-toolbar-center/g, "sirk-toolbar-center"],
+    [/mc-shared-toolbar-right/g, "sirk-toolbar-right"],
+    [/mc-shared-toolbar/g, "sirk-toolbar"],
+    [/mc-shared-tabs/g, "sirk-tabs"],
+    [/mc-shared-nav-item/g, "sirk-nav-item"],
+    [/mc-shared-card/g, "sirk-card"],
+    [/mc-shared-error/g, "sirk-error"],
+    [/mc-shared-output/g, "sirk-output"],
+    [/sirk-platform-management-host/g, ""],
+    [/sirk-native-management/g, ""],
+    [/sirk-management-shell/g, "sirk-standalone-view-scroll"],
+    [/sirk-management-toolbar-status/g, "sirk-toolbar-status"],
+    [/sirk-management-toolbar/g, "sirk-toolbar"],
+    [/sirk-management-workspace/g, "sirk-layout"],
+    [/sirk-management-column/g, "sirk-column"],
+    [/sirk-management-list/g, "sirk-list"],
+    [/sirk-management-content/g, "sirk-content"],
+    [/sirk-management-item-icon/g, "sirk-nav-icon"],
+    [/sirk-management-item/g, "sirk-nav-item"],
+    [/sirk-management-tool/g, "sirk-toolbar-button"],
+    [/sirk-management-search/g, "sirk-filter"],
+    [/is-management-collapsed/g, "is-collapsed"]
+];
+
+function walk(directory) {
+    if (!fs.existsSync(directory)) return;
+    fs.readdirSync(directory, { withFileTypes: true }).forEach(function (entry) {
+        var file = path.join(directory, entry.name);
+        if (entry.isDirectory()) { walk(file); return; }
+        if (!extensions.test(entry.name)) return;
+        var source = fs.readFileSync(file, "utf8");
+        var output = source;
+        replacements.forEach(function (item) { output = output.replace(item[0], item[1]); });
+        output = output.replace(/className\s*=\s*"\s+"/g, 'className = ""');
+        output = output.replace(/class="\s+"/g, 'class=""');
+        output = output.replace(/\.classList\.add\((""|'')(?:,\s*)?/g, ".classList.add(");
+        if (output !== source) fs.writeFileSync(file, output);
+    });
+}
+
+targets.forEach(function (target) { walk(path.join(root, target)); });
+console.log("Portal class cleanup completed.");
