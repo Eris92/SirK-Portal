@@ -44,8 +44,8 @@ function create(options) {
     var stateFile = path.join(updateRoot, "state.json");
 
     function loadState() {
-        try { return Object.assign({ channel: "dev", history: [] }, readJson(stateFile)); }
-        catch (error) { return { channel: "dev", history: [] }; }
+        try { return Object.assign({ channel: "dev", history: [], pending: null }, readJson(stateFile)); }
+        catch (error) { return { channel: "dev", history: [], pending: null }; }
     }
 
     function saveState(value) {
@@ -62,7 +62,7 @@ function create(options) {
     function current() {
         var packageJson = readJson(path.join(appRoot, "package.json"));
         var state = loadState();
-        return { version: packageJson.version, channel: state.channel, branch: branch(state.channel) };
+        return { version: packageJson.version, channel: state.channel, branch: branch(state.channel), pending: state.pending || null };
     }
 
     function health(target) {
@@ -76,6 +76,7 @@ function create(options) {
         check("config", function () { if (readJson(path.join(target, "config.json")).shortName !== "SIRKPortal") throw new Error("identity mismatch"); });
         check("entrypoint", function () { if (!fs.existsSync(path.join(target, "SIRKPortal.js"))) throw new Error("entrypoint missing"); });
         check("standalone", function () { if (!fs.existsSync(path.join(target, "server", "standalone.js"))) throw new Error("standalone server missing"); });
+        check("update-helper", function () { if (!fs.existsSync(path.join(target, "server", "update-helper.js"))) throw new Error("update helper missing"); });
         return { ok: checks.every(function (item) { return item.ok; }), checks: checks };
     }
 
@@ -136,7 +137,43 @@ function create(options) {
         }
     }
 
+    function scheduleSwap(staged, token, history, channel) {
+        var operationRoot = path.join(workRoot, token, "operation");
+        var helperCopy = path.join(operationRoot, "update-helper.js");
+        var manifestFile = path.join(operationRoot, "pending.json");
+        fs.mkdirSync(operationRoot, { recursive: true });
+        fs.copyFileSync(path.join(appRoot, "server", "update-helper.js"), helperCopy);
+        var manifest = {
+            token: token,
+            parentPid: process.pid,
+            target: appRoot,
+            staged: staged,
+            stateFile: stateFile,
+            history: history
+        };
+        fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
+        var state = loadState();
+        state.pending = {
+            token: token,
+            type: history.type,
+            targetVersion: history.to || history.version || "",
+            backupId: history.backupId || "",
+            createdAt: new Date().toISOString()
+        };
+        if (channel) state.channel = channel;
+        saveState(state);
+        var child = childProcess.spawn(process.execPath, [helperCopy, manifestFile], {
+            cwd: path.dirname(appRoot),
+            detached: true,
+            stdio: "ignore",
+            windowsHide: true
+        });
+        child.unref();
+        return state.pending;
+    }
+
     function install(channel) {
+        if (loadState().pending) return Promise.reject(new Error("Another update or restore operation is already pending."));
         return check(channel).then(function (remote) {
             var backup = createBackup("before-update");
             var token = Date.now() + "-" + crypto.randomBytes(4).toString("hex");
@@ -152,51 +189,34 @@ function create(options) {
                 var staged = path.join(extracted, directories[0]);
                 var stagedHealth = health(staged);
                 if (!stagedHealth.ok) throw new Error("Downloaded update failed health checks.");
-                var previous = appRoot + ".previous-" + token;
-                try {
-                    fs.renameSync(appRoot, previous);
-                    fs.renameSync(staged, appRoot);
-                    fs.rmSync(previous, { recursive: true, force: true });
-                } catch (error) {
-                    try { if (!fs.existsSync(appRoot) && fs.existsSync(previous)) fs.renameSync(previous, appRoot); } catch (ignored) {}
-                    throw error;
-                }
-                var state = loadState();
-                state.channel = remote.channel;
-                state.history.unshift({ type: "update", at: new Date().toISOString(), from: backup.version, to: remote.availableVersion, backupId: backup.id });
-                saveState(state);
-                return { changed: true, restartRequired: true, version: remote.availableVersion, backupId: backup.id, health: stagedHealth };
+                var history = { type: "update", at: new Date().toISOString(), from: backup.version, to: remote.availableVersion, backupId: backup.id, channel: remote.channel };
+                var pending = scheduleSwap(staged, token, history, remote.channel);
+                return { changed: false, staged: true, restartRequired: true, version: remote.availableVersion, backupId: backup.id, pending: pending, health: stagedHealth };
             });
         });
     }
 
     function restore(backupId) {
+        if (loadState().pending) throw new Error("Another update or restore operation is already pending.");
         backupId = String(backupId || "");
         if (!/^[a-z0-9._-]+$/i.test(backupId)) throw new Error("Invalid backup identifier.");
         var source = path.join(backupRoot, backupId, "app");
         if (!fs.existsSync(source)) throw new Error("Backup was not found.");
+        var backupManifest = readJson(path.join(backupRoot, backupId, "manifest.json"));
         var safety = createBackup("before-restore");
-        var token = Date.now() + "-restore";
-        var staged = appRoot + ".restore-" + token;
-        var previous = appRoot + ".previous-" + token;
+        var token = Date.now() + "-restore-" + crypto.randomBytes(4).toString("hex");
+        var staged = path.join(workRoot, token, "restore");
+        fs.mkdirSync(path.dirname(staged), { recursive: true });
         fs.cpSync(source, staged, { recursive: true, errorOnExist: true });
         var stagedHealth = health(staged);
         if (!stagedHealth.ok) { fs.rmSync(staged, { recursive: true, force: true }); throw new Error("Backup failed health checks."); }
-        try {
-            fs.renameSync(appRoot, previous);
-            fs.renameSync(staged, appRoot);
-            fs.rmSync(previous, { recursive: true, force: true });
-        } catch (error) {
-            try { if (!fs.existsSync(appRoot) && fs.existsSync(previous)) fs.renameSync(previous, appRoot); } catch (ignored) {}
-            throw error;
-        }
-        var state = loadState();
-        state.history.unshift({ type: "restore", at: new Date().toISOString(), backupId: backupId, safetyBackupId: safety.id });
-        saveState(state);
-        return { changed: true, restartRequired: true, backupId: backupId, safetyBackupId: safety.id, health: stagedHealth };
+        var history = { type: "restore", at: new Date().toISOString(), version: backupManifest.version, backupId: backupId, safetyBackupId: safety.id, channel: backupManifest.channel || loadState().channel };
+        var pending = scheduleSwap(staged, token, history, history.channel);
+        return { changed: false, staged: true, restartRequired: true, backupId: backupId, safetyBackupId: safety.id, pending: pending, health: stagedHealth };
     }
 
     function setChannel(channel) {
+        if (loadState().pending) throw new Error("The update channel cannot be changed while an operation is pending.");
         var selectedBranch = branch(channel);
         var state = loadState();
         state.channel = Object.keys(CHANNELS).find(function (key) { return CHANNELS[key] === selectedBranch; });
