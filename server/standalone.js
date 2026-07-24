@@ -87,7 +87,7 @@ function start(options) {
     var host = adapter.createHost(options);
     var runtime = runtimeFactory.createRuntime(host, ROOT);
     var api = apiFactory.createHandler(runtime, host);
-    var updateManager = updateManagerFactory.create({ appRoot: ROOT, dataRoot: options.dataRoot });
+    var updateManager = updateManagerFactory.create({ appRoot: ROOT, dataRoot: host.dataRoot });
     var updateApi = updateRouterFactory.createHandler(updateManager);
     return Promise.resolve(runtime.initialize()).then(function () {
         var server = http.createServer(function (req, res) {
