@@ -6,7 +6,9 @@ var contract = require("../../contracts/host-context.js");
 
 module.exports.createHost = function (options) {
     options = options || {};
-    var dataRoot = path.resolve(options.dataRoot || process.env.SIRK_DATA_ROOT || path.join(process.cwd(), "sirk-platform-data"));
+    var applicationRoot = path.resolve(__dirname, "..", "..", "..");
+    var defaultDataRoot = path.join(path.dirname(applicationRoot), "sirk-platform-data");
+    var dataRoot = path.resolve(options.dataRoot || process.env.SIRK_DATA_ROOT || defaultDataRoot);
     fs.mkdirSync(path.join(dataRoot, "extensions"), { recursive: true });
     return contract.createHostContext({
         kind: "standalone",
