@@ -1,0 +1,156 @@
+/* Shared view primitives for Overview, Devices and module views. Loaded after the canonical Portal UI contract. */
+#sirkPortalRoot .mc-portal-view-surface {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    border: 1px solid var(--mc-ui-border, var(--sirk-border, #dce3ec));
+    border-radius: 10px;
+    background: var(--mc-ui-panel, var(--sirk-panel, #fff));
+    color: var(--mc-ui-text, var(--sirk-text, #172033));
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+#sirkPortalRoot .mc-portal-view-scroll {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 14px;
+    overflow: auto;
+    box-sizing: border-box;
+}
+
+#sirkPortalRoot .mc-portal-view-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    width: 100%;
+    min-height: var(--mc-ui-toolbar-height, 48px);
+    margin: 0 0 14px;
+    padding: 0;
+}
+
+#sirkPortalRoot .mc-portal-card {
+    border-color: var(--mc-ui-border, var(--sirk-border, #dce3ec)) !important;
+    border-radius: var(--mc-ui-radius, 8px) !important;
+    background: var(--mc-ui-panel, var(--sirk-panel, #fff)) !important;
+    color: var(--mc-ui-text, var(--sirk-text, #172033)) !important;
+    box-shadow: none !important;
+}
+
+#sirkPortalRoot .mc-portal-button-secondary {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    margin: 0;
+    padding: 7px 13px;
+    border: 1px solid var(--mc-ui-border, var(--sirk-border, #dce3ec));
+    border-radius: 7px;
+    background: var(--mc-ui-panel, var(--sirk-panel, #fff));
+    color: var(--mc-ui-text, var(--sirk-text, #172033));
+    font: 500 14px "Segoe UI", Arial, sans-serif;
+    text-decoration: none;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+#sirkPortalRoot .mc-portal-button-secondary:hover,
+#sirkPortalRoot .mc-portal-button-secondary:focus-visible {
+    border-color: rgba(96, 165, 250, .35);
+    background: var(--mc-ui-hover, rgba(96, 165, 250, .09));
+    outline: 0;
+}
+
+#sirkPortalRoot .mc-portal-status {
+    width: 100%;
+    padding: 18px;
+    border: 1px dashed var(--mc-ui-border, var(--sirk-border, #dce3ec));
+    border-radius: var(--mc-ui-radius, 8px);
+    background: var(--mc-ui-panel, var(--sirk-panel, #fff));
+    color: var(--mc-ui-muted, var(--sirk-muted, #657187));
+    box-sizing: border-box;
+}
+
+#sirkPortalRoot .mc-portal-list {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    border-top: 1px solid var(--mc-ui-border, var(--sirk-border, #dce3ec));
+}
+
+#sirkPortalRoot .mc-portal-list-row {
+    border-bottom-color: var(--mc-ui-border, var(--sirk-row-border, #edf1f6)) !important;
+    background: var(--mc-ui-panel, var(--sirk-panel, #fff)) !important;
+    color: var(--mc-ui-text, var(--sirk-text, #172033)) !important;
+}
+
+#sirkPortalRoot .mc-portal-list-row:hover,
+#sirkPortalRoot .mc-portal-list-row:focus-visible {
+    background: var(--mc-ui-hover, var(--sirk-hover, #f7faff)) !important;
+}
+
+#sirkPortalRoot .mc-portal-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 7px 10px;
+    border: 1px solid var(--mc-ui-border, var(--sirk-border, #dce3ec));
+    border-radius: 7px;
+    background: var(--mc-ui-panel, var(--sirk-panel, #fff));
+    color: var(--mc-ui-muted, var(--sirk-muted, #657187));
+    box-sizing: border-box;
+}
+
+#sirkPortalRoot .sirk-device-content {
+    --mc-ui-accent: var(--sirk-active-accent, #3867d6);
+}
+
+#sirkPortalRoot .sirk-device-content > .mc-portal-view-surface {
+    flex: 1 1 auto;
+}
+
+#sirkPortalRoot .sirk-device-content .sirk-device-group,
+#sirkPortalRoot .sirk-device-content .sirk-device-hero,
+#sirkPortalRoot .sirk-device-content .sirk-device-detail-item,
+#sirkPortalRoot .sirk-device-content .sirk-device-native-card {
+    border-radius: var(--mc-ui-radius, 8px);
+    box-shadow: none;
+}
+
+#sirkPortalRoot .sirk-device-content .sirk-device-input,
+#sirkPortalRoot .sirk-device-content .sirk-device-select {
+    min-height: 34px;
+    border-radius: 7px;
+    background: var(--mc-ui-input, var(--sirk-input, #fff));
+    color: var(--mc-ui-text, var(--sirk-text, #172033));
+}
+
+#sirkPortalRoot .sirk-device-content .sirk-device-native-button {
+    border-color: transparent;
+    background: var(--mc-ui-accent, #3867d6);
+    color: #fff;
+}
+
+#sirkPortalRoot .sirk-overview-link:hover,
+#sirkPortalRoot .sirk-overview-link:focus-visible {
+    border-color: rgba(96, 165, 250, .45) !important;
+    background: var(--mc-ui-hover, rgba(96, 165, 250, .09)) !important;
+    transform: none;
+    box-shadow: none !important;
+}
+
+@media (max-width: 800px) {
+    #sirkPortalRoot .mc-portal-view-scroll {
+        padding: 10px;
+    }
+}
