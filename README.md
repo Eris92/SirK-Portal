@@ -1,4 +1,4 @@
-# SIRK Management Platform 1.5.142
+# SIRK Management Platform 1.5.143
 
 **Repozytorium i techniczna nazwa pluginu:** `SIRK-Portal`  
 **Nazwa wyświetlana:** `SIRK Management Platform`  
@@ -65,11 +65,14 @@ Widok Devices zachowuje własną geometrię listy urządzeń, szczegółów host
 
 ## Entry pointy i loadery
 
-Kanoniczny entrypoint:
+Kanoniczne entrypointy MeshCentral:
 
 ```text
 SIRK-Portal.js
+SIRK-PortalAdmin.js
 ```
+
+`SIRK-PortalAdmin.js` jest wymaganym przez MeshCentral entrypointem panelu i deleguje implementację do `admin.js`.
 
 Łańcuch backendu:
 
