@@ -22,21 +22,22 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
           app = Path('public/portal/standalone/scripts/app.js')
           text = app.read_text(encoding='utf-8')
-          old = ''''<span class="sirk-health-badge is-' + itemStatus '">' + escapeHtml(statusText)'''
-          new = ''''<span class="sirk-health-badge is-' + itemStatus + '">' + escapeHtml(statusText)'''
-          if old not in text:
+          broken = "itemStatus '\">'"
+          fixed = "itemStatus + '\">'"
+          if broken not in text:
               raise SystemExit('Expected app.js corruption was not found')
-          app.write_text(text.replace(old, new), encoding='utf-8')
+          app.write_text(text.replace(broken, fixed), encoding='utf-8')
 
           icons = Path('public/shared/icon-registry.js')
           text = icons.read_text(encoding='utf-8')
-          old = '''return '<svg class="' + safeClass" viewBox="0 0 24 24" aria-hidden="' + (safeTitle ? "false" : "true") + '">' +'''
-          new = '''return '<svg class="' + safeClass + '" viewBox="0 0 24 24" aria-hidden="' + (safeTitle ? "false" : "true") + '">' +'''
-          if old not in text:
+          broken = "safeClass\" viewBox"
+          fixed = "safeClass + '\" viewBox"
+          if broken not in text:
               raise SystemExit('Expected icon-registry.js corruption was not found')
-          icons.write_text(text.replace(old, new), encoding='utf-8')
+          icons.write_text(text.replace(broken, fixed), encoding='utf-8')
           PY
       - name: Set stable version
         run: |
@@ -54,10 +55,14 @@ jobs:
             fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
           }
           const history = JSON.parse(fs.readFileSync('version-history.json', 'utf8'));
-          history.unshift({version:'1.8.1',date:'2026-07-24',changes:['Fix JavaScript syntax damaged by the global class migration','Restore Portal startup and icon registry','Validate every JavaScript file before publishing']});
-          fs.writeFileSync('version-history.json', JSON.stringify(history, null, 2) + '\n');
+          if (!history.some((entry) => entry.version === '1.8.1')) {
+            history.unshift({version:'1.8.1',date:'2026-07-24',changes:['Fix JavaScript syntax damaged by the global class migration','Restore Portal startup and icon registry','Validate every JavaScript file before publishing']});
+            fs.writeFileSync('version-history.json', JSON.stringify(history, null, 2) + '\n');
+          }
           const changelog = fs.readFileSync('changelog.md', 'utf8');
-          fs.writeFileSync('changelog.md', '## 1.8.1\n\n- Fixed JavaScript syntax damaged by the global class migration.\n- Restored Portal startup and icon rendering.\n- Added full JavaScript syntax validation before publishing.\n\n' + changelog);
+          if (!changelog.startsWith('## 1.8.1')) {
+            fs.writeFileSync('changelog.md', '## 1.8.1\n\n- Fixed JavaScript syntax damaged by the global class migration.\n- Restored Portal startup and icon rendering.\n- Added full JavaScript syntax validation before publishing.\n\n' + changelog);
+          }
           NODE
       - name: Validate JavaScript syntax
         shell: bash
