@@ -1,3 +1,12 @@
+## 1.7.0-dev.1
+
+- Added an independent SIRK lifecycle manager owned by the new Portal instead of MeshCentral plugin management.
+- Added Stable (`main`), Beta (`beta`) and Developer (`develop`) update channels.
+- Added update checks, manual and automatic backups, restore, rollback history and health checks.
+- Added staging and a detached update helper that performs the atomic file swap only after the running host stops.
+- Moved standalone data outside the application directory so updates cannot remove runtime data.
+- Made `develop` the mandatory working branch for all future development.
+
 ## 1.6.4
 
 - Moved the final shared Portal surface rule into the last-loaded `portal-ui-contract.css` stylesheet.
