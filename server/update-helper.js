@@ -4,6 +4,10 @@ var fs = require("fs");
 var path = require("path");
 
 function sleep(milliseconds) {
+    if (typeof SharedArrayBuffer === "function" && typeof Atomics === "object" && typeof Atomics.wait === "function") {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+        return;
+    }
     var end = Date.now() + milliseconds;
     while (Date.now() < end) {}
 }
