@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.141
+
+- Rozszerzono kanoniczny kontrakt UI na wszystkie widoki SIRK Portal.
+- Overview i Devices korzystają teraz ze wspólnych klas `mc-portal-*` dla surface, cards, toolbarów, przycisków, inputów, statusów, badge i list.
+- Devices zachowuje własną geometrię listy, szczegółów i workspace sesji, ale nie utrzymuje już oddzielnego systemu wizualnego.
+- Dodano test regresyjny blokujący ponowne odseparowanie Overview lub Devices od wspólnego kontraktu UI.
+
 ## 1.5.140
 
 - Zmieniono kanoniczną nazwę repozytorium i wszystkie URL-e metadata na `Eris92/SIRK-Portal`.
