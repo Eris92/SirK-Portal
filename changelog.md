@@ -1,3 +1,9 @@
+## 1.6.2
+
+- Fixed Portal settings save by excluding the current `SIRKPortal` instance from obsolete standalone-plugin conflict detection.
+- Prevented the admin save status from collapsing the save button on narrow layouts.
+- Added regression coverage for the self-conflict and save-bar layout.
+
 ## 1.5.151
 
 - Completed the standalone Portal asset manifest for all shared UI components and feature modules.
