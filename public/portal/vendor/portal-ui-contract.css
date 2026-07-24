@@ -1,17 +1,17 @@
 /* Canonical endpoint for the shared SIRK Portal visual contract.
    This stylesheet is loaded last, so the outer view host owns the final frame. */
-#sirkPortalRoot .mc-portal-view-surface {
+#sirkPortalRoot .sirk-standalone-view-scroll {
     background: var(--sirk-panel, #fff);
     color: var(--sirk-text, #172033);
 }
 
-#sirkPortalRoot .mc-portal-card {
+#sirkPortalRoot .sirk-card {
     border: 1px solid var(--sirk-border, #dce3ec);
     border-radius: 8px;
     background: var(--sirk-panel, #fff);
 }
 
-#sirkPortalRoot .mc-portal-button {
+#sirkPortalRoot .sirk-button {
     font: inherit;
     cursor: pointer;
 }
@@ -35,11 +35,11 @@
 }
 
 /* Inner renderers fill the shared host but never draw a second outer frame. */
-#sirkPortalRoot .sirk-portal-view-host > .mc-shared-page,
-#sirkPortalRoot .sirk-portal-view-host > .mc-portal-module-shell,
+#sirkPortalRoot .sirk-portal-view-host > .sirk-standalone-view-scroll,
+#sirkPortalRoot .sirk-portal-view-host > .sirk-standalone-view-scroll,
 #sirkPortalRoot .sirk-portal-view-host > .sirk-approval-shell,
-#sirkPortalRoot .sirk-portal-view-host > .sirk-platform-management-host,
-#sirkPortalRoot .sirk-portal-view-host > .sirk-platform-management-host > .sirk-management-shell {
+#sirkPortalRoot .sirk-portal-view-host > .,
+#sirkPortalRoot .sirk-portal-view-host > . > .sirk-standalone-view-scroll {
     width: 100% !important;
     height: 100% !important;
     min-width: 0 !important;
@@ -51,7 +51,7 @@
     background-clip: padding-box !important;
 }
 
-#sirkPortalRoot .sirk-portal-view-host > .sirk-platform-management-host {
+#sirkPortalRoot .sirk-portal-view-host > . {
     padding: 0 !important;
     overflow: hidden !important;
     background: var(--sirk-panel, #fff) !important;

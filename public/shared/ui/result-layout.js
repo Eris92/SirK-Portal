@@ -21,7 +21,7 @@
         host.querySelectorAll(".mc-command-inline-result").forEach(function (result) {
             if (result.getAttribute("data-result-only") === "1") return;
             var card = result.parentElement;
-            if (!card || !card.classList.contains("mc-shared-card")) return;
+            if (!card || !card.classList.contains("sirk-card")) return;
             var text = String(result.textContent || "").trim();
             if (!text || /^Select Run or Request/i.test(text)) return;
 

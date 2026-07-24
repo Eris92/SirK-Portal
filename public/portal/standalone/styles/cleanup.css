@@ -27,8 +27,8 @@
 
 #sirkPortalRoot .sirk-portal-view-host,
 #sirkPortalRoot .sirk-portal-view-host > *,
-#sirkPortalRoot .sirk-platform-management-host,
-#sirkPortalRoot .sirk-platform-management-host > * {
+#sirkPortalRoot .,
+#sirkPortalRoot . > * {
     width: 100% !important;
     max-width: none !important;
     min-width: 0 !important;
@@ -51,8 +51,8 @@
     overflow: auto;
 }
 
-#sirkPortalRoot .mc-portal-module-shell,
-#sirkPortalRoot .sirk-management-shell,
+#sirkPortalRoot .sirk-standalone-view-scroll,
+#sirkPortalRoot .sirk-standalone-view-scroll,
 #sirkPortalRoot .mc-admin-management-shell {
     width: 100% !important;
     max-width: none !important;
@@ -65,8 +65,8 @@
     background: var(--sirk-panel, #fff) !important;
 }
 
-#sirkPortalRoot .mc-portal-module-layout,
-#sirkPortalRoot .sirk-management-workspace,
+#sirkPortalRoot .sirk-layout,
+#sirkPortalRoot .sirk-layout,
 #sirkPortalRoot .mc-admin-management-layout {
     display: grid !important;
     grid-template-columns: var(--portal-primary-width) var(--portal-secondary-width) minmax(0, 1fr) !important;
@@ -79,30 +79,30 @@
     resize: none !important;
 }
 
-#sirkPortalRoot .is-edit-mode.mc-portal-module-layout,
-#sirkPortalRoot .is-management-edit-mode .mc-portal-module-layout,
-#sirkPortalRoot .is-management-edit-mode .sirk-management-workspace,
-#sirkPortalRoot .mc-portal-module-layout:has(.mc-tree-script-actions:not(:empty)),
-#sirkPortalRoot .sirk-management-workspace:has(.mc-tree-script-actions:not(:empty)) {
+#sirkPortalRoot .is-edit-mode.sirk-layout,
+#sirkPortalRoot .is-management-edit-mode .sirk-layout,
+#sirkPortalRoot .is-management-edit-mode .sirk-layout,
+#sirkPortalRoot .sirk-layout:has(.mc-tree-script-actions:not(:empty)),
+#sirkPortalRoot .sirk-layout:has(.mc-tree-script-actions:not(:empty)) {
     grid-template-columns: var(--portal-primary-width) var(--portal-secondary-edit-width) minmax(0, 1fr) !important;
 }
 
-#sirkPortalRoot .is-collapsed.mc-portal-module-layout,
-#sirkPortalRoot .is-management-collapsed .mc-portal-module-layout,
-#sirkPortalRoot .is-management-collapsed .sirk-management-workspace {
+#sirkPortalRoot .is-collapsed.sirk-layout,
+#sirkPortalRoot .is-collapsed .sirk-layout,
+#sirkPortalRoot .is-collapsed .sirk-layout {
     grid-template-columns: var(--portal-primary-collapsed-width) var(--portal-secondary-width) minmax(0, 1fr) !important;
 }
 
-#sirkPortalRoot .is-management-collapsed.is-management-edit-mode .mc-portal-module-layout,
-#sirkPortalRoot .is-management-collapsed.is-management-edit-mode .sirk-management-workspace,
-#sirkPortalRoot .is-collapsed.is-edit-mode.mc-portal-module-layout {
+#sirkPortalRoot .is-collapsed.is-management-edit-mode .sirk-layout,
+#sirkPortalRoot .is-collapsed.is-management-edit-mode .sirk-layout,
+#sirkPortalRoot .is-collapsed.is-edit-mode.sirk-layout {
     grid-template-columns: var(--portal-primary-collapsed-width) var(--portal-secondary-edit-width) minmax(0, 1fr) !important;
 }
 
-#sirkPortalRoot .mc-portal-module-primary,
-#sirkPortalRoot .mc-portal-module-secondary,
-#sirkPortalRoot .mc-portal-module-details,
-#sirkPortalRoot .sirk-management-column,
+#sirkPortalRoot .sirk-column sirk-column-primary,
+#sirkPortalRoot .sirk-column sirk-column-secondary,
+#sirkPortalRoot .sirk-column sirk-column-details,
+#sirkPortalRoot .sirk-column,
 #sirkPortalRoot .mc-admin-management-column {
     min-width: 0 !important;
     max-width: none !important;
@@ -240,8 +240,8 @@
     #sirkPortalRoot .sirk-standalone-grid {
         grid-template-columns: minmax(0, 1fr) !important;
     }
-    #sirkPortalRoot .mc-portal-module-layout,
-    #sirkPortalRoot .sirk-management-workspace,
+    #sirkPortalRoot .sirk-layout,
+    #sirkPortalRoot .sirk-layout,
     #sirkPortalRoot .mc-admin-management-layout {
         grid-template-columns: minmax(0, 1fr) !important;
         overflow: auto !important;

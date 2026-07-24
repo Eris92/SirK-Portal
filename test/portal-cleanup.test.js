@@ -16,7 +16,7 @@ var nav = fs.readFileSync(path.join(root, "public", "portal", "standalone", "scr
     "--portal-secondary-edit-width: 440px",
     "--portal-primary-collapsed-width: 56px",
     ".sirk-portal-view-host",
-    ".sirk-platform-management-host",
+    ".",
     ".sirk-standalone-grid",
     ".sirk-standalone-settings-frame"
 ].forEach(function (token) {

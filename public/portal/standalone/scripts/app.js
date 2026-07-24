@@ -405,17 +405,17 @@
         }
         var outerHost = prepareModuleHost("management");
         var host = document.createElement("div");
-        host.className = "sirk-platform-management-host";
+        host.className = "";
         outerHost.appendChild(host);
         var timer = window.setTimeout(function () {
-            if (isCurrent(sequence) && !host.querySelector(".sirk-management-shell,.mc-shared-error,.sirk-card")) {
+            if (isCurrent(sequence) && !host.querySelector(".sirk-standalone-view-scroll,.sirk-error,.sirk-card")) {
                 showError("MyScripts did not finish initialization.", "pluginadmin.ashx?pin=SIRKPortal&module=myscripts&asset=scripts");
             }
         }, 12000);
         Promise.resolve(window.SirkPlatformPortalManagement.mount(host)).then(function () {
             window.clearTimeout(timer);
             if (!isCurrent(sequence)) return;
-            if (!host.querySelector(".sirk-management-shell,.mc-shared-error,.sirk-card")) throw new Error("MyScripts renderer did not create a view.");
+            if (!host.querySelector(".sirk-standalone-view-scroll,.sirk-error,.sirk-card")) throw new Error("MyScripts renderer did not create a view.");
         }).catch(function (reason) {
             window.clearTimeout(timer);
             if (isCurrent(sequence)) showError(viewName("management") + ": " + t("loadFailed"), reason && (reason.stack || reason.message) || reason);
@@ -445,12 +445,12 @@
         if (access.siteAdmin !== true) { showError(t("settingsAdminOnly")); return; }
         var host = prepareModuleHost("settings");
         var shell = document.createElement("section");
-        shell.className = "mc-portal-module-shell sirk-settings-module-shell";
+        shell.className = "sirk-standalone-view-scroll sirk-settings-module-shell";
         var toolbar = document.createElement("header");
-        toolbar.className = "mc-portal-module-toolbar sirk-settings-module-toolbar";
+        toolbar.className = "sirk-toolbar-host sirk-settings-module-toolbar";
         toolbar.innerHTML = '<strong>' + escapeHtml(viewName("settings")) + '</strong>';
         var workspace = document.createElement("div");
-        workspace.className = "mc-portal-module-workspace sirk-settings-module-workspace";
+        workspace.className = "sirk-layout-host sirk-settings-module-workspace";
         var frame = document.createElement("iframe");
         frame.className = "sirk-standalone-settings-frame";
         frame.title = "SirkPlatform settings";
@@ -564,7 +564,7 @@
     }
 
     function placeholder(view, description) {
-        content.innerHTML = '<section class="mc-portal-module-shell mc-portal-placeholder-shell"><div class="mc-portal-placeholder-content"><h2>' + escapeHtml(viewName(view)) + '</h2><p class="sirk-muted">' + escapeHtml(description) + '</p></div></section>';
+        content.innerHTML = '<section class="sirk-standalone-view-scroll sirk-standalone-view-scroll"><div class="sirk-content"><h2>' + escapeHtml(viewName(view)) + '</h2><p class="sirk-muted">' + escapeHtml(description) + '</p></div></section>';
     }
 
     function render(view) {

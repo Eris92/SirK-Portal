@@ -210,7 +210,7 @@
         return value;
     };
     core.card = function (title, description) {
-        var card = core.element("div", "mc-shared-card");
+        var card = core.element("div", "sirk-card");
         card.appendChild(core.element("strong", "", title));
         if (description) card.appendChild(core.element("div", "mc-shared-muted", description));
         return card;

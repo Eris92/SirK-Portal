@@ -345,10 +345,10 @@ body {
 }
 
 .sirk-standalone-content.sirk-unified-content > .sirk-standalone-view-scroll,
-.sirk-standalone-content.sirk-unified-content > .sirk-platform-management-host,
+.sirk-standalone-content.sirk-unified-content > .,
 .sirk-standalone-content.sirk-unified-content > .sirk-portal-view-host,
-.sirk-standalone-content.sirk-unified-content > .mc-shared-page,
-.sirk-standalone-content.sirk-unified-content > .mc-portal-module-shell,
+.sirk-standalone-content.sirk-unified-content > .sirk-standalone-view-scroll,
+.sirk-standalone-content.sirk-unified-content > .sirk-standalone-view-scroll,
 .sirk-standalone-content.sirk-unified-content > .sirk-standalone-settings-frame {
     flex: 1 1 auto;
     width: 100%;
@@ -370,24 +370,24 @@ body {
     overflow: auto;
 }
 
-.sirk-standalone-content.sirk-unified-content > .sirk-platform-management-host,
+.sirk-standalone-content.sirk-unified-content > .,
 .sirk-standalone-content.sirk-unified-content > .sirk-portal-view-host,
-.sirk-standalone-content.sirk-unified-content > .mc-shared-page,
-.sirk-standalone-content.sirk-unified-content > .mc-portal-module-shell {
+.sirk-standalone-content.sirk-unified-content > .sirk-standalone-view-scroll,
+.sirk-standalone-content.sirk-unified-content > .sirk-standalone-view-scroll {
     padding: 0;
 }
 
 /* Management already owns the shared outer surface; remove its legacy inset. */
-#sirkPortalRoot .sirk-standalone-content.sirk-unified-content > .sirk-platform-management-host {
+#sirkPortalRoot .sirk-standalone-content.sirk-unified-content > . {
     padding: 0;
     overflow: hidden;
     background: var(--sirk-panel, #fff);
 }
 
-.sirk-standalone-content > .mc-shared-page,
+.sirk-standalone-content > .sirk-standalone-view-scroll,
 .sirk-standalone-content > .sirk-portal-view-host,
-.sirk-standalone-content > .sirk-platform-management-host,
-.sirk-standalone-content .mc-portal-module-shell {
+.sirk-standalone-content > .,
+.sirk-standalone-content .sirk-standalone-view-scroll {
     flex: 1 1 auto;
     width: 100% !important;
     height: 100% !important;
@@ -397,15 +397,15 @@ body {
     margin: 0 !important;
 }
 
-.sirk-portal-view-host > .mc-shared-page,
-.sirk-portal-view-host > .mc-portal-module-shell {
+.sirk-portal-view-host > .sirk-standalone-view-scroll,
+.sirk-portal-view-host > .sirk-standalone-view-scroll {
     width: 100%;
     height: 100%;
     min-width: 0;
     min-height: 0;
 }
 
-.sirk-portal-view-management > .sirk-platform-management-host {
+.sirk-portal-view-management > . {
     width: 100%;
     height: 100%;
     min-width: 0;
@@ -419,7 +419,7 @@ body {
     box-sizing: border-box;
 }
 
-.sirk-portal-view-management > .sirk-platform-management-host > .sirk-management-shell {
+.sirk-portal-view-management > . > .sirk-standalone-view-scroll {
     width: 100%;
     height: 100%;
     min-height: 0;

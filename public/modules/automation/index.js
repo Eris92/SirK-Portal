@@ -27,7 +27,7 @@
         var host = shell.state.page.details;
         host.innerHTML = "";
         var card = shell.card(title, message);
-        if (error) card.classList.add("mc-shared-error");
+        if (error) card.classList.add("sirk-error");
         host.appendChild(card);
         sync(shell);
     }
@@ -72,13 +72,13 @@
         host.innerHTML = "";
         if (request.status === "pending" || request.status === "executing") {
             var waiting = document.createElement("pre");
-            waiting.className = "mc-shared-output";
+            waiting.className = "sirk-output";
             waiting.textContent = requestOutput(request);
             host.appendChild(waiting);
             return;
         }
-        if (request.status === "failed") host.classList.add("mc-shared-error");
-        else host.classList.remove("mc-shared-error");
+        if (request.status === "failed") host.classList.add("sirk-error");
+        else host.classList.remove("sirk-error");
         window.SharedResultsView.mountResult(host, requestOutput(request), {
             title: request.title || "Result"
         });
@@ -153,7 +153,7 @@
         errorHost.innerHTML = "";
         errorHost.appendChild(shell.element(
             "div",
-            "mc-shared-error",
+            "sirk-error",
             error.message || String(error)
         ));
     }
@@ -163,7 +163,7 @@
         detailsHost.appendChild(resultHost);
         resultHost.innerHTML = "";
         resultHost.appendChild(document.createElement("pre"));
-        resultHost.firstChild.className = "mc-shared-output";
+        resultHost.firstChild.className = "sirk-output";
         resultHost.firstChild.textContent = message;
     }
 

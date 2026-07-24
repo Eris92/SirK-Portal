@@ -135,7 +135,7 @@
 
     function renderToolbar(shell) {
         var toolbar = el("div", "sirk-approval-toolbar");
-        var refresh = el("button", "sirk-management-tool");
+        var refresh = el("button", "sirk-toolbar-button");
         refresh.type = "button";
         refresh.title = "Refresh";
         refresh.innerHTML = icon("refresh");
@@ -151,10 +151,10 @@
     }
 
     function providerButton(value, title, iconName) {
-        var button = el("button", "sirk-management-item");
+        var button = el("button", "sirk-nav-item");
         button.type = "button";
         button.classList.toggle("is-active", state.provider === value);
-        var iconHost = el("span", "sirk-management-item-icon");
+        var iconHost = el("span", "sirk-nav-icon");
         iconHost.innerHTML = icon(iconName);
         button.appendChild(iconHost);
         button.appendChild(el("span", "", title));
@@ -168,7 +168,7 @@
 
     function renderProviders(host) {
         host.innerHTML = "";
-        var list = el("div", "sirk-management-list");
+        var list = el("div", "sirk-list");
         list.appendChild(providerButton("", "Overview", "overview"));
         state.providers.forEach(function (provider) {
             list.appendChild(providerButton(provider.type, titleForProvider(provider.type), providerIcons[provider.type] || "all"));
@@ -183,12 +183,12 @@
 
     function renderStatuses(host) {
         host.innerHTML = "";
-        var list = el("div", "sirk-management-list");
+        var list = el("div", "sirk-list");
         statuses.forEach(function (value) {
-            var button = el("button", "sirk-management-item");
+            var button = el("button", "sirk-nav-item");
             button.type = "button";
             button.classList.toggle("is-active", state.status === value);
-            var iconHost = el("span", "sirk-management-item-icon");
+            var iconHost = el("span", "sirk-nav-icon");
             iconHost.innerHTML = icon(value || "all");
             button.appendChild(iconHost);
             button.appendChild(el("span", "", statusTitle(value)));
@@ -289,8 +289,8 @@
         var shell = el("section", "sirk-approval-shell");
         renderToolbar(shell);
         var workspace = el("div", "sirk-approval-workspace");
-        var providers = el("aside", "sirk-management-column sirk-approval-providers");
-        var status = el("aside", "sirk-management-column sirk-approval-statuses");
+        var providers = el("aside", "sirk-column sirk-approval-providers");
+        var status = el("aside", "sirk-column sirk-approval-statuses");
         var content = el("main", "sirk-approval-content");
         workspace.appendChild(providers);
         workspace.appendChild(status);

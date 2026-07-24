@@ -198,7 +198,7 @@
                     if (!command) return;
                     row.setAttribute("data-command-id", command.id); label.textContent = tr(command.label);
                     var icon = row.querySelector(".mc-tree-script .mc-tree-fallback-icon");
-                    if (icon && ICONS[command.id]) { icon.innerHTML = ICONS[command.id]; icon.classList.add("sirk-management-item-icon"); }
+                    if (icon && ICONS[command.id]) { icon.innerHTML = ICONS[command.id]; icon.classList.add("sirk-nav-icon"); }
                     var old = row.querySelector(".mc-command-extra-actions"); if (old) old.remove();
                     if (!editMode && !multiMode) return;
                     var actions = document.createElement("span"); actions.className = "mc-tree-script-actions mc-command-extra-actions";
@@ -209,7 +209,7 @@
                 Array.prototype.forEach.call(page.querySelectorAll(".mc-tree-folder-header .mc-tree-label"), function (label) { label.textContent = tr(label.textContent); });
                 var details = module.api.state.page.details;
                 if (details && language() === "pl") {
-                    Array.prototype.forEach.call(details.querySelectorAll("h3,.mc-shared-card>strong"), function (node) { if (node.textContent === "Variables") node.textContent = "Zmienne"; if (node.textContent === "Output") node.textContent = "Wynik"; });
+                    Array.prototype.forEach.call(details.querySelectorAll("h3,.sirk-card>strong"), function (node) { if (node.textContent === "Variables") node.textContent = "Zmienne"; if (node.textContent === "Output") node.textContent = "Wynik"; });
                 }
             });
         }

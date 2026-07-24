@@ -52,13 +52,13 @@
         var portal = isStandalone(shell);
         var button = document.createElement("button");
         button.type = "button";
-        button.className = (portal ? "mc-portal-nav-item " : "mc-shared-nav-item ") + (options.className || "");
+        button.className = (portal ? "sirk-nav-item " : "sirk-nav-item ") + (options.className || "");
         button.classList.toggle("is-active", options.active === true);
         button.classList.toggle("active", options.active === true);
         button.title = options.title;
 
         var icon = document.createElement("span");
-        icon.className = portal ? "mc-portal-nav-icon" : "mc-nav-icon";
+        icon.className = portal ? "sirk-nav-icon" : "mc-nav-icon";
         icon.setAttribute("aria-hidden", "true");
         icon.innerHTML = options.icon || icons.all;
 
@@ -153,7 +153,7 @@
         if (!request.canDecide) return;
         var portal = isStandalone(shell);
         var actions = document.createElement("div");
-        actions.className = portal ? "mc-portal-actions" : "mc-approval-request-actions";
+        actions.className = portal ? "sirk-actions" : "mc-approval-request-actions";
 
         [
             { title: "Approve", approved: true, danger: false },
@@ -162,7 +162,7 @@
             var button = document.createElement("button");
             button.type = "button";
             button.className = portal
-                ? "mc-portal-button" + (definition.danger ? " mc-portal-button-danger" : "")
+                ? "sirk-button" + (definition.danger ? " sirk-button-danger" : "")
                 : (definition.danger ? "btn btn-secondary" : "btn");
             button.textContent = definition.title;
             button.onclick = function () {
@@ -192,12 +192,12 @@
         }
 
         var grid = document.createElement("div");
-        grid.className = portal ? "mc-portal-card-grid" : "mc-approval-card-grid";
+        grid.className = portal ? "sirk-card-grid" : "mc-approval-card-grid";
         host.appendChild(grid);
 
         rows.forEach(function (request) {
             var card = shell.card(request.title || request.type, "");
-            card.classList.add(portal ? "mc-portal-card" : "mc-approval-request-card");
+            card.classList.add(portal ? "sirk-card" : "mc-approval-request-card");
 
             var meta = shell.element("div", "mc-shared-muted mc-approval-request-meta");
             meta.textContent = (request.requester && request.requester.name || "—") + " · " + (request.status || "—");
