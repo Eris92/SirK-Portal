@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.5.143",
+    "date": "2026-07-24",
+    "changes": [
+      "Add the MeshCentral-required SIRK-PortalAdmin.js entrypoint",
+      "Delegate the admin entrypoint to the canonical admin.js implementation",
+      "Fix Unauthorized when opening the SIRK Management Platform admin panel",
+      "Add regression coverage for the admin(plugin) export"
+    ]
+  },
+  {
     "version": "1.5.142",
     "date": "2026-07-24",
     "changes": [
