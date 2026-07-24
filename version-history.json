@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.6.2",
+    "date": "2026-07-24",
+    "changes": [
+      "Fix Portal settings self-conflict detection",
+      "Keep the admin save button usable with long status messages",
+      "Add Portal settings save regression coverage"
+    ]
+  },
+  {
     "version": "1.5.151",
     "date": "2026-07-24",
     "changes": [
