@@ -1,7 +1,7 @@
 #Requires -RunAsAdministrator
 [CmdletBinding()]
 param(
-    [string]$Repository = 'https://github.com/Eris92/sirk-portal.git',
+    [string]$Repository = 'https://github.com/Eris92/SIRK-Portal.git',
     [string]$Branch = 'main',
     [string]$MeshRoot = 'C:\Program Files\Open Source\MeshCentral',
     [string]$ServiceName = 'MeshCentral',
@@ -11,14 +11,16 @@ param(
 $ErrorActionPreference = 'Stop'
 $DataRoot = Join-Path $MeshRoot 'meshcentral-data'
 $PluginsRoot = Join-Path $DataRoot 'plugins'
-$Target = Join-Path $PluginsRoot 'SIRK-Portal'
-$LegacyTarget = Join-Path $PluginsRoot 'SirkPlatform'
+$Target = Join-Path $PluginsRoot 'SIRKPortal'
+$LegacyTargets = @(
+    (Join-Path $PluginsRoot 'SIRK-Portal'),
+    (Join-Path $PluginsRoot 'SirkPlatform')
+)
 $RuntimeData = Join-Path $DataRoot 'sirk-platform-data'
-$LegacyRuntimeData = Join-Path $DataRoot 'sirk-platform-data'
 $StageRoot = Join-Path $env:TEMP ('SIRK-Portal-Git-' + [guid]::NewGuid().ToString('N'))
 $Stage = Join-Path $StageRoot 'SIRK-Portal'
 $BackupRoot = Join-Path $DataRoot 'plugin-backups'
-$Backup = Join-Path $BackupRoot ('SIRK-Portal-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+$Backup = Join-Path $BackupRoot ('SIRKPortal-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 $Git = (Get-Command git.exe -ErrorAction Stop).Source
 $Node = (Get-Command node.exe -ErrorAction Stop).Source
 $Npm = (Get-Command npm.cmd -ErrorAction Stop).Source
@@ -59,13 +61,16 @@ try {
     Invoke-Checked $Git @('clone', '--depth', '1', '--single-branch', '--branch', $Branch, $Repository, $Stage)
 
     $ConfigPath = Join-Path $Stage 'config.json'
-    $Entry = Join-Path $Stage 'SIRK-Portal.js'
+    $Entry = Join-Path $Stage 'SIRKPortal.js'
+    $AdminEntry = Join-Path $Stage 'SIRKPortalAdmin.js'
     if (-not (Test-Path $ConfigPath -PathType Leaf)) { throw 'Repository does not contain config.json.' }
-    if (-not (Test-Path $Entry -PathType Leaf)) { throw 'Repository does not contain SIRK-Portal.js.' }
+    if (-not (Test-Path $Entry -PathType Leaf)) { throw 'Repository does not contain SIRKPortal.js.' }
+    if (-not (Test-Path $AdminEntry -PathType Leaf)) { throw 'Repository does not contain SIRKPortalAdmin.js.' }
 
     $config = Get-Content $ConfigPath -Raw | ConvertFrom-Json
-    if ([string]$config.shortName -cne 'SIRK-Portal') { throw ('Invalid shortName: {0}' -f $config.shortName) }
+    if ([string]$config.shortName -cne 'SIRKPortal') { throw ('Invalid shortName: {0}' -f $config.shortName) }
     Invoke-Checked $Node @('--check', $Entry)
+    Invoke-Checked $Node @('--check', $AdminEntry)
     if (-not $SkipTests) { Invoke-Checked $Npm @('test') $Stage }
 
     $service = Get-Service $ServiceName -ErrorAction Stop
@@ -74,16 +79,16 @@ try {
     New-Item $PluginsRoot -ItemType Directory -Force | Out-Null
     New-Item $BackupRoot -ItemType Directory -Force | Out-Null
 
-    $current = if (Test-Path $Target) { $Target } elseif (Test-Path $LegacyTarget) { $LegacyTarget } else { $null }
+    $current = $null
+    foreach ($candidate in @($Target) + $LegacyTargets) {
+        if (Test-Path $candidate) { $current = $candidate; break }
+    }
     if ($current) { Copy-Item $current $Backup -Recurse -Force }
 
-    if (-not (Test-Path $RuntimeData) -and (Test-Path $LegacyRuntimeData)) {
-        Copy-Item $LegacyRuntimeData $RuntimeData -Recurse -Force
-    }
     Repair-RuntimeDataPermissions -Path $RuntimeData -Service $ServiceName
 
     Remove-Item $Target -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item $LegacyTarget -Recurse -Force -ErrorAction SilentlyContinue
+    foreach ($legacy in $LegacyTargets) { Remove-Item $legacy -Recurse -Force -ErrorAction SilentlyContinue }
     Move-Item $Stage $Target
 
     Start-Service $ServiceName -ErrorAction Stop
@@ -91,8 +96,10 @@ try {
     if ((Get-Service $ServiceName).Status -ne 'Running') { throw 'MeshCentral service did not start.' }
 
     Write-Host ('Installed SIRK Management Platform {0} from {1}@{2}' -f $config.version, $Repository, $Branch) -ForegroundColor Green
+    Write-Host ('MeshCentral plugin identifier: {0}' -f $config.shortName)
     Write-Host ('Plugin path: {0}' -f $Target)
     Write-Host ('Runtime data: {0}' -f $RuntimeData)
+    Write-Warning 'If an older SIRK-Portal database entry remains visible in MeshCentral, remove it from the Plugins page after confirming this SIRKPortal installation works.'
 }
 catch {
     try { if ((Get-Service $ServiceName -ErrorAction SilentlyContinue).Status -ne 'Running') { Start-Service $ServiceName -ErrorAction SilentlyContinue } } catch {}
