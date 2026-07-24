@@ -1,13 +1,52 @@
-# SIRK Management Platform 1.6.4
+# SIRK Management Platform 1.7.0-dev.1
 
 **Repozytorium:** `SIRK-Portal`  
 **Techniczny identyfikator pluginu MeshCentral:** `SIRKPortal`  
 **Nazwa wyświetlana:** `SIRK Management Platform`  
 **Nazwa skrócona w interfejsie:** `SIRK Platform`
 
-SIRK Management Platform jest skonsolidowanym pluginem MeshCentral zawierającym backend, panel administracyjny, automatyzację, akceptacje, integracje, zarządzanie urządzeniami oraz samodzielny SIRK Portal.
+SIRK Management Platform zawiera niezależny Portal, backend, automatyzację, akceptacje, integracje, zarządzanie urządzeniami oraz opcjonalny adapter MeshCentral.
 
 Repozytorium nie utrzymuje kompatybilności z testową nazwą ani strukturą `MyCompany`. Nie ładuje starych entrypointów, nie migruje dawnych ustawień i nie korzysta z `mycompany-data`.
+
+## Gałąź robocza i kanały aktualizacji
+
+Domyślną gałęzią roboczą projektu jest od teraz:
+
+```text
+develop
+```
+
+Kanały aktualizacji w Portalu:
+
+| Tryb | Gałąź |
+|---|---|
+| Normalny / Stable | `main` |
+| Beta | `beta` |
+| Developerski / Dev | `develop` |
+
+Każdą nową funkcję, poprawkę i branch funkcjonalny rozpoczynaj od `develop`. Promocja wydań przebiega w kolejności:
+
+```text
+develop -> beta -> main
+```
+
+Szczegóły: [Kanały aktualizacji i lifecycle](docs/UPDATE-CHANNELS.md).
+
+## Instalacja i dalsze aktualizacje
+
+Pierwszą instalację można wykonać przez MeshCentral. Po instalacji dalszy lifecycle SIRK Portal jest obsługiwany z poziomu widoku **Aktualizacje** w nowym Portalu, a nie przez manager pluginów MeshCentral.
+
+Widok umożliwia:
+
+- sprawdzenie wersji na kanale Stable, Beta lub Dev;
+- zmianę kanału;
+- ręczny backup;
+- automatyczny backup przed aktualizacją;
+- staging i health-check pobranej wersji;
+- aktualizację wykonywaną przez osobny helper po zatrzymaniu hosta;
+- restore i cofnięcie do wcześniejszego backupu;
+- historię operacji.
 
 ## Zacznij od indeksów
 
@@ -23,6 +62,7 @@ Nie skanuj całego repozytorium, jeżeli indeks wskazuje konkretny entrypoint, m
 ## Dokumentacja
 
 - [Indeks dokumentacji i obszarów](docs/INDEX.md)
+- [Kanały aktualizacji i lifecycle](docs/UPDATE-CHANNELS.md)
 - [Struktura repozytorium](docs/REPOSITORY-LAYOUT.md)
 - [Aktualny stan projektu](docs/PROJECT-STATE.md)
 - [Integracja SIRK Platform i SIRK Portal](docs/portal-integration.md)
@@ -33,15 +73,15 @@ Nie skanuj całego repozytorium, jeżeli indeks wskazuje konkretny entrypoint, m
 ## Warstwy projektu
 
 ```text
-backend Node/MeshCentral       -> server/
-samodzielny SIRK Portal        -> public/portal/
-adapter natywnego MeshCentral  -> public/native/
-frontend współdzielony         -> public/shared/
-renderery modułów              -> public/modules/
-panel administracyjny          -> web/admin/
-widok panelu                   -> views/SIRK-Portal.handlebars
-ikony                          -> assets/icons/
-narzędzia instalacyjne         -> tools/install/
+backend Node / host-neutral core -> server/
+samodzielny SIRK Portal         -> public/portal/
+adapter natywnego MeshCentral   -> public/native/
+frontend współdzielony          -> public/shared/
+renderery modułów               -> public/modules/
+panel administracyjny           -> web/admin/
+widok panelu                     -> views/SIRK-Portal.handlebars
+ikony                            -> assets/icons/
+narzędzia instalacyjne          -> tools/install/
 ```
 
 Szczegółowe mapy znajdują się w lokalnych plikach `INDEX.md` poszczególnych warstw.
@@ -54,7 +94,8 @@ Szczegółowe mapy znajdują się w lokalnych plikach `INDEX.md` poszczególnych
 - Device Transfers;
 - Jira Integration;
 - Security;
-- Portal.
+- Portal;
+- System Updates.
 
 Backend modułów znajduje się w `server/modules/`, a pojedyncze renderery frontendowe w `public/modules/`.
 
@@ -75,9 +116,7 @@ SIRKPortalAdmin.js
 
 Identyfikator `SIRKPortal` celowo nie zawiera myślnika. MeshCentral wykorzystuje `shortName` jako nazwę właściwości w generowanym JavaScript głównego interfejsu, dlatego musi to być poprawny identyfikator JavaScript.
 
-`SIRKPortalAdmin.js` deleguje implementację panelu do `admin.js`.
-
-Łańcuch backendu:
+Łańcuch adaptera MeshCentral:
 
 ```text
 SIRKPortal.js
@@ -88,17 +127,28 @@ SIRKPortal.js
           -> server/modules/*
 ```
 
-Mapę assetów natywnego interfejsu utrzymuje `admin.js`. Mapę assetów samodzielnego Portalu utrzymuje `plugin-main-standalone.js`.
+Samodzielny proces:
+
+```text
+server/standalone.js
+  -> server/standalone-runtime.js
+  -> server/http/api-router.js
+  -> server/system-update-manager.js
+```
 
 ## Dane trwałe
 
-Jedyny katalog danych runtime:
+Dane runtime znajdują się w `sirk-platform-data` poza katalogiem kodu aplikacji. W adapterze MeshCentral jest to:
 
 ```text
 meshcentral-data/sirk-platform-data
 ```
 
-Plugin nie odczytuje, nie kopiuje i nie migruje `meshcentral-data/mycompany-data`.
+Dla procesu standalone lokalizację można ustawić przez:
+
+```text
+SIRK_DATA_ROOT
+```
 
 ## Instalacja z Git
 
