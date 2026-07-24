@@ -1,3 +1,10 @@
+## 1.6.4
+
+- Moved the final shared Portal surface rule into the last-loaded `portal-ui-contract.css` stylesheet.
+- Removed the legacy Management-only radius override that defeated the global contract.
+- Enforced clipping and a 10px radius for Automation, Approval, Management and all other module hosts.
+- Updated regression coverage to validate the final loaded stylesheet.
+
 ## 1.6.3
 
 - Made `.sirk-portal-view-host` the single owner of the Portal view frame, radius and clipping.
