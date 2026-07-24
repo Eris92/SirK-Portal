@@ -6,17 +6,20 @@ var os = require("os");
 var path = require("path");
 var managerFactory = require("../server/system-update-manager.js");
 
-var root = fs.mkdtempSync(path.join(os.tmpdir(), "sirk-update-manager-"));
+var root = fs.mkdtempSync(path.join(os.tmpdir(), "sirk-update-manager-app-"));
+var dataRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sirk-update-manager-data-"));
 fs.mkdirSync(path.join(root, "server"), { recursive: true });
 fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ version: "1.0.0" }));
 fs.writeFileSync(path.join(root, "config.json"), JSON.stringify({ shortName: "SIRKPortal", version: "1.0.0" }));
 fs.writeFileSync(path.join(root, "SIRKPortal.js"), "module.exports = {};\n");
 fs.writeFileSync(path.join(root, "server", "standalone.js"), "module.exports = {};\n");
+fs.writeFileSync(path.join(root, "server", "update-helper.js"), "module.exports = {};\n");
 
-var manager = managerFactory.create({ appRoot: root, dataRoot: path.join(root, "data") });
+var manager = managerFactory.create({ appRoot: root, dataRoot: dataRoot });
 assert.deepStrictEqual(manager.channels, { stable: "main", beta: "beta", dev: "develop" });
 assert.strictEqual(manager.current().channel, "dev");
 assert.strictEqual(manager.current().branch, "develop");
+assert.strictEqual(manager.current().pending, null);
 assert.strictEqual(manager.setChannel("stable").branch, "main");
 assert.strictEqual(manager.setChannel("beta").branch, "beta");
 assert.strictEqual(manager.setChannel("dev").branch, "develop");
@@ -25,6 +28,7 @@ var backup = manager.backup("manual");
 assert.ok(backup.id);
 assert.strictEqual(backup.version, "1.0.0");
 assert.strictEqual(manager.backups().length, 1);
-assert.ok(fs.existsSync(path.join(root, "data", "updates", "backups", backup.id, "manifest.json")));
+assert.ok(fs.existsSync(path.join(dataRoot, "updates", "backups", backup.id, "manifest.json")));
+assert.ok(fs.existsSync(path.join(dataRoot, "updates", "backups", backup.id, "app", "package.json")));
 
 console.log("system-update-manager.test.js: OK");
