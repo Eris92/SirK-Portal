@@ -6,6 +6,27 @@ var path = require("path");
 var root = path.resolve(__dirname, "..", "public");
 var offenders = [];
 
+function duplicateNames(value) {
+    var seen = Object.create(null);
+    return String(value || "").trim().split(/\s+/).filter(Boolean).filter(function (name) {
+        if (seen[name]) return true;
+        seen[name] = true;
+        return false;
+    });
+}
+
+function inspectClassList(file, line, index) {
+    var patterns = [/className\s*=\s*"([^"]*)"/g, /class\s*=\s*"([^"]*)"/g];
+    patterns.forEach(function (pattern) {
+        var match;
+        while ((match = pattern.exec(line))) {
+            var duplicates = duplicateNames(match[1]);
+            if (duplicates.length) offenders.push(path.relative(root, file) + ":" + (index + 1) + " repeats classes: " + duplicates.join(", "));
+            if (/\bsirk-column\b/.test(match[1])) offenders.push(path.relative(root, file) + ":" + (index + 1) + " contains redundant sirk-column base class");
+        }
+    });
+}
+
 function walk(directory) {
     fs.readdirSync(directory, { withFileTypes: true }).forEach(function (entry) {
         var file = path.join(directory, entry.name);
@@ -17,6 +38,8 @@ function walk(directory) {
             if (/(?:class(?:Name)?\s*=|classList\.(?:add|remove|toggle|contains)|\.[a-z0-9_-]*management[a-z0-9_-]*)/i.test(line) && /management/i.test(line)) {
                 offenders.push(path.relative(root, file) + ":" + (index + 1) + " contains menu-specific management class");
             }
+            inspectClassList(file, line, index);
+            if (/\.sirk-column(?!-)/.test(line)) offenders.push(path.relative(root, file) + ":" + (index + 1) + " contains redundant .sirk-column selector");
         });
     });
 }
@@ -28,6 +51,7 @@ var page = fs.readFileSync(path.join(root, "shared", "ui", "page.js"), "utf8");
 var layout = fs.readFileSync(path.join(root, "shared", "ui", "layout.js"), "utf8");
 assert.ok(page.indexOf('host.className = "sirk-standalone-view-scroll"') >= 0, "Every shared page must use sirk-standalone-view-scroll.");
 ["sirk-column-primary", "sirk-column-secondary", "sirk-column-details"].forEach(function (name) {
-    assert.ok(layout.indexOf(name) >= 0, "Missing canonical layout class: " + name);
+    assert.ok(layout.indexOf('div("' + name + '")') >= 0, "Missing standalone canonical layout class: " + name);
 });
+assert.ok(layout.indexOf('div("sirk-column ') < 0, "Column variants must not include the redundant sirk-column base class.");
 console.log("Portal class contract: OK");
