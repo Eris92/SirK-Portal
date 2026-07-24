@@ -12,9 +12,9 @@
             options = options || {};
             var host = typeof options.container === "string" ? document.querySelector(options.container) : options.container;
             var root = div("sirk-layout");
-            var primary = div("sirk-column sirk-column-primary");
-            var secondary = div("sirk-column sirk-column-secondary");
-            var details = div("sirk-column sirk-column-details");
+            var primary = div("sirk-column-primary");
+            var secondary = div("sirk-column-secondary");
+            var details = div("sirk-column-details");
             var key = options.storageKey || "";
             var collapsed = false;
 

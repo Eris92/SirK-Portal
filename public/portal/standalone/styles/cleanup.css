@@ -99,10 +99,10 @@
     grid-template-columns: var(--portal-primary-collapsed-width) var(--portal-secondary-edit-width) minmax(0, 1fr) !important;
 }
 
-#sirkPortalRoot .sirk-column sirk-column-primary,
-#sirkPortalRoot .sirk-column sirk-column-secondary,
-#sirkPortalRoot .sirk-column sirk-column-details,
-#sirkPortalRoot .sirk-column,
+#sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-primary,
+#sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-secondary,
+#sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-details,
+#sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details),
 #sirkPortalRoot .mc-admin-management-column {
     min-width: 0 !important;
     max-width: none !important;

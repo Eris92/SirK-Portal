@@ -18,9 +18,9 @@
             ".sirk-layout,.mc-admin-management-layout"
         ), function (layout) {
             layout.classList.add("sirk-layout-host", "sirk-layout");
-            if (layout.children[0]) layout.children[0].classList.add("sirk-column sirk-column-primary");
-            if (layout.children[1]) layout.children[1].classList.add("sirk-column sirk-column-secondary");
-            if (layout.children[2]) layout.children[2].classList.add("sirk-column sirk-column-details");
+            if (layout.children[0]) layout.children[0].classList.add("sirk-column-primary");
+            if (layout.children[1]) layout.children[1].classList.add("sirk-column-secondary");
+            if (layout.children[2]) layout.children[2].classList.add("sirk-column-details");
         });
     }
 

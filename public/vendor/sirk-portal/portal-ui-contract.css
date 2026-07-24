@@ -133,9 +133,9 @@
     grid-template-columns: var(--mc-ui-collapsed-width) var(--portal-secondary-width) minmax(0, 1fr) !important;
 }
 
-#sirkPortalRoot .sirk-column sirk-column-primary,
-#sirkPortalRoot .sirk-column sirk-column-secondary,
-#sirkPortalRoot .sirk-column sirk-column-details {
+#sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-primary,
+#sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-secondary,
+#sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-details {
     min-width: 0 !important;
     min-height: 0 !important;
     height: 100% !important;
@@ -144,20 +144,20 @@
     color: var(--mc-ui-text) !important;
 }
 
-#sirkPortalRoot .sirk-column sirk-column-primary,
-#sirkPortalRoot .sirk-column sirk-column-secondary {
+#sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-primary,
+#sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-secondary {
     padding: 12px !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
     border-right: 1px solid var(--mc-ui-border) !important;
 }
 
-#sirkPortalRoot .sirk-column sirk-column-details {
+#sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-details {
     padding: 18px !important;
     overflow: auto !important;
 }
 
-#sirkPortalRoot .sirk-layout.is-collapsed .sirk-column sirk-column-primary {
+#sirkPortalRoot .sirk-layout.is-collapsed :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-primary {
     width: var(--mc-ui-collapsed-width) !important;
     min-width: var(--mc-ui-collapsed-width) !important;
     max-width: var(--mc-ui-collapsed-width) !important;
@@ -231,7 +231,7 @@
     white-space: nowrap !important;
 }
 
-#sirkPortalRoot .sirk-layout.is-collapsed .sirk-column sirk-column-primary .sirk-nav-item {
+#sirkPortalRoot .sirk-layout.is-collapsed :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-primary .sirk-nav-item {
     width: 42px !important;
     min-width: 42px !important;
     max-width: 42px !important;
@@ -242,7 +242,7 @@
     gap: 0 !important;
 }
 
-#sirkPortalRoot .sirk-layout.is-collapsed .sirk-column sirk-column-primary .mc-portal-nav-label {
+#sirkPortalRoot .sirk-layout.is-collapsed :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-primary .mc-portal-nav-label {
     display: none !important;
 }
 
@@ -378,8 +378,8 @@
         overflow: visible !important;
     }
 
-    #sirkPortalRoot .sirk-column sirk-column-primary,
-    #sirkPortalRoot .sirk-column sirk-column-secondary {
+    #sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-primary,
+    #sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) sirk-column-secondary {
         width: auto !important;
         min-width: 0 !important;
         max-width: none !important;

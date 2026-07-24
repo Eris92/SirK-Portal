@@ -45,7 +45,7 @@ assert(css.indexOf('#sirkPortalRoot [data-view="devices"]') < 0, "Device workspa
     "is-collapsed",
     "is-management-edit-mode",
     "sirk-layout",
-    "sirk-column sirk-column-primary",
+    "sirk-column-primary",
     "background:color-mix"
 ].forEach(function (value) { assert(css.indexOf(value) < 0, "Device tabs CSS must not style Management: " + value); });
 assert(management.indexOf('tools.toggleEdit(toolbar, module.api.render)') >= 0, "Automation must expose Edit through the shared module shell");

@@ -19,9 +19,9 @@
     toolbar.className = "mc-admin-management-toolbar sirk-toolbar mc-portal-toolbar";
     workspace.className = "sirk-layout-host";
     layout.className = "mc-admin-management-layout sirk-layout";
-    tabs.classList.add("sirk-column sirk-column-primary");
-    middle.className = "mc-admin-middle sirk-column sirk-column-secondary";
-    content.classList.add("sirk-column sirk-column-details");
+    tabs.classList.add("sirk-column-primary");
+    middle.className = "mc-admin-middle sirk-column-secondary";
+    content.classList.add("sirk-column-details");
 
     admin.insertBefore(shell, tabs);
     shell.appendChild(toolbarHost);

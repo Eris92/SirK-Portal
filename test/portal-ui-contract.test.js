@@ -36,9 +36,9 @@ var standalone = read("public/portal/standalone/index.html");
     "sirk-toolbar-host",
     "sirk-layout-host",
     "sirk-layout",
-    "sirk-column sirk-column-primary",
-    "sirk-column sirk-column-secondary",
-    "sirk-column sirk-column-details"
+    "sirk-column-primary",
+    "sirk-column-secondary",
+    "sirk-column-details"
 ].forEach(function (className) {
     assert(
         sharedPage.indexOf(className) >= 0 || moduleShell.indexOf(className) >= 0,
@@ -136,7 +136,7 @@ assert(
     "is-collapsed",
     "is-management-edit-mode",
     "sirk-layout",
-    "sirk-column sirk-column-primary",
+    "sirk-column-primary",
     "color-mix"
 ].forEach(function (value) {
     assert(deviceCss.indexOf(value) < 0, "Device tabs CSS must not style another module: " + value);
@@ -153,9 +153,9 @@ assert(
 assert(
     adminLayout.indexOf("sirk-standalone-view-scroll") >= 0 &&
     adminLayout.indexOf("sirk-layout") >= 0 &&
-    adminLayout.indexOf("sirk-column sirk-column-primary") >= 0 &&
-    adminLayout.indexOf("sirk-column sirk-column-secondary") >= 0 &&
-    adminLayout.indexOf("sirk-column sirk-column-details") >= 0,
+    adminLayout.indexOf("sirk-column-primary") >= 0 &&
+    adminLayout.indexOf("sirk-column-secondary") >= 0 &&
+    adminLayout.indexOf("sirk-column-details") >= 0,
     "Settings administration must use the same canonical shell and columns"
 );
 assert(

@@ -181,11 +181,11 @@
         toolbar.appendChild(el("span", "sirk-toolbar-status"));
 
         var workspace = el("div", "sirk-layout sirk-layout-host");
-        var categories = el("aside", "sirk-column sirk-column-primary");
+        var categories = el("aside", "sirk-column-primary");
         categories.appendChild(el("div", "sirk-list"));
-        var scripts = el("aside", "sirk-column sirk-column-secondary");
+        var scripts = el("aside", "sirk-column-secondary");
         scripts.appendChild(el("div", "sirk-list"));
-        var details = el("div", "sirk-column sirk-column-details");
+        var details = el("div", "sirk-column-details");
         details.appendChild(el("div", "sirk-content"));
         workspace.appendChild(categories);
         workspace.appendChild(scripts);

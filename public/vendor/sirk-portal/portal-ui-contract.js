@@ -97,9 +97,9 @@
         if (workspace) {
             workspace.classList.add("sirk-layout-host", "sirk-layout");
             var columns = workspace.children || [];
-            if (columns[0]) columns[0].classList.add("sirk-column sirk-column-primary");
-            if (columns[1]) columns[1].classList.add("sirk-column sirk-column-secondary");
-            if (columns[2]) columns[2].classList.add("sirk-column sirk-column-details");
+            if (columns[0]) columns[0].classList.add("sirk-column-primary");
+            if (columns[1]) columns[1].classList.add("sirk-column-secondary");
+            if (columns[2]) columns[2].classList.add("sirk-column-details");
         }
         var managementHost = shell.closest(".");
         var editMode = !!(managementHost && managementHost.classList.contains("is-management-edit-mode") || shell.querySelector(".mc-tree-script-actions:not(:empty),.sirk-script-actions:not(:empty)"));
