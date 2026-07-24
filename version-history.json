@@ -1,12 +1,21 @@
 [
   {
+    "version": "1.5.144",
+    "date": "2026-07-24",
+    "changes": [
+      "Change the MeshCentral technical plugin identifier to JavaScript-safe SIRKPortal",
+      "Add SIRKPortal.js and SIRKPortalAdmin.js canonical entrypoints",
+      "Remove hyphenated entrypoints that broke pluginHandler.prepExports and caused a blank UI",
+      "Update the installer to use meshcentral-data/plugins/SIRKPortal",
+      "Add regression validation for JavaScript-safe shortName values"
+    ]
+  },
+  {
     "version": "1.5.143",
     "date": "2026-07-24",
     "changes": [
-      "Add the MeshCentral-required SIRK-PortalAdmin.js entrypoint",
-      "Delegate the admin entrypoint to the canonical admin.js implementation",
-      "Fix Unauthorized when opening the SIRK Management Platform admin panel",
-      "Add regression coverage for the admin(plugin) export"
+      "Add an admin entrypoint delegating to admin.js",
+      "Superseded by 1.5.144 because the hyphenated plugin identifier was not JavaScript-safe"
     ]
   },
   {

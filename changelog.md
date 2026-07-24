@@ -1,11 +1,17 @@
 # Changelog
 
+## 1.5.144
+
+- Zmieniono techniczny identyfikator pluginu MeshCentral z niebezpiecznego `SIRK-Portal` na poprawny identyfikator JavaScript `SIRKPortal`.
+- Dodano kanoniczne entrypointy `SIRKPortal.js` i `SIRKPortalAdmin.js`.
+- Usunięto entrypointy z myślnikiem, które powodowały błędny kod `obj.SIRK-Portal` w `pluginHandler.prepExports()` i biały ekran po zalogowaniu.
+- Zaktualizowano instalator, aby używał katalogu `meshcentral-data/plugins/SIRKPortal` i usuwał wadliwe katalogi testowych identyfikatorów.
+- Rozszerzono testy i walidator o wymóg JavaScript-safe `shortName`.
+
 ## 1.5.143
 
-- Dodano wymagany przez MeshCentral administracyjny entrypoint `SIRK-PortalAdmin.js`.
-- Entry point deleguje obsługę panelu do kanonicznej implementacji `admin.js`.
-- Naprawiono błąd `Unauthorized` po otwarciu panelu SIRK Management Platform.
-- Dodano test regresyjny sprawdzający eksport `admin(plugin)`.
+- Dodano administracyjny entrypoint delegujący obsługę panelu do kanonicznej implementacji `admin.js`.
+- Wydanie zostało zastąpione przez `1.5.144`, ponieważ identyfikator z myślnikiem nie jest zgodny z generatorem JavaScript MeshCentral.
 
 ## 1.5.142
 
