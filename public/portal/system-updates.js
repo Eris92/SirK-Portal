@@ -7,8 +7,14 @@
         });
     }
 
+    function updateBase() {
+        var path = String(window.location.pathname || "/");
+        var portal = path.match(/^(.*?\/sirkportal)(?:\/.*)?$/i);
+        return portal ? portal[1] + "/api/system/updates/" : "/api/system/updates/";
+    }
+
     function api(action, method, body) {
-        return fetch("/api/system/updates/" + action, {
+        return fetch(updateBase() + action, {
             method: method || "GET",
             credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
