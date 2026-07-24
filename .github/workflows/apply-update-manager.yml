@@ -1,0 +1,30 @@
+name: Apply update manager
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - scripts/implement-sirk-update-manager.js
+      - .github/workflows/apply-update-manager.yml
+      - .github/update-manager-trigger
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/implement-sirk-update-manager.js
+      - run: npm test
+      - name: Commit generated implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "feat: add independent SIRK update lifecycle 1.7.0-dev.1"
+          git push origin HEAD:develop
