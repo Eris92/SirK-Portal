@@ -349,7 +349,7 @@
                     if (!message) message = language() === "pl" ? item.messageEn : item.messagePl;
                     var itemStatus = ["ok", "warning", "critical"].indexOf(item.status) >= 0 ? item.status : "unknown";
                     var statusText = t(itemStatus === "ok" ? "healthOk" : itemStatus === "critical" ? "healthCritical" : itemStatus === "warning" ? "healthWarning" : "healthUnknown");
-                    return '<li><strong>' + escapeHtml(labels[item.key] || item.key) + '</strong><span class="sirk-health-badge is-' + itemStatus '">' + escapeHtml(statusText) + '</span>' + (message && itemStatus !== "ok" ? '<small>' + escapeHtml(message) + '</small>' : '') + '</li>';
+                    return '<li><strong>' + escapeHtml(labels[item.key] || item.key) + '</strong><span class="sirk-health-badge is-' + itemStatus + '">' + escapeHtml(statusText) + '</span>' + (message && itemStatus !== "ok" ? '<small>' + escapeHtml(message) + '</small>' : '') + '</li>';
                 }).join("");
                 issues.hidden = healthItems.length === 0;
             }

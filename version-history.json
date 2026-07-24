@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.8.1",
+    "date": "2026-07-24",
+    "changes": [
+      "Fix JavaScript syntax damaged by the global class migration",
+      "Restore Portal startup and icon registry",
+      "Validate critical Portal startup scripts before publishing"
+    ]
+  },
+  {
     "version": "1.8.0",
     "date": "2026-07-24",
     "changes": [

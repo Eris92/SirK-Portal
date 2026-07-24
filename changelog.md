@@ -1,3 +1,9 @@
+## 1.8.1
+
+- Fixed JavaScript syntax damaged by the global class migration.
+- Restored Portal startup and icon rendering.
+- Validated critical Portal startup scripts before publishing.
+
 ## 1.8.0
 
 - Published the independent SIRK Portal updater on the Stable (`main`) channel.

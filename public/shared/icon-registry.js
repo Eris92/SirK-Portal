@@ -17,7 +17,7 @@
         var safeTitle = String(title || "").replace(/[&<>\"]/g, function (value) {
             return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[value];
         });
-        return '<svg class="' + safeClass" viewBox="0 0 24 24" aria-hidden="' + (safeTitle ? "false" : "true") + '">' +
+        return '<svg class="' + safeClass + '" viewBox="0 0 24 24" aria-hidden="' + (safeTitle ? "false" : "true") + '">' +
             (safeTitle ? "<title>" + safeTitle + "</title>" : "") +
             '<use href="' + href(name) + '"></use></svg>';
     }
