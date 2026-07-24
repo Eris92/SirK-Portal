@@ -63,6 +63,27 @@ var replacements = [
     [/is-management-collapsed/g, "is-collapsed"]
 ];
 
+function uniqueClasses(value) {
+    var seen = Object.create(null);
+    return String(value || "").trim().split(/\s+/).filter(function (name) {
+        if (!name || seen[name]) return false;
+        seen[name] = true;
+        return true;
+    }).join(" ");
+}
+
+function normalize(output) {
+    output = output.replace(/className\s*=\s*"([^"]*)"/g, function (_, names) {
+        return 'className = "' + uniqueClasses(names) + '"';
+    });
+    output = output.replace(/class="([^"]*)"/g, function (_, names) {
+        return 'class="' + uniqueClasses(names) + '"';
+    });
+    output = output.replace(/\.classList\.add\(""\);?/g, "");
+    output = output.replace(/\.classList\.add\("",\s*/g, ".classList.add(");
+    return output;
+}
+
 function walk(directory) {
     if (!fs.existsSync(directory)) return;
     fs.readdirSync(directory, { withFileTypes: true }).forEach(function (entry) {
@@ -72,9 +93,7 @@ function walk(directory) {
         var source = fs.readFileSync(file, "utf8");
         var output = source;
         replacements.forEach(function (item) { output = output.replace(item[0], item[1]); });
-        output = output.replace(/className\s*=\s*"\s+"/g, 'className = ""');
-        output = output.replace(/class="\s+"/g, 'class=""');
-        output = output.replace(/\.classList\.add\((""|'')(?:,\s*)?/g, ".classList.add(");
+        output = normalize(output);
         if (output !== source) fs.writeFileSync(file, output);
     });
 }
