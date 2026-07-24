@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.6.4",
+    "date": "2026-07-24",
+    "changes": [
+      "Apply the global Portal radius in the final loaded stylesheet",
+      "Remove the legacy Management-only surface override",
+      "Clip Automation, Approval and all module renderers to the shared 10px host"
+    ]
+  },
+  {
     "version": "1.6.2",
     "date": "2026-07-24",
     "changes": [
