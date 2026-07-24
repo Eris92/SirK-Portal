@@ -26,6 +26,7 @@ var ASSETS = {
     "portal-device-workspace.css": "public/portal/standalone/styles/device-workspace.css",
     "portal-device-tabs.css": "public/native/device-tabs.css",
     "portal-module-shell.css": "public/portal/standalone/styles/module-shell.css",
+    "portal-management-frame.css": "public/portal/standalone/styles/management-frame.css",
     "portal-cleanup.css": "public/portal/standalone/styles/cleanup.css",
     "main.css": "public/shared/styles/main.css",
     "myscripts.css": "public/modules/automation/style.css",
@@ -73,6 +74,7 @@ function portalHtml() {
         .replace(/__ASSET_BASE__/g, "/assets")
         .replace(/__NATIVE_URL__/g, "")
         .replace(/__VERSION__/g, VERSION);
+    html = html.replace("</head>", '<link rel="stylesheet" href="/assets/portal-management-frame.css?v=' + VERSION + '"></head>');
     return html.replace("</body>", '<script src="/assets/standalone-core-rest.js?v=' + VERSION + '"></script></body>');
 }
 
