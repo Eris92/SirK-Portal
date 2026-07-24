@@ -44,7 +44,7 @@
 
     function jobMarkup(job) {
         if (!job) return "";
-        return '<div class="sirk-update-job ' + escapeHtml(job.status || "") + '"><strong>' + escapeHtml(job.type || "operacja") + '</strong>' +
+        return '<div class="sirk-update-job ' + escapeHtml(job.status ||"") + '"><strong>' + escapeHtml(job.type || "operacja") + '</strong>' +
             '<span>' + escapeHtml(job.message || job.status || "") + '</span>' +
             '<progress max="100" value="' + Number(job.progress || 0) + '"></progress><small>' + Number(job.progress || 0) + '%</small></div>';
     }
