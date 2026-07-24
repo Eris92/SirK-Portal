@@ -1,7 +1,7 @@
 (function () {
     "use strict";
 
-    var state = { snapshot: null, activeJob: "", timer: 0 };
+    var state = { snapshot: null, activeJob: "", timer: 0, section: "updates" };
 
     function escapeHtml(value) {
         return String(value == null ? "" : value).replace(/[&<>\"]/g, function (character) {
@@ -44,7 +44,7 @@
 
     function jobMarkup(job) {
         if (!job) return "";
-        return '<div class="sirk-update-job ' + escapeHtml(job.status ||"") + '"><strong>' + escapeHtml(job.type || "operacja") + '</strong>' +
+        return '<div class="sirk-update-job ' + escapeHtml(job.status || "") + '"><strong>' + escapeHtml(job.type || "operacja") + '</strong>' +
             '<span>' + escapeHtml(job.message || job.status || "") + '</span>' +
             '<progress max="100" value="' + Number(job.progress || 0) + '"></progress><small>' + Number(job.progress || 0) + '%</small></div>';
     }
@@ -127,6 +127,7 @@
 
     function mount(host, section) {
         section = section || "updates";
+        state.section = section;
         clearTimeout(state.timer);
         host.onclick = function (event) {
             var actionNode = event.target.closest("[data-update-action]");
@@ -146,5 +147,35 @@
         load(host, section);
     }
 
+    function settingsLayout(host) {
+        if (!host || host.getAttribute("data-system-settings-ready") === "1") return;
+        host.setAttribute("data-system-settings-ready", "1");
+        host.innerHTML = '<section class="sirk-standalone-view-scroll"><div class="sirk-toolbar-host"><div class="sirk-toolbar"><strong>Ustawienia</strong></div></div>' +
+            '<div class="sirk-layout-host"><div class="sirk-layout"><aside class="sirk-column-primary"><button type="button" class="sirk-nav-item is-active" data-settings-group="system">System</button></aside>' +
+            '<aside class="sirk-column-secondary"><button type="button" class="sirk-nav-item is-active" data-system-section="updates">Aktualizacje</button><button type="button" class="sirk-nav-item" data-system-section="backups">Backupy</button><button type="button" class="sirk-nav-item" data-system-section="history">Historia</button><button type="button" class="sirk-nav-item" data-system-section="channel">Kanał aktualizacji</button></aside>' +
+            '<div class="sirk-column-details" data-system-details></div></div></div></section>';
+        var details = host.querySelector("[data-system-details]");
+        host.addEventListener("click", function (event) {
+            var button = event.target.closest("[data-system-section]");
+            if (!button) return;
+            Array.prototype.forEach.call(host.querySelectorAll("[data-system-section]"), function (item) { item.classList.toggle("is-active", item === button); });
+            mount(details, button.getAttribute("data-system-section"));
+        });
+        mount(details, "updates");
+    }
+
+    function installSettingsIntegration() {
+        function apply() {
+            var content = document.getElementById("sirkStandaloneContent");
+            if (!content || content.getAttribute("data-active-view") !== "settings") return;
+            var host = content.querySelector(".sirk-portal-view-host") || content.firstElementChild;
+            settingsLayout(host);
+        }
+        new MutationObserver(apply).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-active-view"] });
+        apply();
+    }
+
     window.SirkSystemUpdates = { mount: mount, refresh: load };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", installSettingsIntegration);
+    else installSettingsIntegration();
 }());
