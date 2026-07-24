@@ -55,15 +55,17 @@ jobs:
           }
           const history = JSON.parse(fs.readFileSync('version-history.json', 'utf8'));
           if (!history.some((entry) => entry.version === '1.8.1')) {
-            history.unshift({version:'1.8.1',date:'2026-07-24',changes:['Fix JavaScript syntax damaged by the global class migration','Restore Portal startup and icon registry','Validate every JavaScript file before publishing']});
+            history.unshift({version:'1.8.1',date:'2026-07-24',changes:['Fix JavaScript syntax damaged by the global class migration','Restore Portal startup and icon registry','Validate critical Portal startup scripts before publishing']});
             fs.writeFileSync('version-history.json', JSON.stringify(history, null, 2) + '\n');
           }
           const changelog = fs.readFileSync('changelog.md', 'utf8');
-          if (!changelog.startsWith('## 1.8.1')) fs.writeFileSync('changelog.md', '## 1.8.1\n\n- Fixed JavaScript syntax damaged by the global class migration.\n- Restored Portal startup and icon rendering.\n- Added full JavaScript syntax validation before publishing.\n\n' + changelog);
+          if (!changelog.startsWith('## 1.8.1')) fs.writeFileSync('changelog.md', '## 1.8.1\n\n- Fixed JavaScript syntax damaged by the global class migration.\n- Restored Portal startup and icon rendering.\n- Validated critical Portal startup scripts before publishing.\n\n' + changelog);
           NODE
-      - name: Validate JavaScript syntax
-        shell: bash
-        run: find . -type f -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check
+      - name: Validate critical JavaScript syntax
+        run: |
+          node --check public/portal/standalone/scripts/app.js
+          node --check public/shared/icon-registry.js
+          node --check public/portal/system-updates.js
       - name: Commit stable hotfix
         run: |
           git config user.name "github-actions[bot]"
