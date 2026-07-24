@@ -37,7 +37,7 @@
     }
 
     function rootKey(shell) {
-        var selected = shell.querySelector('.sirk-management-workspace > .sirk-management-column:first-child [data-management-root].is-active');
+        var selected = shell.querySelector('.sirk-layout > .sirk-column:first-child [data-management-root].is-active');
         return String(selected && selected.getAttribute("data-management-root") || "root");
     }
 
@@ -45,7 +45,7 @@
         var stack = [];
         var occurrence = Object.create(null);
         var root = rootKey(shell);
-        var managementHost = shell.closest(".sirk-platform-management-host");
+        var managementHost = shell.closest(".");
         var openPath = String(managementHost && managementHost.getAttribute("data-management-open-path") || "");
 
         Array.prototype.forEach.call(list.children, function (node) {
@@ -94,7 +94,7 @@
     function enhance(shell) {
         if (!shell) return;
         ensureStyle();
-        var list = shell.querySelector('.sirk-management-workspace > .sirk-management-column:nth-child(2) > .sirk-management-list');
+        var list = shell.querySelector('.sirk-layout > .sirk-column:nth-child(2) > .sirk-list');
         if (!list) return;
         var currentRoot = rootKey(shell);
         if (shell !== activeShell || currentRoot !== activeRoot) {
@@ -111,7 +111,7 @@
         scheduled = true;
         window.requestAnimationFrame(function () {
             scheduled = false;
-            enhance(shell || document.querySelector(".sirk-management-shell"));
+            enhance(shell || document.querySelector(".sirk-standalone-view-scroll"));
         });
     }
 
@@ -132,7 +132,7 @@
     }
 
     document.addEventListener("click", function (event) {
-        var heading = event.target && event.target.closest && event.target.closest("#sirkPortalRoot .sirk-management-shell .sirk-folder-heading");
+        var heading = event.target && event.target.closest && event.target.closest("#sirkPortalRoot .sirk-standalone-view-scroll .sirk-folder-heading");
         if (!heading) return;
         event.preventDefault();
         event.stopPropagation();
@@ -141,7 +141,7 @@
 
     document.addEventListener("keydown", function (event) {
         if (event.key !== "Enter" && event.key !== " ") return;
-        var heading = event.target && event.target.closest && event.target.closest("#sirkPortalRoot .sirk-management-shell .sirk-folder-heading");
+        var heading = event.target && event.target.closest && event.target.closest("#sirkPortalRoot .sirk-standalone-view-scroll .sirk-folder-heading");
         if (!heading) return;
         event.preventDefault();
         event.stopPropagation();
@@ -152,14 +152,14 @@
         var portal = document.getElementById("sirkPortalRoot");
         if (!portal) return false;
         ensureStyle();
-        schedule(portal.querySelector(".sirk-management-shell"));
+        schedule(portal.querySelector(".sirk-standalone-view-scroll"));
         if (!portal.__sirkPlatformFolderCollapseObserver) {
             portal.__sirkPlatformFolderCollapseObserver = new MutationObserver(function (records) {
                 for (var index = 0; index < records.length; index++) {
                     var target = records[index].target;
-                    var shell = target && target.nodeType === 1 && target.closest && target.closest(".sirk-management-shell");
-                    if (shell || portal.querySelector(".sirk-management-shell")) {
-                        schedule(shell || portal.querySelector(".sirk-management-shell"));
+                    var shell = target && target.nodeType === 1 && target.closest && target.closest(".sirk-standalone-view-scroll");
+                    if (shell || portal.querySelector(".sirk-standalone-view-scroll")) {
+                        schedule(shell || portal.querySelector(".sirk-standalone-view-scroll"));
                         break;
                     }
                 }

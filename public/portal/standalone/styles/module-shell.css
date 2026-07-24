@@ -1,144 +1,92 @@
-/* Single visual system for every SirK Portal module. Modules provide data and actions only. */
-#sirkPortalRoot .mc-portal-module-shell {
-    --portal-primary-width: 184px;
-    --portal-secondary-width: 236px;
-    --portal-module-height: clamp(600px, calc(100dvh - 180px), 760px);
+#sirkPortalRoot .sirk-standalone-content.sirk-unified-content {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#sirkPortalRoot .sirk-standalone-view-scroll {
     display: flex;
     flex-direction: column;
     width: 100%;
+    height: 100%;
     min-width: 0;
-    height: var(--portal-module-height);
     min-height: 0;
     margin: 0;
+    padding: 0;
     overflow: hidden;
-    border: 1px solid var(--sirk-border, #dce3ec);
-    border-radius: 10px;
-    background: var(--sirk-panel, #fff);
-    color: var(--sirk-text, #172033);
-    box-sizing: border-box;
-}
-
-#sirkPortalRoot .sirk-unified-content .mc-portal-module-shell {
-    --portal-accent: var(--sirk-active-accent, #3867d6);
-    height: 100%;
     border: 0;
-    border-radius: 9px;
-}
-
-/* Empty modules use the same outer surface as implemented modules. */
-#sirkPortalRoot .mc-portal-placeholder-shell {
-    display: block;
-    height: 100%;
-}
-
-#sirkPortalRoot .mc-portal-placeholder-content {
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    padding: 18px;
-    overflow: auto;
-    background: var(--sirk-panel, #fff);
+    border-radius: 0;
+    background: transparent;
     color: var(--sirk-text, #172033);
     box-sizing: border-box;
 }
 
-#sirkPortalRoot .mc-portal-module-tabs:empty {
-    display: none !important;
-}
+#sirkPortalRoot .sirk-tabs:empty { display: none; }
 
-#sirkPortalRoot .mc-portal-module-toolbar {
+#sirkPortalRoot .sirk-toolbar-host {
     flex: 0 0 48px;
     width: 100%;
-    min-width: 0;
     height: 48px;
     min-height: 48px;
     overflow: hidden;
+    background: transparent;
 }
 
-#sirkPortalRoot .mc-portal-module-toolbar > .mc-shared-toolbar {
+#sirkPortalRoot .sirk-toolbar {
     display: flex;
     align-items: center;
     gap: 6px;
     width: 100%;
     height: 48px;
-    min-height: 48px;
     margin: 0;
     padding: 7px 10px;
     border: 0;
     border-bottom: 1px solid var(--sirk-border, #dce3ec);
-    background: var(--sirk-panel, #fff);
+    background: transparent;
     box-sizing: border-box;
 }
 
-/* Toolbar always has one neutral style, regardless of legacy btn classes. */
-#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button,
-#sirkPortalRoot .mc-portal-module-toolbar button.mc-shared-toolbar-button,
-#sirkPortalRoot .mc-portal-module-toolbar button.btn.mc-shared-toolbar-button,
-#sirkPortalRoot .mc-portal-module-toolbar button.btn-secondary.mc-shared-toolbar-button {
-    display: grid !important;
-    place-items: center !important;
-    width: 34px !important;
-    min-width: 34px !important;
-    height: 34px !important;
-    min-height: 34px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 1px solid transparent !important;
-    border-radius: 7px !important;
-    background: transparent !important;
-    color: var(--sirk-text, #172033) !important;
-    box-shadow: none !important;
+#sirkPortalRoot .sirk-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+#sirkPortalRoot .sirk-toolbar-center { flex: 1 1 auto; justify-content: center; }
+#sirkPortalRoot .sirk-toolbar-right { margin-left: auto; }
+
+#sirkPortalRoot .sirk-toolbar-button {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: inherit;
+    box-shadow: none;
     cursor: pointer;
 }
 
-#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button:hover,
-#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button.is-active {
-    border-color: rgba(96, 165, 250, .2) !important;
-    background: rgba(96, 165, 250, .14) !important;
-    outline: 0;
+#sirkPortalRoot .sirk-toolbar-button:hover,
+#sirkPortalRoot .sirk-toolbar-button.is-active {
+    border-color: rgba(96, 165, 250, .2);
+    background: rgba(96, 165, 250, .14);
 }
 
-#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-search input,
-#sirkPortalRoot .mc-portal-module-shell input[type="search"],
-#sirkPortalRoot .mc-portal-module-shell .mc-results-filter {
-    min-height: 34px;
-    padding: 7px 10px;
-    border: 1px solid var(--sirk-border, #dce3ec);
-    border-radius: 7px;
-    background: var(--sirk-input, #fff);
-    color: var(--sirk-text, #172033);
-    box-sizing: border-box;
-}
-
-#sirkPortalRoot .mc-portal-module-workspace {
-    flex: 1 1 auto;
-    width: 100%;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-}
-
-#sirkPortalRoot .mc-portal-module-layout {
-    display: grid;
-    grid-template-columns: var(--portal-primary-width) var(--portal-secondary-width) minmax(0, 1fr) !important;
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
-    border: 0;
-    overflow: hidden;
-    resize: none;
-    background: var(--sirk-panel, #fff);
-}
-
-#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-icon,
-#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-icon svg {
+#sirkPortalRoot .sirk-toolbar-icon,
+#sirkPortalRoot .sirk-toolbar-icon svg {
     display: block;
     width: 20px;
     height: 20px;
 }
 
-#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-icon svg {
+#sirkPortalRoot .sirk-toolbar-icon svg {
     fill: none;
     stroke: currentColor;
     stroke-width: 1.8;
@@ -146,65 +94,65 @@
     stroke-linejoin: round;
 }
 
-#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button.is-active .mc-shared-toolbar-icon svg {
-    stroke-width: 2;
+#sirkPortalRoot .sirk-toolbar-search input,
+#sirkPortalRoot .sirk-filter,
+#sirkPortalRoot .sirk-standalone-view-scroll input[type="search"] {
+    min-height: 34px;
+    padding: 7px 10px;
+    border: 1px solid var(--sirk-border, #dce3ec);
+    border-radius: 7px;
+    background: transparent;
+    color: inherit;
+    box-sizing: border-box;
 }
 
-#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button.is-active[title*="Favorite"] {
-    color: #d18b00 !important;
+#sirkPortalRoot .sirk-layout-host {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: transparent;
 }
 
-#sirkPortalRoot .mc-portal-module-toolbar .mc-shared-toolbar-button.is-active[title*="Favorite"] .mc-shared-toolbar-icon svg {
-    fill: currentColor;
+#sirkPortalRoot .sirk-layout {
+    display: grid;
+    grid-template-columns: 184px 236px minmax(0, 1fr);
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border: 0;
+    background: transparent;
 }
 
-/* The Portal owns column geometry. Legacy shared-ui and editor :has() rules
-   must never resize a mounted Portal view. */
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-module-layout,
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-module-layout:has(.mc-tree-script-actions:not(:empty)) {
-    grid-template-columns: var(--portal-primary-width) var(--portal-secondary-width) minmax(0, 1fr) !important;
-    resize: none !important;
-    overflow: hidden !important;
+#sirkPortalRoot .sirk-layout.is-collapsed {
+    grid-template-columns: 56px 236px minmax(0, 1fr);
 }
 
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-module-layout.is-collapsed,
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-module-layout.is-collapsed:has(.mc-tree-script-actions:not(:empty)) {
-    grid-template-columns: 56px var(--portal-secondary-width) minmax(0, 1fr) !important;
-}
-
-#sirkPortalRoot .mc-portal-module-layout.is-collapsed {
-    grid-template-columns: 56px var(--portal-secondary-width) minmax(0, 1fr) !important;
-}
-
-#sirkPortalRoot .mc-portal-module-primary,
-#sirkPortalRoot .mc-portal-module-secondary,
-#sirkPortalRoot .mc-portal-module-details {
+#sirkPortalRoot :is(.sirk-column-primary,.sirk-column-secondary,.sirk-column-details) {
     min-width: 0;
     min-height: 0;
     height: 100%;
-    box-sizing: border-box;
-    background: var(--sirk-panel, #fff);
-}
-
-#sirkPortalRoot .mc-portal-module-primary,
-#sirkPortalRoot .mc-portal-module-secondary {
-    padding: 12px;
     overflow-x: hidden;
     overflow-y: auto;
+    background: transparent;
+    box-sizing: border-box;
+}
+
+#sirkPortalRoot .sirk-column-primary,
+#sirkPortalRoot .sirk-column-secondary {
+    padding: 12px;
     border-right: 1px solid var(--sirk-border, #dce3ec);
 }
 
-#sirkPortalRoot .mc-portal-module-details {
+#sirkPortalRoot .sirk-column-details {
     padding: 18px;
-    overflow-x: hidden;
-    overflow-y: auto;
     overscroll-behavior: contain;
 }
 
-/* One navigation item component for all modules. */
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-item,
-#sirkPortalRoot .mc-portal-module-shell .mc-shared-nav-item,
-#sirkPortalRoot .mc-portal-module-shell .sirk-management-item {
+#sirkPortalRoot .sirk-nav-item {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -216,190 +164,28 @@
     border: 1px solid transparent;
     border-radius: 7px;
     background: transparent;
-    color: var(--sirk-text, #172033);
+    color: inherit;
     text-align: left;
-    font: 500 14px Segoe UI, Arial, sans-serif;
-    box-shadow: none;
+    font: 500 14px "Segoe UI", Arial, sans-serif;
     cursor: pointer;
     box-sizing: border-box;
 }
 
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-item:hover,
-#sirkPortalRoot .mc-portal-module-shell .mc-shared-nav-item:hover,
-#sirkPortalRoot .mc-portal-module-shell .sirk-management-item:hover {
-    background: rgba(96, 165, 250, .09);
-}
-
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-item.active,
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-item.is-active,
-#sirkPortalRoot .mc-portal-module-shell .mc-shared-nav-item.active,
-#sirkPortalRoot .mc-portal-module-shell .sirk-management-item.active,
-#sirkPortalRoot .mc-portal-module-shell .sirk-management-item.is-active {
+#sirkPortalRoot .sirk-nav-item:hover { background: rgba(96, 165, 250, .09); }
+#sirkPortalRoot .sirk-nav-item.active,
+#sirkPortalRoot .sirk-nav-item.is-active {
     background: rgba(96, 165, 250, .16);
-    box-shadow: inset 3px 0 0 var(--portal-accent, #60a5fa);
+    box-shadow: inset 3px 0 0 var(--sirk-active-accent, #60a5fa);
     font-weight: 700;
 }
 
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-icon,
-#sirkPortalRoot .mc-portal-module-shell .sirk-management-item-icon {
-    display: grid;
-    place-items: center;
-    flex: 0 0 24px;
-    width: 24px;
-    height: 24px;
-    color: var(--portal-accent, #60a5fa);
-}
-
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-nav-icon svg,
-#sirkPortalRoot .mc-portal-module-shell .sirk-management-item-icon svg {
-    width: 20px;
-    height: 20px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-
-/* One card component for all modules. */
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-card,
-#sirkPortalRoot .mc-portal-module-shell .mc-shared-card,
-#sirkPortalRoot .mc-portal-module-shell .sirk-card {
+#sirkPortalRoot .sirk-card {
     margin: 0 0 10px;
     padding: 14px;
     border: 1px solid var(--sirk-border, #dce3ec);
     border-radius: 8px;
-    background: var(--sirk-panel, #fff);
-    color: var(--sirk-text, #172033);
+    background: transparent;
+    color: inherit;
     box-shadow: none;
     box-sizing: border-box;
-}
-
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-card-grid,
-#sirkPortalRoot .mc-portal-module-shell .mc-approval-card-grid,
-#sirkPortalRoot .mc-portal-module-shell .sirk-approval-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 12px;
-    align-items: start;
-}
-
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    margin-top: 12px;
-}
-
-/* One button component; toolbar buttons are explicitly excluded. */
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-button,
-#sirkPortalRoot .mc-portal-module-shell button.btn:not(.mc-shared-toolbar-button),
-#sirkPortalRoot .mc-portal-module-shell .mc-results-view-button,
-#sirkPortalRoot .mc-portal-module-shell .mc-results-copy-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 34px;
-    margin: 0;
-    padding: 7px 13px;
-    border: 1px solid transparent;
-    border-radius: 7px;
-    background: var(--portal-accent, #3867d6);
-    color: #fff;
-    font: 500 14px Segoe UI, Arial, sans-serif;
-    box-shadow: none;
-    cursor: pointer;
-}
-
-#sirkPortalRoot .mc-portal-module-shell .mc-portal-button-danger,
-#sirkPortalRoot .mc-portal-module-shell button.btn-secondary:not(.mc-shared-toolbar-button) {
-    border-color: #ef4444;
-    background: transparent;
-    color: #dc2626;
-}
-
-#sirkPortalRoot .mc-portal-module-shell .mc-results-table-wrap {
-    width: 100%;
-    overflow: auto;
-    border: 1px solid var(--sirk-border, #dce3ec);
-    border-radius: 8px;
-}
-
-#sirkPortalRoot .mc-portal-module-shell .mc-results-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-#sirkPortalRoot .mc-portal-module-shell .mc-results-table th,
-#sirkPortalRoot .mc-portal-module-shell .mc-results-table td {
-    padding: 9px 10px;
-    border-bottom: 1px solid var(--sirk-border, #dce3ec);
-    text-align: left;
-    vertical-align: top;
-}
-
-#sirkPortalRoot .mc-portal-module-shell .mc-results-table th {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background: var(--sirk-panel, #fff);
-}
-
-#sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary {
-    width: 56px;
-    min-width: 56px;
-    max-width: 56px;
-    padding: 8px 6px;
-    overflow-x: hidden;
-}
-
-#sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary .mc-portal-nav-item,
-#sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary .mc-shared-nav-item,
-#sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary .sirk-management-item {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    justify-content: center;
-    padding: 8px 0;
-    overflow: hidden;
-}
-
-#sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary .mc-portal-nav-label,
-#sirkPortalRoot .mc-portal-module-layout.is-collapsed .mc-portal-module-primary .mc-approval-nav-label {
-    display: none;
-}
-
-#sirkPortalRoot.sirk-theme-dark .mc-portal-module-shell {
-    --sirk-panel: #111827;
-    --sirk-input: #0f172a;
-    --sirk-text: #e7edf7;
-    --sirk-border: #2a374a;
-}
-
-@media (max-width: 1100px) {
-    #sirkPortalRoot .mc-portal-module-shell {
-        --portal-primary-width: 170px;
-        --portal-secondary-width: 220px;
-    }
-}
-
-@media (max-width: 800px) {
-    #sirkPortalRoot .mc-portal-module-shell {
-        height: auto;
-        min-height: 560px;
-        overflow: visible;
-    }
-
-    #sirkPortalRoot .mc-portal-module-layout,
-    #sirkPortalRoot .mc-portal-module-layout.is-collapsed {
-        grid-template-columns: 1fr !important;
-        height: auto;
-        overflow: visible;
-    }
-
-    #sirkPortalRoot .mc-portal-module-primary,
-    #sirkPortalRoot .mc-portal-module-secondary {
-        border-right: 0;
-        border-bottom: 1px solid var(--sirk-border, #dce3ec);
-    }
 }

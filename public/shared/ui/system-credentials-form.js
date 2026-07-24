@@ -75,7 +75,7 @@
                         }).catch(function (error) {
                             box.checked = !box.checked;
                             list.classList.remove("is-saving");
-                            var note = element("div", "mc-shared-error", error.message || String(error));
+                            var note = element("div", "sirk-error", error.message || String(error));
                             section.appendChild(note);
                         });
                     };

@@ -10,14 +10,14 @@
   overflow:hidden!important;box-shadow:none!important
 }
 #sirkPortalRoot .sirk-standalone-content>.sirk-standalone-view-scroll{padding:14px!important;overflow:auto!important}
-#sirkPortalRoot .sirk-standalone-content>.sirk-portal-view-host>.sirk-platform-management-host{
+#sirkPortalRoot .sirk-standalone-content>.sirk-portal-view-host>.{
   width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
   margin:0!important;padding:0!important;border:0!important;border-radius:0!important;
   background:transparent!important;overflow:hidden!important
 }
-#sirkPortalRoot .sirk-standalone-content>.sirk-portal-view-host .mc-portal-module-shell,
-#sirkPortalRoot .sirk-standalone-content>.sirk-portal-view-host>.mc-shared-page,
-#sirkPortalRoot .sirk-standalone-content>.sirk-portal-view-host .sirk-management-shell,
+#sirkPortalRoot .sirk-standalone-content>.sirk-portal-view-host .sirk-standalone-view-scroll,
+#sirkPortalRoot .sirk-standalone-content>.sirk-portal-view-host>.sirk-standalone-view-scroll,
+#sirkPortalRoot .sirk-standalone-content>.sirk-portal-view-host .sirk-standalone-view-scroll,
 #sirkPortalRoot .sirk-standalone-content>.sirk-portal-view-host .sirk-approval-shell{
   width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:0!important;
   border:0!important;border-radius:0!important;background:var(--sirk-panel,#fff)!important;

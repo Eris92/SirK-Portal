@@ -8,6 +8,7 @@ function sendJson(res, status, value) {
 }
 
 function readBody(req) {
+    if (req.body && typeof req.body === "object") return Promise.resolve(req.body);
     return new Promise(function (resolve, reject) {
         var chunks = [];
         var size = 0;
@@ -43,9 +44,15 @@ module.exports.createHandler = function (manager) {
                         remote: values[0],
                         backups: values[1],
                         health: values[2],
-                        history: manager.state().history || []
+                        history: manager.state().history || [],
+                        jobs: manager.state().jobs || {}
                     };
                 });
+            }
+            if (req.method === "GET" && action.indexOf("job/") === 0) {
+                var job = manager.job(decodeURIComponent(action.slice(4)));
+                if (!job) throw new Error("Update job was not found.");
+                return job;
             }
             if (req.method !== "POST") throw new Error("Endpoint not found.");
             return readBody(req).then(function (body) {

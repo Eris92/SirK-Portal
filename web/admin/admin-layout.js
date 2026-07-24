@@ -14,14 +14,14 @@
     var layout = document.createElement("div");
     var middle = document.createElement("div");
 
-    shell.className = "mc-admin-shell mc-admin-management-shell mc-portal-module-shell mc-portal-module-admin";
-    toolbarHost.className = "mc-portal-module-toolbar";
-    toolbar.className = "mc-admin-management-toolbar mc-shared-toolbar mc-portal-toolbar";
-    workspace.className = "mc-portal-module-workspace";
-    layout.className = "mc-admin-management-layout mc-portal-module-layout";
-    tabs.classList.add("mc-portal-module-primary");
-    middle.className = "mc-admin-middle mc-portal-module-secondary";
-    content.classList.add("mc-portal-module-details");
+    shell.className = "mc-admin-shell mc-admin-management-shell sirk-standalone-view-scroll mc-portal-module-admin";
+    toolbarHost.className = "sirk-toolbar-host";
+    toolbar.className = "mc-admin-management-toolbar sirk-toolbar mc-portal-toolbar";
+    workspace.className = "sirk-layout-host";
+    layout.className = "mc-admin-management-layout sirk-layout";
+    tabs.classList.add("sirk-column-primary");
+    middle.className = "mc-admin-middle sirk-column-secondary";
+    content.classList.add("sirk-column-details");
 
     admin.insertBefore(shell, tabs);
     shell.appendChild(toolbarHost);
@@ -65,11 +65,11 @@
     function toolButton(action, title, icon) {
         var button = document.createElement("button");
         button.type = "button";
-        button.className = "mc-admin-management-tool mc-shared-toolbar-button mc-portal-toolbar-button";
+        button.className = "mc-admin-management-tool sirk-toolbar-button";
         button.setAttribute("data-admin-tool", action);
         button.title = title;
         button.setAttribute("aria-label", title);
-        button.innerHTML = '<span class="mc-shared-toolbar-icon mc-portal-toolbar-icon">' + icon + "</span>";
+        button.innerHTML = '<span class="sirk-toolbar-icon">' + icon + "</span>";
         toolbar.appendChild(button);
         return button;
     }
@@ -78,9 +78,9 @@
     var refresh = toolButton("refresh", "Odśwież", svg('<path d="M20 6v5h-5M4 18v-5h5"/><path d="M6.1 8A7 7 0 0 1 18 6l2 5M4 13l2 5a7 7 0 0 0 11.9-2"/>'));
     var search = toolButton("search", "Szukaj ustawienia", svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'));
     var searchBox = document.createElement("label");
-    searchBox.className = "mc-admin-management-search mc-shared-toolbar-search";
+    searchBox.className = "mc-admin-management-search sirk-toolbar-search";
     searchBox.hidden = true;
-    searchBox.innerHTML = '<span class="sr-only">Szukaj ustawienia</span><input class="mc-portal-filter" type="search" placeholder="Szukaj sekcji…">';
+    searchBox.innerHTML = '<span class="sr-only">Szukaj ustawienia</span><input class="sirk-filter" type="search" placeholder="Szukaj sekcji…">';
     toolbar.appendChild(searchBox);
 
     function isCollapsed() {
@@ -92,7 +92,7 @@
         value = value === true;
         shell.classList.toggle("is-collapsed", value);
         layout.classList.toggle("is-collapsed", value);
-        collapse.querySelector(".mc-shared-toolbar-icon").innerHTML = value
+        collapse.querySelector(".sirk-toolbar-icon").innerHTML = value
             ? svg('<path d="m9 18 6-6-6-6"/>')
             : svg('<path d="m15 18-6-6 6-6"/>');
         collapse.title = value ? "Rozwiń menu" : "Zwiń menu";
@@ -102,14 +102,14 @@
 
     function decorateButton(button, key) {
         if (!button) return;
-        button.classList.add("mc-portal-nav-item");
+        button.classList.add("sirk-nav-item");
         if (button.querySelector(".mc-admin-management-item-icon")) return;
         var label = document.createElement("span");
         label.className = "mc-admin-management-item-label mc-portal-nav-label";
         label.textContent = button.textContent.trim();
         button.textContent = "";
         var icon = document.createElement("span");
-        icon.className = "mc-admin-management-item-icon mc-portal-nav-icon";
+        icon.className = "mc-admin-management-item-icon sirk-nav-icon";
         icon.innerHTML = icons[key] || icons.settings;
         button.appendChild(icon);
         button.appendChild(label);

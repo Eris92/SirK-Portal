@@ -32,13 +32,13 @@ var standalone = read("public/portal/standalone/index.html");
 });
 
 [
-    "mc-portal-module-shell",
-    "mc-portal-module-toolbar",
-    "mc-portal-module-workspace",
-    "mc-portal-module-layout",
-    "mc-portal-module-primary",
-    "mc-portal-module-secondary",
-    "mc-portal-module-details"
+    "sirk-standalone-view-scroll",
+    "sirk-toolbar-host",
+    "sirk-layout-host",
+    "sirk-layout",
+    "sirk-column-primary",
+    "sirk-column-secondary",
+    "sirk-column-details"
 ].forEach(function (className) {
     assert(
         sharedPage.indexOf(className) >= 0 || moduleShell.indexOf(className) >= 0,
@@ -51,11 +51,11 @@ var standalone = read("public/portal/standalone/index.html");
     "--mc-ui-secondary-width: 236px",
     "--mc-ui-secondary-edit-width: 440px",
     "--mc-ui-collapsed-width: 56px",
-    ".mc-portal-nav-item",
-    ".mc-portal-nav-icon",
+    ".sirk-nav-item",
+    ".sirk-nav-icon",
     ".mc-portal-nav-label",
-    ".mc-portal-card",
-    ".mc-portal-button",
+    ".sirk-card",
+    ".sirk-button",
     ".mc-portal-table-wrap",
     ".mc-portal-table"
 ].forEach(function (value) {
@@ -78,10 +78,10 @@ var standalone = read("public/portal/standalone/index.html");
 });
 
 [
-    "mc-portal-view-surface",
+    "sirk-standalone-view-scroll",
     "mc-portal-view-scroll",
     "mc-portal-view-toolbar",
-    "mc-portal-button-secondary",
+    "sirk-button-secondary",
     "mc-portal-status",
     "mc-portal-list",
     "mc-portal-list-row",
@@ -133,10 +133,10 @@ assert(
 });
 
 [
-    "is-management-collapsed",
+    "is-collapsed",
     "is-management-edit-mode",
-    "sirk-management-workspace",
-    "mc-shared-primary",
+    "sirk-layout",
+    "sirk-column-primary",
     "color-mix"
 ].forEach(function (value) {
     assert(deviceCss.indexOf(value) < 0, "Device tabs CSS must not style another module: " + value);
@@ -151,11 +151,11 @@ assert(
     "Automation must use the canonical shared shell preset"
 );
 assert(
-    adminLayout.indexOf("mc-portal-module-shell") >= 0 &&
-    adminLayout.indexOf("mc-portal-module-layout") >= 0 &&
-    adminLayout.indexOf("mc-portal-module-primary") >= 0 &&
-    adminLayout.indexOf("mc-portal-module-secondary") >= 0 &&
-    adminLayout.indexOf("mc-portal-module-details") >= 0,
+    adminLayout.indexOf("sirk-standalone-view-scroll") >= 0 &&
+    adminLayout.indexOf("sirk-layout") >= 0 &&
+    adminLayout.indexOf("sirk-column-primary") >= 0 &&
+    adminLayout.indexOf("sirk-column-secondary") >= 0 &&
+    adminLayout.indexOf("sirk-column-details") >= 0,
     "Settings administration must use the same canonical shell and columns"
 );
 assert(

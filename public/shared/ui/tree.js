@@ -44,7 +44,7 @@
     function createButton(options) {
         var button = document.createElement("button");
         button.type = "button";
-        button.className = options.className || "mc-shared-nav-item";
+        button.className = options.className || "sirk-nav-item";
         button.classList.toggle("active", options.active === true);
 
         if (!appendIcon(button, options.node, options.iconClass)) {
@@ -114,7 +114,7 @@
         row.classList.toggle("active", text(options.selectedScript) === text(script.path));
 
         var button = createButton({
-            className: "mc-shared-nav-item mc-tree-script",
+            className: "sirk-nav-item mc-tree-script",
             node: script,
             title: script.label || script.name || script.path,
             fallbackIcon: script.icon || "▶",
@@ -212,7 +212,7 @@
 
             visibleRoots.forEach(function (root) {
                 rootsHost.appendChild(createButton({
-                    className: "mc-shared-nav-item mc-tree-root",
+                    className: "sirk-nav-item mc-tree-root",
                     node: root,
                     title: root.name,
                     fallbackIcon: root.icon || "▣",

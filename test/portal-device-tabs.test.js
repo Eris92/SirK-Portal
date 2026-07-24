@@ -42,10 +42,10 @@ assert(tabs.indexOf('tab.addEventListener("click"') < 0, "Tab actions must use t
 ].forEach(function (value) { assert(css.indexOf(value) >= 0, "Missing persistent workspace CSS: " + value); });
 assert(css.indexOf('#sirkPortalRoot [data-view="devices"]') < 0, "Device workspace CSS must not resize the sidebar navigation button");
 [
-    "is-management-collapsed",
+    "is-collapsed",
     "is-management-edit-mode",
-    "sirk-management-workspace",
-    "mc-shared-primary",
+    "sirk-layout",
+    "sirk-column-primary",
     "background:color-mix"
 ].forEach(function (value) { assert(css.indexOf(value) < 0, "Device tabs CSS must not style Management: " + value); });
 assert(management.indexOf('tools.toggleEdit(toolbar, module.api.render)') >= 0, "Automation must expose Edit through the shared module shell");

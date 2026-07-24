@@ -45,7 +45,7 @@
         host = host || document;
         var headings = host.querySelectorAll("#sirkPortalRoot .sirk-folder-heading");
         Array.prototype.forEach.call(headings, function (heading) {
-            var iconHost = heading.querySelector(".sirk-management-item-icon");
+            var iconHost = heading.querySelector(".sirk-nav-icon");
             if (!iconHost) return;
 
             // A real image from iconData always wins.

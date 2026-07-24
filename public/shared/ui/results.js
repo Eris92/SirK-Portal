@@ -258,7 +258,7 @@
                 var query = String(filter.value || "").trim().toLocaleLowerCase();
                 var rows = query ? sourceRows.filter(function (row) { return searchText(row, columns).indexOf(query) >= 0; }) : sourceRows;
                 if (!rows.length) {
-                    var empty = document.createElement("div"); empty.className = "mc-shared-card"; empty.appendChild(document.createElement("strong")).textContent = "No results";
+                    var empty = document.createElement("div"); empty.className = "sirk-card"; empty.appendChild(document.createElement("strong")).textContent = "No results";
                     var message = document.createElement("div"); message.className = "mc-shared-muted"; message.textContent = options.emptyText || "No results match the selected status or filter."; empty.appendChild(message); tableHost.appendChild(empty); return;
                 }
                 var wrapper = document.createElement("div"); wrapper.className = "mc-results-table-wrap";

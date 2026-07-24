@@ -242,7 +242,7 @@
                         }).then(function (result) {
                             state.editMode = false;
                             if (typeof onSaved === "function") onSaved(result);
-                        }).catch(function (error) { save.disabled = false; var note = document.createElement("div"); note.className = "mc-shared-error"; note.textContent = error.message || String(error); card.appendChild(note); });
+                        }).catch(function (error) { save.disabled = false; var note = document.createElement("div"); note.className = "sirk-error"; note.textContent = error.message || String(error); card.appendChild(note); });
                     };
                     cancel.onclick = function () { state.editMode = false; if (typeof onSaved === "function") onSaved(null); };
                     actions.appendChild(save); actions.appendChild(cancel); card.appendChild(actions); host.appendChild(card); label.focus();

@@ -375,7 +375,7 @@
                         if (typeof onSaved === "function") onSaved(results[0]);
                     }).catch(function (error) {
                         save.disabled = false;
-                        var note = element("div", "mc-shared-error", error.message || String(error));
+                        var note = element("div", "sirk-error", error.message || String(error));
                         card.appendChild(note);
                     });
                 };

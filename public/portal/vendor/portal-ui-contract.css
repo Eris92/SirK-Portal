@@ -1,58 +1,31 @@
-/* Canonical endpoint for the shared SIRK Portal visual contract.
-   This stylesheet is loaded last, so the outer view host owns the final frame. */
-#sirkPortalRoot .mc-portal-view-surface {
-    background: var(--sirk-panel, #fff);
-    color: var(--sirk-text, #172033);
+/* Final Portal surface rules. Shared content remains transparent. */
+#sirkPortalRoot .sirk-standalone-content.sirk-unified-content {
+    min-width: 0;
+    min-height: 0;
 }
 
-#sirkPortalRoot .mc-portal-card {
-    border: 1px solid var(--sirk-border, #dce3ec);
-    border-radius: 8px;
-    background: var(--sirk-panel, #fff);
-}
-
-#sirkPortalRoot .mc-portal-button {
-    font: inherit;
-    cursor: pointer;
-}
-
-/* One outer surface for every module view. */
 #sirkPortalRoot .sirk-standalone-content.sirk-unified-content > .sirk-portal-view-host {
-    flex: 1 1 auto !important;
-    width: 100% !important;
-    height: 100% !important;
-    min-width: 0 !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 1px solid var(--sirk-border, #dce3ec) !important;
-    border-radius: 10px !important;
-    background: var(--sirk-panel, #fff) !important;
-    overflow: hidden !important;
-    clip-path: inset(0 round 10px);
-    box-sizing: border-box !important;
-    isolation: isolate;
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+    box-sizing: border-box;
 }
 
-/* Inner renderers fill the shared host but never draw a second outer frame. */
-#sirkPortalRoot .sirk-portal-view-host > .mc-shared-page,
-#sirkPortalRoot .sirk-portal-view-host > .mc-portal-module-shell,
-#sirkPortalRoot .sirk-portal-view-host > .sirk-approval-shell,
-#sirkPortalRoot .sirk-portal-view-host > .sirk-platform-management-host,
-#sirkPortalRoot .sirk-portal-view-host > .sirk-platform-management-host > .sirk-management-shell {
-    width: 100% !important;
-    height: 100% !important;
-    min-width: 0 !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    background-clip: padding-box !important;
-}
-
-#sirkPortalRoot .sirk-portal-view-host > .sirk-platform-management-host {
-    padding: 0 !important;
-    overflow: hidden !important;
-    background: var(--sirk-panel, #fff) !important;
+#sirkPortalRoot .sirk-portal-view-host > .sirk-standalone-view-scroll {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
 }

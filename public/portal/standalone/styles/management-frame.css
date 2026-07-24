@@ -1,6 +1,6 @@
 /* Management owns the visible card. The Portal host must not draw a second frame. */
-#sirkPortalRoot .sirk-standalone-content.sirk-unified-content > .sirk-platform-management-host,
-#sirkPortalRoot .sirk-portal-view-management > .sirk-platform-management-host {
+#sirkPortalRoot .sirk-standalone-content.sirk-unified-content > .,
+#sirkPortalRoot .sirk-portal-view-management > . {
     padding: 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
@@ -10,9 +10,9 @@
 }
 
 /* One card surface with rounded and clipped corners on every side. */
-#sirkPortalRoot .sirk-portal-view-management > .sirk-platform-management-host > .sirk-management-shell,
-#sirkPortalRoot .sirk-platform-management-host > .sirk-management-shell,
-#sirkPortalRoot .sirk-platform-management-host .mc-portal-module-shell {
+#sirkPortalRoot .sirk-portal-view-management > . > .sirk-standalone-view-scroll,
+#sirkPortalRoot . > .sirk-standalone-view-scroll,
+#sirkPortalRoot . .sirk-standalone-view-scroll {
     width: 100% !important;
     height: 100% !important;
     min-width: 0 !important;
@@ -27,14 +27,14 @@
 }
 
 /* Keep the complete card class rounded, including toolbar and workspace edges. */
-#sirkPortalRoot .sirk-management-shell > :first-child,
-#sirkPortalRoot .sirk-platform-management-host .mc-portal-module-shell > :first-child {
+#sirkPortalRoot .sirk-standalone-view-scroll > :first-child,
+#sirkPortalRoot . .sirk-standalone-view-scroll > :first-child {
     border-top-left-radius: 9px;
     border-top-right-radius: 9px;
 }
 
-#sirkPortalRoot .sirk-management-shell > :last-child,
-#sirkPortalRoot .sirk-platform-management-host .mc-portal-module-shell > :last-child {
+#sirkPortalRoot .sirk-standalone-view-scroll > :last-child,
+#sirkPortalRoot . .sirk-standalone-view-scroll > :last-child {
     border-bottom-left-radius: 9px;
     border-bottom-right-radius: 9px;
 }

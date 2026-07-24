@@ -4,7 +4,7 @@
         mount: function (options) {
             options = options || {};
             var host = typeof options.container === "string" ? document.querySelector(options.container) : options.container;
-            var root = document.createElement("div"); root.className = "mc-shared-tabs";
+            var root = document.createElement("div"); root.className = "sirk-tabs";
             var state = { active: options.active || "" }, buttons = {};
             function select(key, notify) {
                 state.active = key;

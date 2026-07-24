@@ -10,17 +10,17 @@
     function addPortalClasses(scope) {
         if (!scope || !scope.querySelectorAll) return;
         Array.prototype.forEach.call(scope.querySelectorAll(
-            ".mc-shared-page,.sirk-management-shell,.mc-admin-management-shell"
+            ".sirk-standalone-view-scroll,.sirk-standalone-view-scroll,.mc-admin-management-shell"
         ), function (shell) {
-            shell.classList.add("mc-portal-module-shell");
+            shell.classList.add("sirk-standalone-view-scroll");
         });
         Array.prototype.forEach.call(scope.querySelectorAll(
-            ".sirk-management-workspace,.mc-admin-management-layout"
+            ".sirk-layout,.mc-admin-management-layout"
         ), function (layout) {
-            layout.classList.add("mc-portal-module-workspace", "mc-portal-module-layout");
-            if (layout.children[0]) layout.children[0].classList.add("mc-portal-module-primary");
-            if (layout.children[1]) layout.children[1].classList.add("mc-portal-module-secondary");
-            if (layout.children[2]) layout.children[2].classList.add("mc-portal-module-details");
+            layout.classList.add("sirk-layout-host", "sirk-layout");
+            if (layout.children[0]) layout.children[0].classList.add("sirk-column-primary");
+            if (layout.children[1]) layout.children[1].classList.add("sirk-column-secondary");
+            if (layout.children[2]) layout.children[2].classList.add("sirk-column-details");
         });
     }
 
