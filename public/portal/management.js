@@ -164,8 +164,8 @@
 
     function buildShell(host) {
         host.innerHTML = "";
-        host
-        var shell = el("div", "sirk-standalone-view-scroll sirk-standalone-view-scroll");
+
+        var shell = el("div", "sirk-standalone-view-scroll");
         var toolbar = el("div", "sirk-toolbar sirk-toolbar-host");
         toolbar.appendChild(toolButton("collapse", t("collapse"), icons.collapse));
         toolbar.appendChild(toolButton("favorites", t("favorites"), icons.star));
@@ -180,12 +180,12 @@
         toolbar.appendChild(search);
         toolbar.appendChild(el("span", "sirk-toolbar-status"));
 
-        var workspace = el("div", "sirk-layout sirk-layout-host sirk-layout");
-        var categories = el("aside", "sirk-column sirk-column sirk-column-primary");
+        var workspace = el("div", "sirk-layout sirk-layout-host");
+        var categories = el("aside", "sirk-column sirk-column-primary");
         categories.appendChild(el("div", "sirk-list"));
-        var scripts = el("aside", "sirk-column sirk-column sirk-column-secondary");
+        var scripts = el("aside", "sirk-column sirk-column-secondary");
         scripts.appendChild(el("div", "sirk-list"));
-        var details = el("div", "sirk-column sirk-column sirk-column-details");
+        var details = el("div", "sirk-column sirk-column-details");
         details.appendChild(el("div", "sirk-content"));
         workspace.appendChild(categories);
         workspace.appendChild(scripts);
@@ -332,7 +332,7 @@
             api: api,
             post: post,
             card: function (title, description) {
-                var card = el("div", "sirk-card sirk-card");
+                var card = el("div", "sirk-card");
                 card.appendChild(el("h3", "", title));
                 if (description) card.appendChild(el("p", "sirk-muted", description));
                 return card;
