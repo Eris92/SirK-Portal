@@ -1,5 +1,13 @@
 # AGENTS.md — router instrukcji SIRK-Portal
 
+## Polityka gałęzi
+
+- Domyślna i obowiązkowa gałąź robocza projektu to `develop`.
+- Każdą nową funkcję, poprawkę i branch funkcjonalny rozpoczynaj od `develop`, chyba że użytkownik jawnie poleci inaczej.
+- `main` jest wyłącznie kanałem Stable i nie służy do bezpośredniej pracy rozwojowej.
+- `beta` jest kanałem Beta i otrzymuje zmiany dopiero po testach na `develop`.
+- Kanały aktualizacji Portalu są stałe: `stable -> main`, `beta -> beta`, `dev -> develop`.
+
 ## Język
 
 - Komunikuj się z użytkownikiem po polsku.
@@ -9,7 +17,7 @@
 
 Każde zadanie rozpoczynaj od ograniczenia zakresu, a nie od skanowania repozytorium.
 
-1. Potwierdź root repozytorium, aktywny branch i bieżący status Git.
+1. Potwierdź root repozytorium, aktywny branch i bieżący status Git. Aktywnym punktem startowym ma być `develop`.
 2. Przeczytaj ten plik.
 3. Przeczytaj `docs/INDEX.md`.
 4. Otwórz tylko indeks warstwy związanej z zadaniem:
@@ -55,11 +63,12 @@ Dobieraj tylko moduły potrzebne dla bieżącego zadania:
 
 ## Kanoniczne nazwy i granice
 
-- repozytorium i techniczna nazwa pluginu: `SIRK-Portal`;
+- repozytorium: `SIRK-Portal`;
+- techniczny identyfikator pluginu: `SIRKPortal`;
 - nazwa produktu: `SIRK Management Platform`;
 - nazwa skrócona: `SIRK Platform`;
-- entrypoint: `SIRK-Portal.js`;
-- dane runtime: `meshcentral-data/sirk-platform-data`.
+- entrypoint: `SIRKPortal.js`;
+- dane runtime: `sirk-platform-data`.
 
 Nie utrzymuj aliasów, shimów, migracji ani fallbacków `MyCompany`. Nie czytaj starego repozytorium ani `mycompany-data`, chyba że użytkownik jawnie zleci niezależny audyt historyczny.
 
